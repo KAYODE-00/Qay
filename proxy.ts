@@ -22,6 +22,20 @@ const PUBLIC_API_EXACT = [
   '/ycode/api/revalidate', // Cache revalidation — has own secret token auth
 ];
 
+const BLOCKED_YCODE_PAGE_PREFIXES = [
+  '/ycode/welcome',
+  '/ycode/devtools',
+];
+
+const BLOCKED_YCODE_SETUP_API_PREFIXES = [
+  '/ycode/api/setup/connect',
+  '/ycode/api/setup/migrate',
+  '/ycode/api/setup/run-migrations',
+  '/ycode/api/setup/complete',
+  '/ycode/api/devtools/run-migrations',
+  '/ycode/api/devtools/reset-db',
+];
+
 /**
  * Derive the Supabase project URL and anon key from environment variables.
  * Returns null if env vars are not set (pre-setup or local dev without .env.local).
@@ -107,8 +121,50 @@ async function verifyApiAuth(request: NextRequest): Promise<NextResponse | null>
   return null;
 }
 
+async function getRequestUser(request: NextRequest): Promise<{ authenticated: boolean; response: NextResponse }> {
+  const config = getSupabaseEnvConfig();
+  let response = NextResponse.next({ request });
+
+  if (!config) {
+    return { authenticated: false, response };
+  }
+
+  const supabase = createServerClient(config.url, config.anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => {
+          request.cookies.set(name, value);
+        });
+        response = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options);
+        });
+      },
+    },
+  });
+
+  const { data: { user } } = await supabase.auth.getUser();
+  return { authenticated: Boolean(user), response };
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith('/ycode')) {
+    if (BLOCKED_YCODE_PAGE_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+
+    if (BLOCKED_YCODE_SETUP_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+      return NextResponse.json(
+        { error: 'Ycode setup is disabled in QAY' },
+        { status: 404 }
+      );
+    }
+  }
 
   // MCP endpoint uses its own token-based authentication — skip session auth.
   // Cloud overlay proxies MUST also exempt this path to avoid login redirects.
@@ -127,6 +183,21 @@ export async function proxy(request: NextRequest) {
       }
       return authResponse;
     }
+  }
+
+  if (
+    pathname.startsWith('/ycode')
+    && !pathname.startsWith('/ycode/api')
+    && !pathname.startsWith('/ycode/preview')
+    && !pathname.startsWith('/ycode/mcp/')
+  ) {
+    const { authenticated, response: authResponse } = await getRequestUser(request);
+    if (!authenticated) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    authResponse.headers.set('x-pathname', pathname);
+    return authResponse;
   }
 
   const isPublicPage = !pathname.startsWith('/ycode')

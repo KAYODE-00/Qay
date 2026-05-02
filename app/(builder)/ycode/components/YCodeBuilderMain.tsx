@@ -20,7 +20,6 @@
 
 // 1. React/Next.js
 import { useEffect, useState, useMemo, useRef, useCallback, Suspense, lazy } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 // 2. Internal components
@@ -84,12 +83,6 @@ import { cloneDeep } from 'lodash';
 
 // 5. Types
 import type { Layer, Asset } from '@/types';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Field } from '@/components/ui/field';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
-import { Alert, AlertTitle } from '@/components/ui/alert';
 
 interface YCodeBuilderProps {
   children?: React.ReactNode;
@@ -238,21 +231,25 @@ export default function YCodeBuilder({ children }: YCodeBuilderProps = {} as YCo
         const data = await response.json();
 
         if (!data.is_configured) {
-          // Redirect to setup wizard
-          router.push('/ycode/welcome');
+          router.replace('/login');
           return;
         }
 
         setSupabaseConfigured(true);
       } catch (err) {
         console.error('Failed to check Supabase config:', err);
-        // On error, redirect to setup to be safe
-        router.push('/ycode/welcome');
+        router.replace('/login');
       }
     };
 
     checkSupabaseConfig();
   }, [router]);
+
+  useEffect(() => {
+    if (authInitialized && !user) {
+      router.replace('/login');
+    }
+  }, [authInitialized, router, user]);
 
   // Sync viewportMode with activeBreakpoint in store
   useEffect(() => {
@@ -430,34 +427,6 @@ export default function YCodeBuilder({ children }: YCodeBuilderProps = {} as YCo
       document.body.classList.remove('overflow-hidden');
     };
   }, []);
-
-  // Login state (when not authenticated)
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  // Ensure dark mode is applied for login screen on client-side navigation
-  useEffect(() => {
-    if (!user) {
-      document.documentElement.classList.add('dark');
-    }
-  }, [user]);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoggingIn(true);
-    setLoginError(null);
-
-    const { signIn } = useAuthStore.getState();
-    const result = await signIn(loginEmail, loginPassword);
-
-    if (result.error) {
-      setLoginError(result.error);
-      setIsLoggingIn(false);
-    }
-    // If successful, user state will update and component will re-render with builder
-  };
 
   // Track initial data load completion
   const initialLoadRef = useRef(false);
@@ -1766,101 +1735,8 @@ export default function YCodeBuilder({ children }: YCodeBuilderProps = {} as YCo
     return <BuilderLoading message="Checking authentication..." />;
   }
 
-  // Show login form if not authenticated
   if (!user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-950 py-10">
-
-        <svg
-          className="size-5 fill-current absolute bottom-10"
-          viewBox="0 0 24 24"
-          version="1.1" xmlns="http://www.w3.org/2000/svg"
-        >
-          <g
-            id="Symbols" stroke="none"
-            strokeWidth="1" fill="none"
-            fillRule="evenodd"
-          >
-            <g id="Sidebar" transform="translate(-30.000000, -30.000000)">
-              <g id="Ycode">
-                <g transform="translate(30.000000, 30.000000)">
-                  <rect
-                    id="Rectangle" x="0"
-                    y="0" width="24"
-                    height="24"
-                  />
-                  <path
-                    id="CurrentFill" d="M11.4241533,0 L11.4241533,5.85877951 L6.024,8.978 L12.6155735,12.7868008 L10.951,13.749 L23.0465401,6.75101349 L23.0465401,12.6152717 L3.39516096,23.9856666 L3.3703726,24 L3.34318129,23.9827156 L0.96,22.4713365 L0.96,16.7616508 L3.36417551,18.1393242 L7.476,15.76 L0.96,11.9090099 L0.96,6.05375516 L11.4241533,0 Z"
-                    className="fill-current"
-                  />
-                </g>
-              </g>
-            </g>
-          </g>
-        </svg>
-
-        <div className="w-full max-w-sm animate-in fade-in slide-in-from-bottom-1 duration-700" style={{ animationFillMode: 'both' }}>
-
-          <form onSubmit={handleLogin} className="flex flex-col gap-6">
-
-            {loginError && (
-              <Alert variant="destructive">
-                <AlertTitle>{loginError}</AlertTitle>
-              </Alert>
-            )}
-
-            <Field>
-              <Label htmlFor="email">
-                Email
-              </Label>
-              <Input
-                type="email"
-                id="email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="you@example.com"
-                disabled={isLoggingIn}
-                required
-              />
-            </Field>
-
-            <Field>
-              <Label htmlFor="password">
-                Password
-              </Label>
-              <Input
-                type="password"
-                id="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="••••••••"
-                disabled={isLoggingIn}
-                autoComplete="current-password"
-                required
-              />
-            </Field>
-
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isLoggingIn}
-            >
-              {isLoggingIn ? <Spinner /> : 'Sign In'}
-            </Button>
-          </form>
-
-          <div className="mt-4 text-center">
-            <p className="text-xs text-white/50">
-              First time here?{' '}
-              <Link href="/ycode/welcome" className="text-white/80">
-                Complete setup
-              </Link>
-            </p>
-          </div>
-        </div>
-
-      </div>
-    );
+    return <BuilderLoading message="Redirecting to QAY login..." />;
   }
 
   // Check migrations first (BLOCKING) before showing builder
