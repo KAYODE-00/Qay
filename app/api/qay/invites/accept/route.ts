@@ -10,7 +10,7 @@ function getSupabaseProjectUrl(): string {
   }
 
   const connectionUrl = process.env.SUPABASE_CONNECTION_URL;
-  const projectRef = connectionUrl?.match(/postgresql:\/\/postgres\.([^:]+):/)?.[1];
+  const projectRef = connectionUrl?.match(/postgres\.([^:]+):/)?.[1];
   if (!projectRef) {
     throw new Error('Supabase URL is not configured');
   }
@@ -32,6 +32,11 @@ export async function POST(request: NextRequest) {
       {
         cookies: {
           getAll: () => cookieStore.getAll(),
+          setAll: (cookiesToSet) => {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
         },
       }
     );
