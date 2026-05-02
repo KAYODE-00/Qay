@@ -11,6 +11,8 @@ import { getAllAssets } from '@/lib/repositories/assetRepository';
 import { getAllAssetFolders } from '@/lib/repositories/assetFolderRepository';
 import { getAllFonts } from '@/lib/repositories/fontRepository';
 import { getMapboxAccessToken, getGoogleMapsEmbedApiKey } from '@/lib/map-server';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { filterAssetsForQaySite, filterAssetFoldersForQaySite } from '@/qay/lib/media-isolation';
 
 /**
  * GET /ycode/api/editor/init
@@ -31,6 +33,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json(
+        { error: 'Not authorized for QAY site' },
+        { status: 403 }
+      );
+    }
 
     // Load all data in parallel (only drafts for editor)
     const [pages, drafts, folders, components, styles, settings, collections, locales, assets, assetFolders, fonts, resolvedMapboxToken, resolvedGoogleMapsEmbedKey] = await Promise.all([
@@ -65,6 +74,12 @@ export async function GET(request: NextRequest) {
           return folderSettings?.qay_site_id === qaySiteId;
         })
       : folders;
+    const scopedAssets = qaySiteId
+      ? await filterAssetsForQaySite(qaySiteId, assets)
+      : assets;
+    const scopedAssetFolders = qaySiteId
+      ? await filterAssetFoldersForQaySite(qaySiteId, assetFolders)
+      : assetFolders;
 
     // Inject app-sourced tokens into settings so they're available via settingsByKey
     const enrichedSettings = [...settings];
@@ -94,8 +109,8 @@ export async function GET(request: NextRequest) {
         settings: enrichedSettings,
         collections,
         locales,
-        assets,
-        assetFolders,
+        assets: scopedAssets,
+        assetFolders: scopedAssetFolders,
         fonts,
       },
     });

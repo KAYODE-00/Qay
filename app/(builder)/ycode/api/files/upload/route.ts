@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { uploadFile } from '@/lib/file-upload';
 import { validateCategoryMimeType } from '@/lib/asset-utils';
 import { MAX_UPLOAD_FILE_SIZE } from '@/lib/asset-constants';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { linkAssetToQaySite } from '@/qay/lib/media-isolation';
 
 export const runtime = 'nodejs';
 
@@ -12,6 +14,13 @@ export const runtime = 'nodejs';
  */
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Not authorized for QAY site' }, { status: 403 });
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const customName = formData.get('name') as string | null;
@@ -48,6 +57,10 @@ export async function POST(request: NextRequest) {
 
     if (!asset) {
       return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 });
+    }
+
+    if (qaySiteId) {
+      await linkAssetToQaySite(qaySiteId, asset.id);
     }
 
     return NextResponse.json({ data: asset }, { status: 200 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllDraftPages } from '@/lib/repositories/pageRepository';
 import { getAllDraftLayers } from '@/lib/repositories/pageLayersRepository';
+import { canAccessQaySite } from '@/qay/lib/site-access';
 
 /**
  * GET /ycode/api/pages/drafts
@@ -10,6 +11,14 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json(
+        { error: 'Not authorized for QAY site' },
+        { status: 403 }
+      );
+    }
+
     const drafts = await getAllDraftLayers();
 
     if (qaySiteId) {

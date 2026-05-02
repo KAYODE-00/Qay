@@ -3,6 +3,8 @@ import { getAssetById, updateAsset, deleteAsset } from '@/lib/repositories/asset
 import { noCache } from '@/lib/api-response';
 import { cleanSvgContent, isValidSvg } from '@/lib/file-upload';
 import { cleanupAssetReferences } from '@/lib/asset-usage-utils';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { assetBelongsToQaySite } from '@/qay/lib/media-isolation';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -18,7 +20,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const { id } = await params;
+
+    if (qaySiteId && (!(await canAccessQaySite(qaySiteId)) || !(await assetBelongsToQaySite(qaySiteId, id)))) {
+      return noCache({ error: 'Asset not found' }, 404);
+    }
+
     const asset = await getAssetById(id);
 
     if (!asset) {
@@ -51,8 +60,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const { id } = await params;
     const body = await request.json();
+
+    if (qaySiteId && (!(await canAccessQaySite(qaySiteId)) || !(await assetBelongsToQaySite(qaySiteId, id)))) {
+      return noCache({ error: 'Asset not found' }, 404);
+    }
 
     // Check if asset exists
     const asset = await getAssetById(id);
@@ -137,7 +152,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const { id } = await params;
+
+    if (qaySiteId && (!(await canAccessQaySite(qaySiteId)) || !(await assetBelongsToQaySite(qaySiteId, id)))) {
+      return noCache({ error: 'Asset not found' }, 404);
+    }
 
     // Check if asset exists
     const asset = await getAssetById(id);

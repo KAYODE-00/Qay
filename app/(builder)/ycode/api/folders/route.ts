@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllPageFolders, createPageFolder } from '@/lib/repositories/pageFolderRepository';
 import { noCache } from '@/lib/api-response';
+import { canAccessQaySite } from '@/qay/lib/site-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return noCache({ error: 'Not authorized for QAY site' }, 403);
+    }
 
     // Only return draft folders for the builder
     const folders = await getAllPageFolders({ is_published: false });
@@ -47,6 +52,11 @@ export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return noCache({ error: 'Not authorized for QAY site' }, 403);
+    }
+
     const body = await request.json();
     const { name, slug, page_folder_id = null, depth = 0, order = 0, settings = {} } = body;
 

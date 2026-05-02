@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { getAllAssetFolders, createAssetFolder } from '@/lib/repositories/assetFolderRepository';
 import { noCache } from '@/lib/api-response';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { filterAssetFoldersForQaySite, linkAssetFolderToQaySite } from '@/qay/lib/media-isolation';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -11,12 +13,22 @@ export const revalidate = 0;
  *
  * Get all asset folders
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return noCache({ error: 'Not authorized for QAY site' }, 403);
+    }
+
     const folders = await getAllAssetFolders();
+    const scopedFolders = qaySiteId
+      ? await filterAssetFoldersForQaySite(qaySiteId, folders)
+      : folders;
 
     return noCache({
-      data: folders,
+      data: scopedFolders,
     });
   } catch (error) {
     console.error('[GET /ycode/api/asset-folders] Error:', error);
@@ -35,6 +47,13 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return noCache({ error: 'Not authorized for QAY site' }, 403);
+    }
+
     const body = await request.json();
     const { name, asset_folder_id = null, depth = 0, order = 0 } = body;
 
@@ -59,6 +78,10 @@ export async function POST(request: NextRequest) {
       order,
       is_published: false,
     });
+
+    if (qaySiteId) {
+      await linkAssetFolderToQaySite(qaySiteId, folder.id);
+    }
 
     return noCache({
       data: folder,

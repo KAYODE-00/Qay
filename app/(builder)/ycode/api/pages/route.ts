@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { getAllPages, createPage } from '@/lib/repositories/pageRepository';
 import { upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { noCache } from '@/lib/api-response';
+import { canAccessQaySite } from '@/qay/lib/site-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -24,6 +25,11 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return noCache({ error: 'Not authorized for QAY site' }, 403);
+    }
+
     const filters: Record<string, any> = {};
 
     // Default to draft pages if no is_published filter specified
@@ -78,6 +84,11 @@ export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return noCache({ error: 'Not authorized for QAY site' }, 403);
+    }
+
     const body = await request.json();
 
     const {

@@ -841,7 +841,7 @@ async function uploadViaPresignedUrl(
   assetFolderId?: string | null
 ): Promise<Asset | null> {
   // 1. Get presigned upload URL from server
-  const presignResponse = await fetch('/ycode/api/files/presign', {
+  const presignResponse = await fetch(appendQaySiteParam('/ycode/api/files/presign'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -871,7 +871,7 @@ async function uploadViaPresignedUrl(
   }
 
   // 3. Register the asset record in the database
-  const registerResponse = await fetch('/ycode/api/files/register', {
+  const registerResponse = await fetch(appendQaySiteParam('/ycode/api/files/register'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -930,7 +930,7 @@ export async function uploadFileApi(
       formData.append('asset_folder_id', assetFolderId);
     }
 
-    const response = await fetch('/ycode/api/files/upload', {
+    const response = await fetch(appendQaySiteParam('/ycode/api/files/upload'), {
       method: 'POST',
       body: formData,
     });

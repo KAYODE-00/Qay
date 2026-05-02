@@ -63,6 +63,22 @@ const initialState: AssetsState = {
 // Track in-flight asset fetches to prevent duplicate requests
 const pendingFetches = new Set<string>();
 
+function withCurrentQaySite(endpoint: string): string {
+  if (typeof window === 'undefined') {
+    return endpoint;
+  }
+
+  const siteId = new URLSearchParams(window.location.search).get('site');
+  if (!siteId) {
+    return endpoint;
+  }
+
+  const [path, query = ''] = endpoint.split('?');
+  const params = new URLSearchParams(query);
+  params.set('site', siteId);
+  return `${path}?${params.toString()}`;
+}
+
 export const useAssetsStore = create<AssetsStore>((set, get) => ({
   ...initialState,
 
@@ -103,7 +119,7 @@ export const useAssetsStore = create<AssetsStore>((set, get) => ({
 
     try {
       // Only load folders initially - assets are loaded on-demand
-      const foldersResponse = await fetch('/ycode/api/asset-folders');
+      const foldersResponse = await fetch(withCurrentQaySite('/ycode/api/asset-folders'));
       
       if (!foldersResponse.ok) {
         throw new Error('Failed to fetch folders');
@@ -148,7 +164,7 @@ export const useAssetsStore = create<AssetsStore>((set, get) => ({
     queryParams.set('page', page.toString());
     queryParams.set('limit', limit.toString());
     
-    const response = await fetch(`/ycode/api/assets?${queryParams.toString()}`);
+    const response = await fetch(withCurrentQaySite(`/ycode/api/assets?${queryParams.toString()}`));
     
     if (!response.ok) {
       throw new Error('Failed to fetch assets');
@@ -223,7 +239,7 @@ export const useAssetsStore = create<AssetsStore>((set, get) => ({
     // assets that don't exist (negative cache).
     pendingFetches.add(id);
     
-    fetch(`/ycode/api/assets/${id}`)
+    fetch(withCurrentQaySite(`/ycode/api/assets/${id}`))
       .then(res => res.ok ? res.json() : null)
       .then(result => {
         if (result?.data) {
@@ -333,7 +349,7 @@ export const useAssetsStore = create<AssetsStore>((set, get) => ({
     const allFolderIdsToDelete = [folderId, ...descendantIds];
 
     // Call API to delete folder (backend handles cascading deletion)
-    const response = await fetch(`/ycode/api/asset-folders/${folderId}`, {
+    const response = await fetch(withCurrentQaySite(`/ycode/api/asset-folders/${folderId}`), {
       method: 'DELETE',
     });
 
@@ -396,7 +412,7 @@ export const useAssetsStore = create<AssetsStore>((set, get) => ({
           originalFolder.order !== folder.order ||
           originalFolder.depth !== folder.depth
         ) {
-          const response = await fetch(`/ycode/api/asset-folders/${folder.id}`, {
+          const response = await fetch(withCurrentQaySite(`/ycode/api/asset-folders/${folder.id}`), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

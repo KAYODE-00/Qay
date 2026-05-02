@@ -475,6 +475,12 @@ export default function YCodeBuilder({ children }: YCodeBuilderProps = {} as YCo
           if (response.error) {
             console.error('[Editor] Error loading initial data:', response.error);
 
+            if (response.error === 'Not authorized for QAY site') {
+              toast.error('You do not have access to that QAY site');
+              router.replace('/dashboard');
+              return;
+            }
+
             if (response.error === 'Not authenticated') {
               toast.error('You have been disconnected, please log in again');
               useAuthStore.getState().signOut();

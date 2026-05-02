@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { validateCategoryMimeType } from '@/lib/asset-utils';
 import { STORAGE_BUCKET, MAX_UPLOAD_FILE_SIZE, generateStoragePath } from '@/lib/asset-constants';
+import { canAccessQaySite } from '@/qay/lib/site-access';
 
 export const runtime = 'nodejs';
 
@@ -12,6 +13,13 @@ export const runtime = 'nodejs';
  */
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Not authorized for QAY site' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { filename, mimeType, fileSize, category } = body as {
       filename: string;

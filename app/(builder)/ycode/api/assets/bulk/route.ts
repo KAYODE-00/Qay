@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { bulkDeleteAssets, bulkUpdateAssets } from '@/lib/repositories/assetRepository';
 import { noCache } from '@/lib/api-response';
 import { cleanupAssetReferences, AffectedPageEntity, AffectedComponentEntity } from '@/lib/asset-usage-utils';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { assetBelongsToQaySite, assetFolderBelongsToQaySite } from '@/qay/lib/media-isolation';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -18,6 +20,8 @@ export const revalidate = 0;
  */
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const body = await request.json();
     const { action, ids, asset_folder_id } = body;
 
@@ -26,6 +30,20 @@ export async function POST(request: NextRequest) {
         { error: 'Action and ids array are required' },
         400
       );
+    }
+
+    if (qaySiteId) {
+      if (!(await canAccessQaySite(qaySiteId))) {
+        return noCache({ error: 'Not authorized for QAY site' }, 403);
+      }
+
+      const allowedFlags = await Promise.all(
+        ids.map((id: string) => assetBelongsToQaySite(qaySiteId, id))
+      );
+
+      if (allowedFlags.some((allowed) => !allowed)) {
+        return noCache({ error: 'Asset not found' }, 404);
+      }
     }
 
     if (action === 'delete') {
@@ -67,6 +85,10 @@ export async function POST(request: NextRequest) {
           { error: 'asset_folder_id is required for move action' },
           400
         );
+      }
+
+      if (qaySiteId && asset_folder_id && !(await assetFolderBelongsToQaySite(qaySiteId, asset_folder_id))) {
+        return noCache({ error: 'Asset folder not found' }, 404);
       }
 
       const result = await bulkUpdateAssets(ids, { asset_folder_id });

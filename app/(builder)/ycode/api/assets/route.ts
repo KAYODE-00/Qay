@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllAssets, getAssetsPaginated, createAsset } from '@/lib/repositories/assetRepository';
 import { uploadFile, cleanSvgContent, isValidSvg } from '@/lib/file-upload';
 import { noCache } from '@/lib/api-response';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { filterAssetsForQaySite, linkAssetToQaySite } from '@/qay/lib/media-isolation';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -21,6 +23,7 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const folderIdParam = searchParams.get('folderId');
     const folderIdsParam = searchParams.get('folderIds');
     const search = searchParams.get('search') || undefined;
@@ -36,6 +39,37 @@ export async function GET(request: NextRequest) {
       folderIds = folderIdsParam.split(',').map(id => id.trim());
     } else if (folderIdParam !== null) {
       folderId = folderIdParam === 'null' ? null : folderIdParam;
+    }
+
+    if (qaySiteId) {
+      if (!(await canAccessQaySite(qaySiteId))) {
+        return noCache({ error: 'Not authorized for QAY site' }, 403);
+      }
+
+      const allAssets = await filterAssetsForQaySite(qaySiteId, await getAllAssets());
+      const searchedAssets = search?.trim()
+        ? allAssets.filter((asset) => asset.filename.toLowerCase().includes(search.trim().toLowerCase()))
+        : allAssets;
+      const folderFilteredAssets = searchedAssets.filter((asset) => {
+        if (folderIds && folderIds.length > 0) {
+          const normalizedFolderId = asset.asset_folder_id ?? 'root';
+          return folderIds.includes(normalizedFolderId);
+        }
+        if (folderId === undefined) {
+          return true;
+        }
+        return folderId === null ? asset.asset_folder_id == null : asset.asset_folder_id === folderId;
+      });
+      const offset = (page - 1) * limit;
+      const paginatedAssets = folderFilteredAssets.slice(offset, offset + limit);
+
+      return noCache({
+        data: paginatedAssets,
+        total: folderFilteredAssets.length,
+        page,
+        limit,
+        hasMore: offset + limit < folderFilteredAssets.length,
+      });
     }
 
     const result = await getAssetsPaginated({
@@ -72,6 +106,13 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return noCache({ error: 'Not authorized for QAY site' }, 403);
+    }
+
     const contentType = request.headers.get('content-type');
 
     // Handle JSON request for SVG creation
@@ -109,6 +150,10 @@ export async function POST(request: NextRequest) {
         content: cleanedContent,
       });
 
+      if (qaySiteId) {
+        await linkAssetToQaySite(qaySiteId, asset.id);
+      }
+
       return noCache({
         data: asset,
       });
@@ -118,6 +163,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const source = formData.get('source') as string | null;
+    const assetFolderId = formData.get('asset_folder_id') as string | null;
 
     if (!file) {
       return noCache(
@@ -135,13 +181,17 @@ export async function POST(request: NextRequest) {
 
     // Upload file to Supabase Storage and create asset record
     // This automatically extracts dimensions for images
-    const asset = await uploadFile(file, source);
+    const asset = await uploadFile(file, source, undefined, assetFolderId || undefined);
 
     if (!asset) {
       return noCache(
         { error: 'Failed to upload asset' },
         500
       );
+    }
+
+    if (qaySiteId) {
+      await linkAssetToQaySite(qaySiteId, asset.id);
     }
 
     return noCache({

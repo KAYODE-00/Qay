@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { createAsset } from '@/lib/repositories/assetRepository';
 import { STORAGE_BUCKET, getDisplayName } from '@/lib/asset-constants';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { linkAssetToQaySite } from '@/qay/lib/media-isolation';
 
 export const runtime = 'nodejs';
 
@@ -12,6 +14,13 @@ export const runtime = 'nodejs';
  */
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Not authorized for QAY site' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { storagePath, filename, mimeType, fileSize, source, customName, assetFolderId } = body as {
       storagePath: string;
@@ -49,6 +58,10 @@ export async function POST(request: NextRequest) {
       source,
       asset_folder_id: assetFolderId,
     });
+
+    if (qaySiteId) {
+      await linkAssetToQaySite(qaySiteId, asset.id);
+    }
 
     return NextResponse.json({ data: asset }, { status: 200 });
   } catch (error) {
