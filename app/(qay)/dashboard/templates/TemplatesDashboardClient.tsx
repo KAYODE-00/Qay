@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Code2, ExternalLink, LayoutTemplate, Plus } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
+import { htmlToLayers } from '@/lib/html-layer-converter';
 import { QayLogo } from '@/qay/components/QayLogo';
 import type { QaySite } from '@/qay/types';
 
@@ -167,18 +168,41 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
     }
   }
 
-  function handleImportHtml(html: string) {
+  async function handleImportHtml(html: string) {
     if (!selectedSite) {
       setNotice('Create or select a site before importing HTML.');
       setIsCreateOpen(true);
       return;
     }
 
-    window.localStorage.setItem(
-      `qay:pending-html-import:${selectedSite.id}`,
-      JSON.stringify({ html, createdAt: new Date().toISOString() })
-    );
-    setNotice(`HTML is saved for ${selectedSite.name}. Open the editor and import it into the layer you choose.`);
+    setIsApplying(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const layers = htmlToLayers(html);
+
+      if (layers.length === 0) {
+        throw new Error('No valid HTML elements found');
+      }
+
+      const response = await fetch(`/api/qay/sites/${selectedSite.id}/import-html`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layers }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to import HTML');
+      }
+
+      router.push(`/dashboard/sites/${selectedSite.id}/editor`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import HTML');
+    } finally {
+      setIsApplying(false);
+    }
   }
 
   return (
