@@ -11,6 +11,26 @@ import type { CollectionUsageResult, CollectionFieldUsageResult } from '@/lib/co
 // All API routes are now relative (Next.js API routes)
 const API_BASE = '';
 
+function appendQaySiteParam(endpoint: string): string {
+  if (typeof window === 'undefined' || !endpoint.startsWith('/ycode/api/')) {
+    return endpoint;
+  }
+
+  const siteId = new URLSearchParams(window.location.search).get('site');
+  if (!siteId) {
+    return endpoint;
+  }
+
+  const [path, query = ''] = endpoint.split('?');
+  const params = new URLSearchParams(query);
+  if (!params.has('site')) {
+    params.set('site', siteId);
+  }
+
+  const nextQuery = params.toString();
+  return nextQuery ? `${path}?${nextQuery}` : path;
+}
+
 // Get Supabase auth token
 async function getAuthToken(): Promise<string | null> {
   // TODO: Get from Supabase client when implemented
@@ -23,8 +43,9 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   const token = await getAuthToken();
+  const scopedEndpoint = appendQaySiteParam(endpoint);
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const response = await fetch(`${API_BASE}${scopedEndpoint}`, {
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),

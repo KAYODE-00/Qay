@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
   try {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const filters: Record<string, any> = {};
 
     // Default to draft pages if no is_published filter specified
@@ -46,9 +47,15 @@ export async function GET(request: NextRequest) {
     }
 
     const pages = await getAllPages(filters);
+    const scopedPages = qaySiteId
+      ? pages.filter((page) => {
+          const settings = page.settings as Record<string, unknown> | null;
+          return settings?.qay_site_id === qaySiteId;
+        })
+      : pages;
 
     return noCache({
-      data: pages,
+      data: scopedPages,
     });
   } catch (error) {
     console.error('[GET /ycode/api/pages] Error:', error);
@@ -69,6 +76,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const body = await request.json();
 
     const {
@@ -134,6 +143,10 @@ export async function POST(request: NextRequest) {
     const { incrementSiblingOrders } = await import('@/lib/services/pageService');
     await incrementSiblingOrders(order, depth, normalizedPageFolderId);
 
+    const scopedSettings = qaySiteId
+      ? { ...settings, qay_site_id: qaySiteId }
+      : settings;
+
     // Create page
     const page = await createPage({
       name,
@@ -145,7 +158,7 @@ export async function POST(request: NextRequest) {
       is_index,
       is_dynamic,
       error_page,
-      settings,
+      settings: scopedSettings,
     });
 
     // Create initial draft with Body container

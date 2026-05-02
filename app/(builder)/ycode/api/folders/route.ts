@@ -11,13 +11,22 @@ export const revalidate = 0;
  *
  * Get all draft folders (for the builder)
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
+
     // Only return draft folders for the builder
     const folders = await getAllPageFolders({ is_published: false });
+    const scopedFolders = qaySiteId
+      ? folders.filter((folder) => {
+          const settings = folder.settings as Record<string, unknown> | null;
+          return settings?.qay_site_id === qaySiteId;
+        })
+      : folders;
 
     return noCache({
-      data: folders,
+      data: scopedFolders,
     });
   } catch (error) {
     console.error('[GET /ycode/api/folders] Error:', error);
@@ -36,6 +45,8 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const body = await request.json();
     const { name, slug, page_folder_id = null, depth = 0, order = 0, settings = {} } = body;
 
@@ -56,6 +67,10 @@ export async function POST(request: NextRequest) {
     const { incrementSiblingOrders } = await import('@/lib/services/pageService');
     await incrementSiblingOrders(order, depth, sanitizedParentFolderId);
 
+    const scopedSettings = qaySiteId
+      ? { ...settings, qay_site_id: qaySiteId }
+      : settings;
+
     // Create folder (use sanitized parent folder ID)
     const folder = await createPageFolder({
       name,
@@ -63,7 +78,7 @@ export async function POST(request: NextRequest) {
       page_folder_id: sanitizedParentFolderId,
       depth,
       order,
-      settings,
+      settings: scopedSettings,
       is_published: false,
     });
 
