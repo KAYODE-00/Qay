@@ -6,7 +6,6 @@ import type { NextRequest } from 'next/server';
  * Public API routes that skip authentication.
  */
 const PUBLIC_API_PREFIXES = [
-  '/ycode/api/setup/',    // Setup wizard — needed before any user exists
   '/ycode/api/supabase/', // Supabase config — needed for browser client init
   '/ycode/api/auth/',     // Auth callbacks and session checks
   '/ycode/api/v1/',       // Public API — has own API key auth
@@ -20,6 +19,8 @@ const PUBLIC_COLLECTION_ITEM_SUFFIXES = ['/items/filter', '/items/load-more'];
 
 const PUBLIC_API_EXACT = [
   '/ycode/api/revalidate', // Cache revalidation — has own secret token auth
+  '/ycode/api/setup/status',
+  '/ycode/api/setup/check-email-confirm',
 ];
 
 const BLOCKED_YCODE_PAGE_PREFIXES = [
@@ -29,7 +30,6 @@ const BLOCKED_YCODE_PAGE_PREFIXES = [
 
 const BLOCKED_YCODE_SETUP_API_PREFIXES = [
   '/ycode/api/setup/connect',
-  '/ycode/api/setup/migrate',
   '/ycode/api/setup/run-migrations',
   '/ycode/api/setup/complete',
   '/ycode/api/devtools/run-migrations',
