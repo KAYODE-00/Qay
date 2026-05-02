@@ -357,15 +357,38 @@ export default function LeftSidebarPages({
       settings: data.settings,
     };
 
+    let pageIdToUpdate = editingPage.id;
+
+    if (editingPage.id.startsWith('temp-page-')) {
+      const realPage = pages.find(page =>
+        !page.id.startsWith('temp-page-') &&
+        page.name === editingPage.name &&
+        page.page_folder_id === editingPage.page_folder_id &&
+        page.depth === editingPage.depth &&
+        page.order === editingPage.order
+      );
+
+      if (!realPage) {
+        console.warn('Page is still being created. Please save again in a moment.');
+        return;
+      }
+
+      pageIdToUpdate = realPage.id;
+      setSelectedItemId(realPage.id);
+      selectedItemIdRef.current = realPage.id;
+      setEditingPage(realPage);
+    }
+
     // Update in background
-    const result = await updatePage(editingPage.id, pageUpdates);
+    // const result = await updatePage(editingPage.id, pageUpdates);
+    const result = await updatePage(pageIdToUpdate, pageUpdates);
 
     if (result.error) {
       console.error('Failed to save page:', result.error);
     } else {
       // Broadcast page update to other collaborators
       if (livePageUpdates) {
-        livePageUpdates.broadcastPageUpdate(editingPage.id, pageUpdates);
+        livePageUpdates.broadcastPageUpdate(pageIdToUpdate, pageUpdates);
       }
       setShowPageSettings(false);
       setEditingPage(null);
