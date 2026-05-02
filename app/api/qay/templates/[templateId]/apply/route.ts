@@ -100,7 +100,9 @@ export async function POST(
     return NextResponse.json({ error: 'Site not found' }, { status: 404 });
   }
 
-  const result = await applyTemplate(templateId, siteId);
+  // QAY site ids are not Ycode cloud tenant ids. Passing siteId as tenantId makes
+  // the template service generate tenant_id SQL for tables that do not have it.
+  const result = await applyTemplate(templateId);
 
   if (!result.success) {
     return NextResponse.json(
