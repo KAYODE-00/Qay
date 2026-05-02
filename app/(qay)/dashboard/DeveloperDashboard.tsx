@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, ExternalLink, Grid2X2, List, MoreVertical, Plus, Settings, Trash2, UserPlus } from 'lucide-react';
+import { Bell, ExternalLink, Grid2X2, LayoutTemplate, List, MoreVertical, Plus, Settings, Trash2, UserPlus } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import type { QaySite } from '@/qay/types';
 
@@ -107,6 +107,13 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
           <QayLogo />
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/templates"
+              className="hidden h-10 items-center gap-2 rounded-md border border-white/10 px-4 text-sm text-white/75 transition hover:bg-white/5 hover:text-white sm:inline-flex"
+            >
+              <LayoutTemplate className="size-4" />
+              Templates
+            </Link>
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
