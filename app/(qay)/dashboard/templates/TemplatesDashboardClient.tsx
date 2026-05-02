@@ -153,7 +153,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
       setSiteSlug('');
 
       if (selectedTemplate) {
-        await applyTemplate(selectedTemplate, site.id, '/dashboard');
+        await applyTemplate(selectedTemplate, site.id, `/dashboard/sites/${site.id}/editor`);
       } else {
         window.location.assign(`/dashboard/sites/${site.id}/editor`);
       }
