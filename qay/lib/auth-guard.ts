@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import type { User } from '@supabase/supabase-js';
 import { getQayAdmin } from './supabase-admin';
 
 type QayProfileRole = {
@@ -32,17 +33,30 @@ function getAnonKey() {
   return anonKey;
 }
 
-export async function requireQayAuth() {
+export async function getQayServerClient() {
   const cookieStore = await cookies();
-  const supabase = createServerClient(getProjectUrl(), getAnonKey(), {
+  return createServerClient(getProjectUrl(), getAnonKey(), {
     cookies: {
       getAll: () => cookieStore.getAll(),
     },
   });
+}
+
+export async function getQayAuthUser(): Promise<User | null> {
+  const supabase = await getQayServerClient();
 
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
+
+  if (error || !user) return null;
+
+  return user;
+}
+
+export async function requireQayAuth() {
+  const user = await getQayAuthUser();
 
   if (!user) redirect('/login');
 
