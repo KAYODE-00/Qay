@@ -92,7 +92,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
     return [{ id: 'all', name: 'All' }, ...known, ...rest];
   }, [categories]);
 
-  async function applyTemplate(template: Template, siteId: string) {
+  async function applyTemplate(template: Template, siteId: string, redirectTo = `/dashboard/sites/${siteId}/editor`) {
     setIsApplying(true);
     setError(null);
     setNotice(null);
@@ -109,7 +109,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
         throw new Error(payload.error || 'Failed to apply template');
       }
 
-      window.location.assign(`/dashboard/sites/${siteId}/editor`);
+      window.location.assign(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply template');
     } finally {
@@ -121,15 +121,11 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
   function handleUseTemplate(template: Template) {
     setNotice(null);
     setError(null);
-
-    if (!selectedSiteId) {
-      setSelectedTemplate(template);
-      setIsCreateOpen(true);
-      setNotice('Create a site first, then QAY will apply this template to it.');
-      return;
-    }
-
     setSelectedTemplate(template);
+    setSiteName(template.name);
+    setSiteSlug(`${makeSlug(template.name)}-${Date.now().toString(36).slice(-5)}`);
+    setIsCreateOpen(true);
+    setNotice('Create a new project from this template. It will appear in your dashboard.');
   }
 
   async function createSite(event: FormEvent<HTMLFormElement>) {
@@ -157,7 +153,9 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
       setSiteSlug('');
 
       if (selectedTemplate) {
-        await applyTemplate(selectedTemplate, site.id);
+        await applyTemplate(selectedTemplate, site.id, '/dashboard');
+      } else {
+        window.location.assign(`/dashboard/sites/${site.id}/editor`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create site');
@@ -231,7 +229,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
           <div>
             <h1 className="text-3xl font-semibold tracking-normal">Templates</h1>
             <p className="mt-2 max-w-2xl text-sm text-white/55">
-              Start a QAY site from a template or keep HTML ready for import into the editor.
+              Clone a template into a new QAY project or import HTML into an existing site.
             </p>
           </div>
 
@@ -340,7 +338,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
                     disabled={isApplying}
                     className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Use this
+                    Create project
                   </button>
                 </div>
               </article>
@@ -349,48 +347,25 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
         )}
       </section>
 
-      {selectedTemplate && !isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#101010] p-6 shadow-2xl">
-            <h2 className="text-xl font-semibold tracking-normal">Apply {selectedTemplate.name}</h2>
-            <p className="mt-2 text-sm text-white/55">
-              This will apply the template to {selectedSite?.name ?? 'the selected site'} and open its editor.
-            </p>
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedTemplate(null)}
-                disabled={isApplying}
-                className="h-10 rounded-md border border-white/10 text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => selectedSiteId && applyTemplate(selectedTemplate, selectedSiteId)}
-                disabled={isApplying || !selectedSiteId}
-                className="h-10 rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isApplying ? 'Applying...' : 'Apply'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <form onSubmit={createSite} className="w-full max-w-md rounded-lg border border-white/10 bg-[#101010] p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold tracking-normal">Create site</h2>
+                <h2 className="text-xl font-semibold tracking-normal">
+                  {selectedTemplate ? 'Create project from template' : 'Create site'}
+                </h2>
                 <p className="mt-1 text-sm text-white/55">
-                  {selectedTemplate ? `QAY will apply ${selectedTemplate.name} after creation.` : 'Create a site for templates or HTML imports.'}
+                  {selectedTemplate ? `QAY will clone ${selectedTemplate.name} into a new dashboard project.` : 'Create a site for HTML imports.'}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsCreateOpen(false)}
+                onClick={() => {
+                  setIsCreateOpen(false);
+                  setSelectedTemplate(null);
+                  setNotice(null);
+                }}
                 className="rounded-md px-2 py-1 text-sm text-white/50 hover:bg-white/5 hover:text-white"
               >
                 Close
@@ -424,7 +399,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
                 disabled={isApplying}
                 className="h-11 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isApplying ? 'Creating...' : selectedTemplate ? 'Create and apply' : 'Create site'}
+                {isApplying ? 'Creating...' : selectedTemplate ? 'Create project' : 'Create site'}
               </button>
             </div>
           </form>
