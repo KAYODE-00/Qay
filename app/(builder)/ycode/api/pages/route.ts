@@ -3,6 +3,7 @@ import { getAllPages, createPage } from '@/lib/repositories/pageRepository';
 import { upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { noCache } from '@/lib/api-response';
 import { canAccessQaySite } from '@/qay/lib/site-access';
+import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,10 @@ export async function GET(request: NextRequest) {
 
     if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
       return noCache({ error: 'Not authorized for QAY site' }, 403);
+    }
+
+    if (qaySiteId) {
+      await ensureQayPageSiteUniqueness();
     }
 
     const filters: Record<string, any> = {};
@@ -90,6 +95,10 @@ export async function POST(request: NextRequest) {
 
     if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
       return noCache({ error: 'Not authorized for QAY site' }, 403);
+    }
+
+    if (qaySiteId) {
+      await ensureQayPageSiteUniqueness();
     }
 
     const body = await request.json();

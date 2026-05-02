@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { getPageById, updatePage, deletePage } from '@/lib/repositories/pageRepository';
 import { deleteTranslationsInBulk } from '@/lib/repositories/translationRepository';
 import { noCache } from '@/lib/api-response';
+import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -51,6 +52,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const { id } = await params;
     const body = await request.json();
 
@@ -62,6 +65,12 @@ export async function PUT(
         { error: 'Page not found' },
         404
       );
+    }
+
+    const currentSettings = currentPage.settings as Record<string, unknown> | null;
+    const bodySettings = body.settings as Record<string, unknown> | undefined;
+    if (qaySiteId || currentSettings?.qay_site_id || bodySettings?.qay_site_id) {
+      await ensureQayPageSiteUniqueness();
     }
 
     // Determine if the page is/will be an error page, index page, or dynamic page

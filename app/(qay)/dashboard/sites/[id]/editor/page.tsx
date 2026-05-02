@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { requireQayAuth } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -38,6 +39,8 @@ export default async function QaySiteEditorGatePage({ params }: PageProps) {
   if (!ownedSite && !membership) {
     notFound();
   }
+
+  await ensureQayPageSiteUniqueness();
 
   const { data: existingPage, error: existingPageError } = await supabase
     .from('pages')

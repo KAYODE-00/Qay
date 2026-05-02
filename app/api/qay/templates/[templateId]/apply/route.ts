@@ -3,6 +3,7 @@ import { applyTemplate } from '@/lib/services/templateService';
 import { getKnexClient, closeKnexClient } from '@/lib/knex-client';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -109,6 +110,8 @@ export async function POST(
   if (!site) {
     return NextResponse.json({ error: 'Site not found' }, { status: 404 });
   }
+
+  await ensureQayPageSiteUniqueness();
 
   // QAY site ids are not Ycode cloud tenant ids. Passing siteId as tenantId makes
   // the template service generate tenant_id SQL for tables that do not have it.
