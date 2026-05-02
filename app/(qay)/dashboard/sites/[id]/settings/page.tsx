@@ -61,7 +61,7 @@ export default async function SiteSettingsPage({ params }: PageProps) {
           </dl>
 
           <Link
-            href={`/ycode?site=${site.id}`}
+            href={`/dashboard/sites/${site.id}/editor`}
             className="mt-8 inline-flex h-10 items-center rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90"
           >
             Open editor

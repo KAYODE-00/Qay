@@ -50,7 +50,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
   }, [userEmail]);
 
   function openEditor(siteId: string) {
-    router.push(`/ycode?site=${siteId}`);
+    router.push(`/dashboard/sites/${siteId}/editor`);
   }
 
   async function createSite(event: FormEvent<HTMLFormElement>) {
@@ -71,7 +71,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
         return;
       }
 
-      router.push(`/ycode?site=${payload.data.id}`);
+      router.push(`/dashboard/sites/${payload.data.id}/editor`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create site');
     } finally {
