@@ -92,6 +92,12 @@ export default function HeaderBar({
   type NavButton = 'design' | 'cms' | 'forms';
   const [optimisticNav, setOptimisticNav] = useState<NavButton | null>(null);
 
+  const withCurrentSite = (path: string) => {
+    if (typeof window === 'undefined') return path;
+    const siteId = new URLSearchParams(window.location.search).get('site');
+    return siteId ? `${path}?site=${siteId}` : path;
+  };
+
   // Clear optimistic state once the URL reflects the clicked route
   useEffect(() => {
     if (!optimisticNav) return;
@@ -359,7 +365,7 @@ export default function HeaderBar({
               </>
             )}
             <DropdownMenuItem
-              onClick={() => router.push('/ycode/settings/general')}
+              onClick={() => router.push(withCurrentSite('/ycode/settings/general'))}
             >
               Settings
             </DropdownMenuItem>
@@ -371,7 +377,7 @@ export default function HeaderBar({
             </DropdownMenuItem>
 
             <DropdownMenuItem
-              onClick={() => router.push('/ycode/integrations/apps')}
+              onClick={() => router.push(withCurrentSite('/ycode/integrations/apps'))}
             >
               Integrations
             </DropdownMenuItem>

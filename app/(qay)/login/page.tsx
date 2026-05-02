@@ -1,20 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useState } from 'react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { createClient } from '@/lib/supabase-browser';
 import { useAuthStore } from '@/stores/useAuthStore';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get('invite');
   const { signIn, loading } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   async function routeByProfile(userId: string) {
+    if (inviteToken) {
+      router.push(`/invite/${inviteToken}`);
+      return;
+    }
+
     const supabase = await createClient();
     const { data } = await supabase
       .from('qay_user_profiles')
@@ -132,5 +139,13 @@ export default function LoginPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#0a0a0a]" />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

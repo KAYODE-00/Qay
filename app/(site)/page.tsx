@@ -7,6 +7,7 @@ import PasswordForm from '@/components/PasswordForm';
 import { generatePageMetadata, fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
+import { QayLogo } from '@/qay/components/QayLogo';
 import type { Metadata } from 'next';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -98,19 +99,83 @@ export default async function Home() {
   // If no published homepage exists, show default landing page
   if (!data || !data.pageLayers) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center p-8 flex flex-col items-center justify-center gap-2">
-          <h1 className="text-xl font-semibold text-neutral-900">
-            Welcome to QAY
-          </h1>
-          <Link
-            href="/login"
-            className=" bg-blue-500 text-white text-sm font-medium h-8 flex items-center justify-center px-3 rounded-lg transition-colors"
-          >
-            Get started
-          </Link>
-        </div>
-      </div>
+      <main className="min-h-screen bg-[#0a0a0a] text-white">
+        <section className="relative isolate flex min-h-screen overflow-hidden">
+          <div className="absolute inset-0 -z-10">
+            <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.14),transparent_36%,rgba(255,255,255,0.08)_64%,transparent)]" />
+            <div className="absolute inset-x-0 top-0 h-px bg-white/20" />
+            <div className="absolute left-1/2 top-1/2 h-[42rem] w-[42rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10" />
+            <div className="absolute left-1/2 top-1/2 h-[28rem] w-[28rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.12),transparent_38%)]" />
+            <div className="absolute inset-0 bg-[#0a0a0a]/70" />
+          </div>
+
+          <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-6">
+            <header className="flex items-center justify-between">
+              <QayLogo />
+              <nav className="flex items-center gap-2">
+                <Link
+                  href="/dashboard"
+                  className="rounded-md border border-white/15 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-md bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-white/90"
+                >
+                  Get started
+                </Link>
+              </nav>
+            </header>
+
+            <div className="grid flex-1 items-center gap-10 py-16 lg:grid-cols-[1fr_0.88fr]">
+              <div className="max-w-3xl">
+                <p className="mb-4 text-sm uppercase tracking-[0.24em] text-white/50">Client sites, cleanly isolated</p>
+                <h1 className="max-w-4xl text-5xl font-semibold leading-[1.02] tracking-normal md:text-7xl">
+                  Build, invite, and hand off websites from one calm workspace.
+                </h1>
+                <p className="mt-6 max-w-2xl text-lg leading-8 text-white/64">
+                  QAY gives every project its own editor context, invite list, media library, and client access layer.
+                </p>
+
+                <div className="mt-9 flex flex-wrap gap-3">
+                  <Link
+                    href="/signup"
+                    className="rounded-md bg-white px-5 py-3 text-sm font-medium text-black transition hover:bg-white/90"
+                  >
+                    Get started
+                  </Link>
+                  <Link
+                    href="/dashboard"
+                    className="rounded-md border border-white/15 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                  >
+                    Dashboard
+                  </Link>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/12 bg-white/[0.04] p-4 shadow-2xl shadow-black/40">
+                <div className="rounded-md border border-white/10 bg-black/60">
+                  <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                    <span className="text-sm text-white/70">QAY dashboard</span>
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 p-4">
+                    {['Studio launch', 'Client portal', 'Campaign page', 'Product microsite'].map((name, index) => (
+                      <div key={name} className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+                        <div className="mb-8 h-20 rounded bg-white/[0.06]" />
+                        <div className="text-sm font-medium">{name}</div>
+                        <div className="mt-1 text-xs text-white/45">{index % 2 === 0 ? 'Published' : 'Draft'}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
     );
   }
 

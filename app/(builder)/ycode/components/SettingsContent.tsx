@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { SETTINGS_NAV_ITEMS } from '@/lib/settings-nav-items';
 
@@ -12,6 +12,8 @@ interface SettingsContentProps {
 export default function SettingsContent({ children }: SettingsContentProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const siteId = searchParams.get('site');
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -29,7 +31,7 @@ export default function SettingsContent({ children }: SettingsContentProps) {
               return (
                 <button
                   key={item.id}
-                  onClick={() => router.push(item.path)}
+                  onClick={() => router.push(siteId ? `${item.path}?site=${siteId}` : item.path)}
                   className={cn(
                     'group relative flex items-center h-8 outline-none focus:outline-none rounded-lg cursor-pointer select-none w-full text-left px-2 text-xs',
                     'hover:bg-secondary/50',

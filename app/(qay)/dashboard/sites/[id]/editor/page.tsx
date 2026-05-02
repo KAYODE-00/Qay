@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import { requireDeveloper } from '@/qay/lib/auth-guard';
+import { requireQayAuth } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 
 type PageProps = {
@@ -7,22 +7,35 @@ type PageProps = {
 };
 
 export default async function QaySiteEditorGatePage({ params }: PageProps) {
-  const user = await requireDeveloper();
+  const user = await requireQayAuth();
   const { id } = await params;
   const supabase = getQayAdmin() as any;
 
-  const { data, error } = await supabase
+  const { data: ownedSite, error: ownedSiteError } = await supabase
     .from('qay_sites')
     .select('id, name, slug')
     .eq('id', id)
     .eq('owner_id', user.id)
     .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
+  if (ownedSiteError) {
+    throw new Error(ownedSiteError.message);
   }
 
-  if (!data) {
+  const { data: membership, error: membershipError } = ownedSite
+    ? { data: null, error: null }
+    : await supabase
+        .from('qay_site_members')
+        .select('id')
+        .eq('site_id', id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+  if (membershipError) {
+    throw new Error(membershipError.message);
+  }
+
+  if (!ownedSite && !membership) {
     notFound();
   }
 
