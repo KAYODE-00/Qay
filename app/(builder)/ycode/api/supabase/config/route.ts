@@ -7,6 +7,32 @@ import type { SupabaseConfig } from '@/types';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+function getPublicSupabaseConfigFromEnv() {
+  const anonKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+  if (!anonKey) {
+    return null;
+  }
+
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return {
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      anonKey,
+    };
+  }
+
+  const projectRef = process.env.SUPABASE_CONNECTION_URL?.match(/postgres\.([^:]+):/)?.[1];
+
+  if (!projectRef) {
+    return null;
+  }
+
+  return {
+    url: `https://${projectRef}.supabase.co`,
+    anonKey,
+  };
+}
+
 /**
  * GET /ycode/api/supabase/config
  *
@@ -15,6 +41,14 @@ export const revalidate = 0;
  */
 export async function GET() {
   try {
+    const envConfig = getPublicSupabaseConfigFromEnv();
+
+    if (envConfig) {
+      return noCache({
+        data: envConfig,
+      });
+    }
+
     const config = await credentials.get<SupabaseConfig>('supabase_config');
 
     if (!config) {
