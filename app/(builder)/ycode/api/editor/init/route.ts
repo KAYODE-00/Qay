@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAllDraftPages } from '@/lib/repositories/pageRepository';
 import { getAllDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { getAllPageFolders } from '@/lib/repositories/pageFolderRepository';
@@ -27,8 +27,11 @@ import { getMapboxAccessToken, getGoogleMapsEmbedApiKey } from '@/lib/map-server
  * - All asset folders
  * - All fonts
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
+
     // Load all data in parallel (only drafts for editor)
     const [pages, drafts, folders, components, styles, settings, collections, locales, assets, assetFolders, fonts, resolvedMapboxToken, resolvedGoogleMapsEmbedKey] = await Promise.all([
       getAllDraftPages(),
@@ -45,6 +48,23 @@ export async function GET() {
       getMapboxAccessToken(),
       getGoogleMapsEmbedApiKey(),
     ]);
+
+    const scopedPages = qaySiteId
+      ? pages.filter((page) => {
+          const pageSettings = page.settings as Record<string, unknown> | null;
+          return page.error_page !== null || pageSettings?.qay_site_id === qaySiteId;
+        })
+      : pages;
+    const scopedPageIds = new Set(scopedPages.map((page) => page.id));
+    const scopedDrafts = qaySiteId
+      ? drafts.filter((draft) => scopedPageIds.has(draft.page_id))
+      : drafts;
+    const scopedFolders = qaySiteId
+      ? folders.filter((folder) => {
+          const folderSettings = folder.settings as Record<string, unknown> | null;
+          return folderSettings?.qay_site_id === qaySiteId;
+        })
+      : folders;
 
     // Inject app-sourced tokens into settings so they're available via settingsByKey
     const enrichedSettings = [...settings];
@@ -66,9 +86,9 @@ export async function GET() {
 
     return NextResponse.json({
       data: {
-        pages,
-        drafts,
-        folders,
+        pages: scopedPages,
+        drafts: scopedDrafts,
+        folders: scopedFolders,
         components,
         styles,
         settings: enrichedSettings,

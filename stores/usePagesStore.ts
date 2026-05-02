@@ -37,6 +37,22 @@ import { useComponentsStore, triggerThumbnailGeneration } from './useComponentsS
  */
 const inflightDraftLoads = new Map<string, Promise<void>>();
 
+function withCurrentQaySite(endpoint: string): string {
+  if (typeof window === 'undefined') {
+    return endpoint;
+  }
+
+  const siteId = new URLSearchParams(window.location.search).get('site');
+  if (!siteId) {
+    return endpoint;
+  }
+
+  const [path, query = ''] = endpoint.split('?');
+  const params = new URLSearchParams(query);
+  params.set('site', siteId);
+  return `${path}?${params.toString()}`;
+}
+
 interface PagesState {
   pages: Page[];
   folders: PageFolder[];
@@ -1995,8 +2011,8 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
         // (The backend increments the order of siblings when duplicating)
         try {
           const [pagesResponse, foldersResponse] = await Promise.all([
-            fetch('/ycode/api/pages'),
-            fetch('/ycode/api/folders')
+            fetch(withCurrentQaySite('/ycode/api/pages')),
+            fetch(withCurrentQaySite('/ycode/api/folders'))
           ]);
 
           const pagesData = await pagesResponse.json();
@@ -2558,8 +2574,8 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
         try {
           // Fetch fresh data from database
           const [pagesResponse, foldersResponse] = await Promise.all([
-            fetch('/ycode/api/pages'),
-            fetch('/ycode/api/folders')
+            fetch(withCurrentQaySite('/ycode/api/pages')),
+            fetch(withCurrentQaySite('/ycode/api/folders'))
           ]);
 
           const pagesData = await pagesResponse.json();

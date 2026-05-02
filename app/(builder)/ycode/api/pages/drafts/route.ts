@@ -1,13 +1,32 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAllDraftPages } from '@/lib/repositories/pageRepository';
 import { getAllDraftLayers } from '@/lib/repositories/pageLayersRepository';
 
 /**
  * GET /ycode/api/pages/drafts
  * Get all draft (non-published) page layers in one query
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const qaySiteId = searchParams.get('site');
     const drafts = await getAllDraftLayers();
+
+    if (qaySiteId) {
+      const pages = await getAllDraftPages();
+      const scopedPageIds = new Set(
+        pages
+          .filter((page) => {
+            const settings = page.settings as Record<string, unknown> | null;
+            return page.error_page !== null || settings?.qay_site_id === qaySiteId;
+          })
+          .map((page) => page.id)
+      );
+
+      return NextResponse.json({
+        data: drafts.filter((draft) => scopedPageIds.has(draft.page_id)),
+      });
+    }
 
     return NextResponse.json({ data: drafts });
   } catch (error) {
