@@ -270,6 +270,11 @@ export function mapExtensionToFontFormat(extension: string): string | null {
   }
 }
 
+function isResolvedFontUrl(url: string | null | undefined): url is string {
+  if (!url) return false;
+  return !url.includes('{{ASSET_URL:');
+}
+
 /**
  * Build CSS for loading all installed fonts.
  * Generates @import rules for Google fonts and @font-face for custom fonts.
@@ -283,7 +288,7 @@ export function buildFontsCss(fonts: Font[]): string {
       css += `@import url('${url}');`;
     }
 
-    if (font.type === 'custom' && font.url) {
+    if (font.type === 'custom' && isResolvedFontUrl(font.url)) {
       const family = font.family.replace(/"/g, '\\"');
       const format = font.kind || 'woff2';
       css += `@font-face {font-family: "${family}";src: url("${font.url}") format("${format}");font-display: swap;}`;
@@ -305,7 +310,7 @@ export function buildCustomFontsCss(fonts: Font[]): string {
   let css = '';
 
   for (const font of fonts) {
-    if (font.type === 'custom' && font.url) {
+    if (font.type === 'custom' && isResolvedFontUrl(font.url)) {
       const family = font.family.replace(/"/g, '\\"');
       const format = font.kind || 'woff2';
       css += `@font-face {font-family: "${family}";src: url("${font.url}") format("${format}");font-display: swap;}`;

@@ -61,6 +61,16 @@ async function tagImportedTemplateData(siteId: string) {
           .ignore();
       }
     }
+
+    if (await knex.schema.hasTable('fonts')) {
+      await knex('fonts')
+        .where('url', 'like', '{{ASSET_URL:%')
+        .update({
+          url: null,
+          storage_path: null,
+          updated_at: knex.fn.now(),
+        });
+    }
   } finally {
     await closeKnexClient();
   }
