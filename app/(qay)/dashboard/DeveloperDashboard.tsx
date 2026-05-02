@@ -1,8 +1,6 @@
 'use client';
 
 import { FormEvent, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Bell, ExternalLink, Grid2X2, LayoutTemplate, List, MoreVertical, Plus, Settings, Trash2, UserPlus } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import type { QaySite } from '@/qay/types';
@@ -35,7 +33,6 @@ function formatRelativeDate(value: string | null) {
 }
 
 export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) {
-  const router = useRouter();
   const [sites, setSites] = useState(initialSites);
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,7 +47,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
   }, [userEmail]);
 
   function openEditor(siteId: string) {
-    router.push(`/dashboard/sites/${siteId}/editor`);
+    window.location.assign(`/dashboard/sites/${siteId}/editor`);
   }
 
   async function createSite(event: FormEvent<HTMLFormElement>) {
@@ -71,7 +68,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
         return;
       }
 
-      router.push(`/dashboard/sites/${payload.data.id}/editor`);
+      window.location.assign(`/dashboard/sites/${payload.data.id}/editor`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create site');
     } finally {
@@ -107,13 +104,13 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
           <QayLogo />
 
           <div className="flex items-center gap-2">
-            <Link
+            <a
               href="/dashboard/templates"
               className="hidden h-10 items-center gap-2 rounded-md border border-white/10 px-4 text-sm text-white/75 transition hover:bg-white/5 hover:text-white sm:inline-flex"
             >
               <LayoutTemplate className="size-4" />
               Templates
-            </Link>
+            </a>
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
@@ -208,13 +205,13 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
                         <ExternalLink className="size-4" />
                         Open site
                       </a>
-                      <Link
+                      <a
                         href={`/dashboard/sites/${site.id}/settings`}
                         className="flex items-center gap-2 rounded px-3 py-2 text-sm text-white/75 hover:bg-white/5 hover:text-white"
                       >
                         <Settings className="size-4" />
                         Site settings
-                      </Link>
+                      </a>
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-white/75 hover:bg-white/5 hover:text-white"

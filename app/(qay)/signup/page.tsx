@@ -1,7 +1,5 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { createClient } from '@/lib/supabase-browser';
@@ -14,7 +12,6 @@ const roles: Array<{ value: Role; title: string; body: string; mark: string }> =
 ];
 
 export default function SignupPage() {
-  const router = useRouter();
   const [step, setStep] = useState<'role' | 'details'>('role');
   const [role, setRole] = useState<Role>('developer');
   const [fullName, setFullName] = useState('');
@@ -66,7 +63,7 @@ export default function SignupPage() {
         return;
       }
 
-      router.push(role === 'client' ? '/client' : '/dashboard');
+      window.location.assign(role === 'client' ? '/client' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed');
     } finally {
@@ -185,9 +182,9 @@ export default function SignupPage() {
 
           <p className="mt-6 text-center text-sm text-white/60">
             Already have an account?{' '}
-            <Link href="/login" className="text-white hover:text-white/80">
+            <a href="/login" className="text-white hover:text-white/80">
               Sign in
-            </Link>
+            </a>
           </p>
         </section>
       </div>

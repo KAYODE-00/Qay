@@ -1,8 +1,6 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { ArrowLeft, Code2, ExternalLink, LayoutTemplate, Plus } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
 import { htmlToLayers } from '@/lib/html-layer-converter';
@@ -38,7 +36,6 @@ function makeSlug(value: string) {
 }
 
 export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
-  const router = useRouter();
   const [sites, setSites] = useState(initialSites);
   const [selectedSiteId, setSelectedSiteId] = useState(initialSites[0]?.id ?? '');
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -112,7 +109,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
         throw new Error(payload.error || 'Failed to apply template');
       }
 
-      router.push(`/dashboard/sites/${siteId}/editor`);
+      window.location.assign(`/dashboard/sites/${siteId}/editor`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply template');
     } finally {
@@ -197,7 +194,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
         throw new Error(payload.error || 'Failed to import HTML');
       }
 
-      router.push(`/dashboard/sites/${selectedSite.id}/editor`);
+      window.location.assign(`/dashboard/sites/${selectedSite.id}/editor`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import HTML');
     } finally {
@@ -211,12 +208,12 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <QayLogo />
           <div className="flex items-center gap-3">
-            <Link
+            <a
               href="/dashboard"
               className="hidden h-10 items-center rounded-md border border-white/10 px-4 text-sm text-white/75 transition hover:bg-white/5 hover:text-white sm:inline-flex"
             >
               Dashboard
-            </Link>
+            </a>
             <div className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs font-medium text-white/80">
               {initials}
             </div>
@@ -225,10 +222,10 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/55 hover:text-white">
+        <a href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/55 hover:text-white">
           <ArrowLeft className="size-4" />
           Dashboard
-        </Link>
+        </a>
 
         <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>

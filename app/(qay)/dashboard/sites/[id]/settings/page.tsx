@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireDeveloper } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
@@ -33,9 +32,9 @@ export default async function SiteSettingsPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-[#0a0a0a] px-6 py-10 text-white">
       <div className="mx-auto w-full max-w-3xl">
-        <Link href="/dashboard" className="text-sm text-white/60 hover:text-white">
+        <a href="/dashboard" className="text-sm text-white/60 hover:text-white">
           Back to dashboard
-        </Link>
+        </a>
 
         <section className="mt-8 rounded-lg border border-white/10 bg-white/[0.03] p-6">
           <h1 className="text-2xl font-semibold tracking-normal">{site.name}</h1>
@@ -60,12 +59,12 @@ export default async function SiteSettingsPage({ params }: PageProps) {
             </div>
           </dl>
 
-          <Link
+          <a
             href={`/dashboard/sites/${site.id}/editor`}
             className="mt-8 inline-flex h-10 items-center rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90"
           >
             Open editor
-          </Link>
+          </a>
         </section>
       </div>
     </main>

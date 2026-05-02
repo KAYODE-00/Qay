@@ -1,14 +1,12 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { createClient } from '@/lib/supabase-browser';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 function LoginPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get('invite');
   const { signIn, loading } = useAuthStore();
@@ -18,7 +16,7 @@ function LoginPageContent() {
 
   async function routeByProfile(userId: string) {
     if (inviteToken) {
-      router.push(`/invite/${inviteToken}`);
+      window.location.assign(`/invite/${inviteToken}`);
       return;
     }
 
@@ -29,7 +27,7 @@ function LoginPageContent() {
       .eq('id', userId)
       .maybeSingle();
 
-    router.push(data?.account_type === 'client' ? '/client' : '/dashboard');
+    window.location.assign(data?.account_type === 'client' ? '/client' : '/dashboard');
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -126,14 +124,14 @@ function LoginPageContent() {
           </button>
 
           <div className="mt-6 space-y-3 text-center text-sm text-white/60">
-            <Link href="/forgot-password" className="block text-white hover:text-white/80">
+            <a href="/forgot-password" className="block text-white hover:text-white/80">
               Forgot password?
-            </Link>
+            </a>
             <p>
               Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-white hover:text-white/80">
+              <a href="/signup" className="text-white hover:text-white/80">
                 Sign up
-              </Link>
+              </a>
             </p>
           </div>
         </section>

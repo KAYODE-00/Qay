@@ -1,13 +1,11 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { createClient } from '@/lib/supabase-browser';
 
 export default function QayInviteAcceptPage() {
-  const router = useRouter();
   const params = useParams<{ token: string }>();
   const token = params.token;
   const [password, setPassword] = useState('');
@@ -47,7 +45,7 @@ export default function QayInviteAcceptPage() {
 
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          router.replace(`/login?invite=${encodeURIComponent(token)}`);
+          window.location.replace(`/login?invite=${encodeURIComponent(token)}`);
           return;
         }
 
@@ -60,7 +58,7 @@ export default function QayInviteAcceptPage() {
 
     prepareInvite();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, token]);
+  }, [token]);
 
   async function acceptInvite() {
     const response = await fetch('/api/qay/invites/accept', {
@@ -74,7 +72,7 @@ export default function QayInviteAcceptPage() {
       throw new Error(result.error || 'Unable to accept invitation.');
     }
 
-    router.replace(`/ycode?site=${result.data.siteId}`);
+    window.location.replace(`/ycode?site=${result.data.siteId}`);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -161,9 +159,9 @@ export default function QayInviteAcceptPage() {
           )}
 
           {error && (
-            <Link href="/login" className="mt-5 block text-center text-sm text-white hover:text-white/80">
+            <a href="/login" className="mt-5 block text-center text-sm text-white hover:text-white/80">
               Go to login
-            </Link>
+            </a>
           )}
         </section>
       </div>

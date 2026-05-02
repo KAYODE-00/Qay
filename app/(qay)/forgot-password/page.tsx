@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { createClient } from '@/lib/supabase-browser';
@@ -73,9 +72,9 @@ export default function ForgotPasswordPage() {
 
           <p className="mt-6 text-center text-sm text-white/60">
             Remembered it?{' '}
-            <Link href="/login" className="text-white hover:text-white/80">
+            <a href="/login" className="text-white hover:text-white/80">
               Sign in
-            </Link>
+            </a>
           </p>
         </section>
       </div>
