@@ -696,9 +696,9 @@ export default function PagesTree({
       onDragCancel={handleDragCancel}
     >
       <div className="space-y-0">
-        {flattenedNodes.map((node) => (
+        {flattenedNodes.map((node, index) => (
           <PageRow
-            key={node.id}
+            key={`${node.type}:${node.id}:${index}`}
             node={node}
             isSelected={node.id === selectedItemId}
             isChildOfSelected={isChildOfSelected(node)}

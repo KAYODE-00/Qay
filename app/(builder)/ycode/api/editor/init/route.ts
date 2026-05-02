@@ -58,12 +58,15 @@ export async function GET(request: NextRequest) {
       getGoogleMapsEmbedApiKey(),
     ]);
 
-    const scopedPages = qaySiteId
+    const scopedPagesRaw = qaySiteId
       ? pages.filter((page) => {
           const pageSettings = page.settings as Record<string, unknown> | null;
           return page.error_page !== null || pageSettings?.qay_site_id === qaySiteId;
         })
       : pages;
+    const scopedPages = Array.from(
+      new Map(scopedPagesRaw.map((page) => [`${page.id}:${page.error_page ?? 'page'}`, page])).values()
+    );
     const scopedPageIds = new Set(scopedPages.map((page) => page.id));
     const scopedDrafts = qaySiteId
       ? drafts.filter((draft) => scopedPageIds.has(draft.page_id))

@@ -41,19 +41,23 @@ export default async function QaySiteEditorGatePage({ params }: PageProps) {
 
   const { data: existingPage, error: existingPageError } = await supabase
     .from('pages')
-    .select('id')
+    .select('id, is_index, page_folder_id, created_at')
     .eq('is_published', false)
     .is('deleted_at', null)
     .filter('settings->>qay_site_id', 'eq', id)
+    .is('error_page', null)
     .order('order', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: true });
 
   if (existingPageError) {
     throw new Error(existingPageError.message);
   }
 
-  let pageId = existingPage?.id;
+  const sitePages = existingPage ?? [];
+  const homePage = sitePages.find((page: { is_index: boolean; page_folder_id: string | null }) => (
+    page.is_index && page.page_folder_id === null
+  ));
+  let pageId = homePage?.id ?? sitePages[0]?.id;
 
   if (!pageId) {
     const { data: createdPage, error: createPageError } = await supabase

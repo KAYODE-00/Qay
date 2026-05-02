@@ -53,12 +53,15 @@ export async function GET(request: NextRequest) {
     }
 
     const pages = await getAllPages(filters);
-    const scopedPages = qaySiteId
+    const scopedPagesRaw = qaySiteId
       ? pages.filter((page) => {
           const settings = page.settings as Record<string, unknown> | null;
           return page.error_page !== null || settings?.qay_site_id === qaySiteId;
         })
       : pages;
+    const scopedPages = Array.from(
+      new Map(scopedPagesRaw.map((page) => [`${page.id}:${page.error_page ?? 'page'}`, page])).values()
+    );
 
     return noCache({
       data: scopedPages,
