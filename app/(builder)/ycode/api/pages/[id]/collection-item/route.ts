@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPageById } from '@/lib/repositories/pageRepository';
 import { getItemWithValues } from '@/lib/repositories/collectionItemRepository';
+import { canUsePageInQaySite, getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 /**
  * GET /ycode/api/pages/[id]/collection-item?itemId=xxx
@@ -14,6 +15,7 @@ export async function GET(
   try {
     const { id: pageId } = await params;
     const { searchParams } = new URL(request.url);
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const itemId = searchParams.get('itemId');
 
     if (!itemId) {
@@ -27,6 +29,13 @@ export async function GET(
     const page = await getPageById(pageId);
 
     if (!page) {
+      return NextResponse.json(
+        { error: 'Page not found' },
+        { status: 404 }
+      );
+    }
+
+    if (qaySiteId && !(await canUsePageInQaySite(qaySiteId, page))) {
       return NextResponse.json(
         { error: 'Page not found' },
         { status: 404 }

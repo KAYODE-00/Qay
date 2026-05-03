@@ -3,6 +3,7 @@ import { getPageById, updatePage, deletePage } from '@/lib/repositories/pageRepo
 import { deleteTranslationsInBulk } from '@/lib/repositories/translationRepository';
 import { noCache } from '@/lib/api-response';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
+import { canUsePageInQaySite, getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -18,11 +19,19 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const { id } = await params;
     // For GET requests, return draft version (what users edit)
     const page = await getPageById(id, false);
 
     if (!page) {
+      return noCache(
+        { error: 'Page not found' },
+        404
+      );
+    }
+
+    if (qaySiteId && !(await canUsePageInQaySite(qaySiteId, page))) {
       return noCache(
         { error: 'Page not found' },
         404
@@ -52,8 +61,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url);
-    const qaySiteId = searchParams.get('site');
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const { id } = await params;
     const body = await request.json();
 
@@ -61,6 +69,13 @@ export async function PUT(
     // Repository update functions only update draft versions
     const currentPage = await getPageById(id, false);
     if (!currentPage) {
+      return noCache(
+        { error: 'Page not found' },
+        404
+      );
+    }
+
+    if (qaySiteId && !(await canUsePageInQaySite(qaySiteId, currentPage))) {
       return noCache(
         { error: 'Page not found' },
         404
@@ -130,7 +145,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const { id } = await params;
+
+    if (qaySiteId) {
+      const currentPage = await getPageById(id, false);
+      if (!(await canUsePageInQaySite(qaySiteId, currentPage))) {
+        return noCache(
+          { error: 'Page not found' },
+          404
+        );
+      }
+    }
 
     // Delete the page
     await deletePage(id);

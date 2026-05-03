@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { deletePageFolder, updatePageFolder, getPageFolderById } from '@/lib/repositories/pageFolderRepository';
 import { deleteTranslationsInBulk } from '@/lib/repositories/translationRepository';
 import { noCache } from '@/lib/api-response';
+import { canUseFolderInQaySite, getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -17,11 +18,19 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const { id } = await params;
 
     const folder = await getPageFolderById(id);
 
     if (!folder) {
+      return noCache(
+        { error: 'Folder not found' },
+        404
+      );
+    }
+
+    if (qaySiteId && !(await canUseFolderInQaySite(qaySiteId, folder))) {
       return noCache(
         { error: 'Folder not found' },
         404
@@ -52,8 +61,19 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const { id } = await params;
     const body = await request.json();
+
+    if (qaySiteId) {
+      const folder = await getPageFolderById(id);
+      if (!(await canUseFolderInQaySite(qaySiteId, folder))) {
+        return noCache(
+          { error: 'Folder not found' },
+          404
+        );
+      }
+    }
 
     // Validate required fields if provided
     if (body.name !== undefined && typeof body.name !== 'string') {
@@ -96,7 +116,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const { id } = await params;
+
+    if (qaySiteId) {
+      const folder = await getPageFolderById(id);
+      if (!(await canUseFolderInQaySite(qaySiteId, folder))) {
+        return noCache(
+          { error: 'Folder not found' },
+          404
+        );
+      }
+    }
 
     // Delete the folder
     await deletePageFolder(id);

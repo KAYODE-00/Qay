@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getLayersByPageId, upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { noCache } from '@/lib/api-response';
 import type { Layer } from '@/types';
+import { canUsePageIdInQaySite, getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const pageId = searchParams.get('page_id');
     const isPublishedParam = searchParams.get('is_published');
+    const qaySiteId = getQaySiteIdFromRequest(request);
 
     if (!pageId) {
       return noCache(
@@ -27,6 +29,13 @@ export async function GET(request: NextRequest) {
 
     // Parse is_published filter
     const isPublished = isPublishedParam === 'true' ? true : isPublishedParam === 'false' ? false : undefined;
+
+    if (qaySiteId && !(await canUsePageIdInQaySite(qaySiteId, pageId, isPublished === true))) {
+      return noCache(
+        { error: 'Layers not found' },
+        404
+      );
+    }
 
     const layers = await getLayersByPageId(pageId, isPublished);
 
@@ -59,11 +68,19 @@ export async function PUT(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const pageId = searchParams.get('page_id');
+    const qaySiteId = getQaySiteIdFromRequest(request);
 
     if (!pageId) {
       return noCache(
         { error: 'page_id query parameter is required' },
         400
+      );
+    }
+
+    if (qaySiteId && !(await canUsePageIdInQaySite(qaySiteId, pageId, false))) {
+      return noCache(
+        { error: 'Layers not found' },
+        404
       );
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { duplicatePage } from '@/lib/repositories/pageRepository';
 import { noCache } from '@/lib/api-response';
+import { canUsePageIdInQaySite, getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const { id } = await params;
+
+    if (qaySiteId && !(await canUsePageIdInQaySite(qaySiteId, id, false))) {
+      return noCache(
+        { error: 'Page not found' },
+        404
+      );
+    }
 
     const newPage = await duplicatePage(id);
 

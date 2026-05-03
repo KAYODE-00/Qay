@@ -17,6 +17,7 @@ async function tagImportedTemplateData(siteId: string) {
       await knex('pages')
         .whereNull('deleted_at')
         .whereNull('error_page')
+        .whereRaw("(settings->>'qay_site_id') IS NULL")
         .update({
           settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
         });
@@ -25,6 +26,7 @@ async function tagImportedTemplateData(siteId: string) {
     if (await knex.schema.hasTable('page_folders')) {
       await knex('page_folders')
         .whereNull('deleted_at')
+        .whereRaw("(settings->>'qay_site_id') IS NULL")
         .update({
           settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
         });
