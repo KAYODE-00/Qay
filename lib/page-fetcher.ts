@@ -42,6 +42,7 @@ import { getAssetsByIds } from '@/lib/repositories/assetRepository';
 import { isVirtualAssetField, findDisplayField } from '@/lib/collection-field-utils';
 import type { FieldVariable, AssetVariable, DynamicTextVariable, LinkSettings } from '@/types';
 import type { DesignColorVariable } from '@/types';
+import { buildQayIndexSlug, getQaySiteIdFromSettings } from '@/qay/lib/index-slug';
 
 // Cached map provider tokens for synchronous use inside layerToHtml.
 // Set by ensureMapTokens() before HTML generation begins.
@@ -121,6 +122,20 @@ export function splitPageData(data: PageData): { core: PageDataCore; layers: Lay
 
 export function reassemblePageData(core: PageDataCore, layers: Layer[]): PageData {
   return { ...core, pageLayers: { layers } as PageLayers };
+}
+
+function filterByQaySite<T extends { settings?: unknown; error_page?: number | null }>(
+  records: T[] | null | undefined,
+  qaySiteId?: string | null,
+): T[] {
+  const list = records || [];
+  if (!qaySiteId) return list;
+
+  return list.filter((record) => (
+    record.error_page !== undefined && record.error_page !== null
+      ? true
+      : getQaySiteIdFromSettings(record.settings) === qaySiteId
+  ));
 }
 
 /**
@@ -350,6 +365,7 @@ async function fetchPageByPathInternal(
   isPublished: boolean,
   paginationContext?: PaginationContext,
   tenantId?: string,
+  qaySiteId?: string | null,
   options?: { resolveLayers?: boolean }
 ): Promise<PageData | null> {
   try {
@@ -393,13 +409,16 @@ async function fetchPageByPathInternal(
       return null;
     }
 
+    const scopedPages = filterByQaySite(pages as Page[], qaySiteId);
+    const scopedFolders = filterByQaySite(folders as PageFolder[], qaySiteId);
+
     const targetPath = pathWithoutLocale;
 
     // If path is empty after locale detection (e.g., "/fr/" -> "fr" -> ""),
     // try to fetch the homepage
     if (targetPath === '' && detectedLocale) {
       // Pass preloaded components and translations so CMS content is translated
-      const homepageData = await fetchHomepage(isPublished, paginationContext, components, tenantId, translations);
+      const homepageData = await fetchHomepage(isPublished, paginationContext, components, tenantId, translations, qaySiteId);
       if (homepageData) {
         // Components and collection layers are already resolved by fetchHomepage
         // Apply translations for the detected locale
@@ -429,23 +448,23 @@ async function fetchPageByPathInternal(
 
     // First, try to find an exact match (non-dynamic page)
     // Use translated slug matching if translations are available
-    let matchingPage = pages.find((page: Page) => {
+    let matchingPage = scopedPages.find((page: Page) => {
       if (page.is_dynamic) return false; // Skip dynamic pages for exact match
 
       // If we have translations, match using translated slugs
       if (translations) {
-        return matchPageWithTranslatedSlugs(targetPath, page, folders as PageFolder[], translations);
+        return matchPageWithTranslatedSlugs(targetPath, page, scopedFolders as PageFolder[], translations);
       }
 
       // Otherwise, use default slug matching
-      const fullPath = buildSlugPath(page, folders as PageFolder[], 'page');
+      const fullPath = buildSlugPath(page, scopedFolders as PageFolder[], 'page');
       return fullPath === `/${targetPath}`;
     });
 
     // If no exact match, try dynamic pages
     if (!matchingPage) {
       // Find all dynamic pages and check if URL matches their pattern
-      const dynamicPages = pages.filter((page: Page) => page.is_dynamic);
+      const dynamicPages = scopedPages.filter((page: Page) => page.is_dynamic);
 
       for (const dynamicPage of dynamicPages) {
         let extractedSlug: string | null = null;
@@ -455,12 +474,12 @@ async function fetchPageByPathInternal(
           extractedSlug = matchDynamicPageWithTranslatedSlugs(
             targetPath,
             dynamicPage,
-            folders as PageFolder[],
+            scopedFolders as PageFolder[],
             translations
           );
         } else {
           // Use default slug matching
-          const patternPath = buildSlugPath(dynamicPage, folders as PageFolder[], 'page', '{slug}');
+          const patternPath = buildSlugPath(dynamicPage, scopedFolders as PageFolder[], 'page', '{slug}');
           extractedSlug = matchDynamicPagePattern(`/${targetPath}`, patternPath);
         }
 
@@ -712,8 +731,9 @@ export const fetchPageByPath = cache(async function fetchPageByPath(
   isPublished: boolean,
   paginationContext?: PaginationContext,
   tenantId?: string,
+  qaySiteId?: string | null,
 ): Promise<PageData | null> {
-  return fetchPageByPathInternal(slugPath, isPublished, paginationContext, tenantId, { resolveLayers: true });
+  return fetchPageByPathInternal(slugPath, isPublished, paginationContext, tenantId, qaySiteId, { resolveLayers: true });
 });
 
 export async function fetchPageByPathForMetadata(
@@ -721,8 +741,9 @@ export async function fetchPageByPathForMetadata(
   isPublished: boolean,
   paginationContext?: PaginationContext,
   tenantId?: string,
+  qaySiteId?: string | null,
 ): Promise<PageData | null> {
-  return fetchPageByPathInternal(slugPath, isPublished, paginationContext, tenantId, { resolveLayers: false });
+  return fetchPageByPathInternal(slugPath, isPublished, paginationContext, tenantId, qaySiteId, { resolveLayers: false });
 }
 
 /**
@@ -825,13 +846,28 @@ export const fetchHomepage = cache(async function fetchHomepage(
   paginationContext?: PaginationContext,
   preloadedComponents?: Component[],
   tenantId?: string,
-  translations?: Record<string, Translation>
+  translations?: Record<string, Translation>,
+  qaySiteId?: string | null
 ): Promise<Pick<PageData, 'page' | 'pageLayers' | 'components' | 'locale' | 'availableLocales' | 'translations'> | null> {
   try {
     const supabase = await getSupabaseAdmin(tenantId);
 
     if (!supabase) {
       return null;
+    }
+
+    let homepageQuery = supabase
+      .from('pages')
+      .select('*')
+      .eq('is_index', true)
+      .is('page_folder_id', null)
+      .eq('is_published', isPublished)
+      .is('deleted_at', null);
+
+    if (qaySiteId) {
+      homepageQuery = homepageQuery
+        .eq('slug', buildQayIndexSlug(qaySiteId))
+        .filter('settings->>qay_site_id', 'eq', qaySiteId);
     }
 
     // Fetch locales, homepage, and components in parallel
@@ -841,7 +877,7 @@ export const fetchHomepage = cache(async function fetchHomepage(
       componentsResult,
     ] = await Promise.all([
       supabase.from('locales').select('*').eq('is_published', isPublished).is('deleted_at', null),
-      supabase.from('pages').select('*').eq('is_index', true).is('page_folder_id', null).eq('is_published', isPublished).is('deleted_at', null).limit(1).single(),
+      homepageQuery.limit(1).single(),
       preloadedComponents ? Promise.resolve(preloadedComponents) : fetchComponents(supabase, isPublished),
     ]);
 

@@ -6,6 +6,7 @@ import PasswordForm from '@/components/PasswordForm';
 import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
+import { getQayRenderSiteId } from '@/qay/lib/render-site';
 
 // Internal pagination path: always dynamic/no-store.
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ interface DynamicHomeProps {
 
 export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
   const resolvedSearchParams = await searchParams;
+  const qaySiteId = await getQayRenderSiteId();
 
   const pageNumbers: Record<string, number> = {};
   for (const [key, value] of Object.entries(resolvedSearchParams)) {
@@ -37,7 +39,7 @@ export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
     defaultPage: 1,
   };
 
-  const data = await fetchHomepage(true, paginationContext);
+  const data = await fetchHomepage(true, paginationContext, undefined, undefined, undefined, qaySiteId);
 
   if (!data || !data.pageLayers) {
     return (

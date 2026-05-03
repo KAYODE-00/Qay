@@ -6,6 +6,7 @@ import PasswordForm from '@/components/PasswordForm';
 import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
+import { getQayRenderSiteId } from '@/qay/lib/render-site';
 import type { Redirect as RedirectType } from '@/types';
 
 // Internal pagination path: always dynamic/no-store.
@@ -20,6 +21,7 @@ interface DynamicSlugPageProps {
 export default async function DynamicSlugPage({ params, searchParams }: DynamicSlugPageProps) {
   const { slug } = await params;
   const resolvedSearchParams = await searchParams;
+  const qaySiteId = await getQayRenderSiteId();
 
   const slugPath = Array.isArray(slug) ? slug.join('/') : slug;
   const currentPath = `/${slugPath}`;
@@ -55,7 +57,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
     defaultPage: 1,
   };
 
-  const data = await fetchPageByPath(slugPath, true, paginationContext);
+  const data = await fetchPageByPath(slugPath, true, paginationContext, undefined, qaySiteId);
 
   if (!data) {
     const errorPageData = await fetchErrorPage(404, true);

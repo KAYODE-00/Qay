@@ -197,9 +197,9 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
                     </summary>
                     <div className="absolute right-0 z-10 mt-2 w-44 rounded-md border border-white/10 bg-[#111] p-1 shadow-xl">
                       <a
-                        href={site.live_url || `https://${site.slug}.qaybuilder.com`}
-                        target="_blank"
-                        rel="noreferrer"
+                        href={site.live_url || `/api/qay/sites/${site.id}/open`}
+                        target={site.live_url ? '_blank' : undefined}
+                        rel={site.live_url ? 'noreferrer' : undefined}
                         className="flex items-center gap-2 rounded px-3 py-2 text-sm text-white/75 hover:bg-white/5 hover:text-white"
                       >
                         <ExternalLink className="size-4" />

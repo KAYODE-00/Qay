@@ -7,36 +7,39 @@ import { generatePageMetadata, fetchGlobalPageSettings } from '@/lib/generate-pa
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import { QayLogo } from '@/qay/components/QayLogo';
+import { getQayRenderSiteId } from '@/qay/lib/render-site';
 import type { Metadata } from 'next';
 
 // Static by default for performance, dynamic only when pagination is requested
 export const revalidate = false; // Cache indefinitely until publish invalidates
+export const dynamic = 'force-dynamic';
 
 /**
  * Fetch homepage data from database
  * Cached with tag-based revalidation (no time-based stale cache)
  */
-async function fetchPublishedHomepage() {
-  const tags = ['all-pages', 'route-/'];
+async function fetchPublishedHomepage(qaySiteId?: string | null) {
+  const siteKey = qaySiteId || 'global';
+  const tags = ['all-pages', `site-${siteKey}`, 'route-/'];
   const opts = { tags, revalidate: false as const };
 
   const [core, layers] = await Promise.all([
     unstable_cache(
       async () => {
-        const data = await fetchHomepage(true);
+        const data = await fetchHomepage(true, undefined, undefined, undefined, undefined, qaySiteId);
         if (!data) return null;
         return splitPageData(data as PageData).core;
       },
-      ['core-/'],
+      [`core-/${siteKey}`],
       opts
     )(),
     unstable_cache(
       async () => {
-        const data = await fetchHomepage(true);
+        const data = await fetchHomepage(true, undefined, undefined, undefined, undefined, qaySiteId);
         if (!data) return null;
         return splitPageData(data as PageData).layers;
       },
-      ['layers-/'],
+      [`layers-/${siteKey}`],
       opts
     )(),
   ]);
@@ -92,8 +95,9 @@ async function fetchCachedErrorPage(errorCode: 401) {
 }
 
 export default async function Home() {
+  const qaySiteId = await getQayRenderSiteId();
   // Cache-first homepage path; pagination is served through internal dynamic routes.
-  const data = await fetchPublishedHomepage();
+  const data = await fetchPublishedHomepage(qaySiteId);
 
   // If no published homepage exists, show default landing page
   if (!data || !data.pageLayers) {
@@ -256,9 +260,10 @@ export default async function Home() {
 
 // Generate metadata
 export async function generateMetadata(): Promise<Metadata> {
+  const qaySiteId = await getQayRenderSiteId();
   // Fetch page and global settings in parallel
   const [data, globalSettings] = await Promise.all([
-    fetchPublishedHomepage(),
+    fetchPublishedHomepage(qaySiteId),
     fetchCachedGlobalSettings(),
   ]);
 
@@ -295,8 +300,8 @@ export async function generateMetadata(): Promise<Metadata> {
       }),
       baseUrl: getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
     }),
-    ['data-for-route-/-meta'],
-    { tags: ['all-pages', 'route-/'], revalidate: false }
+    [`data-for-route-/-meta-${qaySiteId || 'global'}`],
+    { tags: ['all-pages', `site-${qaySiteId || 'global'}`, 'route-/'], revalidate: false }
   )();
 
   if (baseUrl) {

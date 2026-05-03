@@ -10,11 +10,13 @@ import PasswordForm from '@/components/PasswordForm';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
+import { getQayRenderSiteId } from '@/qay/lib/render-site';
 import type { Page, PageFolder, Translation, Redirect as RedirectType } from '@/types';
 
 // Static by default for performance, dynamic only when pagination is requested
 export const revalidate = false; // Cache indefinitely until publish invalidates
 export const dynamicParams = true;
+export const dynamic = 'force-dynamic';
 
 /**
  * Generate static params for known published pages
@@ -148,27 +150,28 @@ export async function generateStaticParams() {
  * Fetch published page and layers data from database
  * Cached per slug and page for revalidation
  */
-async function fetchPublishedPageWithLayers(slugPath: string) {
-  const tags = ['all-pages', `route-/${slugPath}`];
+async function fetchPublishedPageWithLayers(slugPath: string, qaySiteId?: string | null) {
+  const siteKey = qaySiteId || 'global';
+  const tags = ['all-pages', `site-${siteKey}`, `route-/${slugPath}`];
   const opts = { tags, revalidate: false as const };
 
   const [core, layers] = await Promise.all([
     unstable_cache(
       async () => {
-        const data = await fetchPageByPath(slugPath, true);
+        const data = await fetchPageByPath(slugPath, true, undefined, undefined, qaySiteId);
         if (!data) return null;
         return splitPageData(data).core;
       },
-      [`core-/${slugPath}`],
+      [`core-/${siteKey}/${slugPath}`],
       opts
     )(),
     unstable_cache(
       async () => {
-        const data = await fetchPageByPath(slugPath, true);
+        const data = await fetchPageByPath(slugPath, true, undefined, undefined, qaySiteId);
         if (!data) return null;
         return splitPageData(data).layers;
       },
-      [`layers-/${slugPath}`],
+      [`layers-/${siteKey}/${slugPath}`],
       opts
     )(),
   ]);
@@ -177,11 +180,12 @@ async function fetchPublishedPageWithLayers(slugPath: string) {
   return reassemblePageData(core, layers || []);
 }
 
-async function fetchPublishedPageForMetadata(slugPath: string) {
+async function fetchPublishedPageForMetadata(slugPath: string, qaySiteId?: string | null) {
+  const siteKey = qaySiteId || 'global';
   return unstable_cache(
-    async () => fetchPageByPathForMetadata(slugPath, true),
-    [`metadata-/${slugPath}`],
-    { tags: ['all-pages', `route-/${slugPath}`], revalidate: false }
+    async () => fetchPageByPathForMetadata(slugPath, true, undefined, undefined, qaySiteId),
+    [`metadata-/${siteKey}/${slugPath}`],
+    { tags: ['all-pages', `site-${siteKey}`, `route-/${slugPath}`], revalidate: false }
   )();
 }
 
@@ -250,6 +254,7 @@ interface PageProps {
 export default async function Page({ params }: PageProps) {
   // Await params
   const { slug } = await params;
+  const qaySiteId = await getQayRenderSiteId();
 
   // Handle catch-all slug (join array into path)
   const slugPath = Array.isArray(slug) ? slug.join('/') : slug;
@@ -271,7 +276,7 @@ export default async function Page({ params }: PageProps) {
 
   // Fetch page data and global settings in parallel
   const [data, globalSettings] = await Promise.all([
-    fetchPublishedPageWithLayers(slugPath),
+    fetchPublishedPageWithLayers(slugPath, qaySiteId),
     fetchCachedGlobalSettings(),
   ]);
 
@@ -379,13 +384,14 @@ export default async function Page({ params }: PageProps) {
 // Generate metadata
 export async function generateMetadata({ params }: { params: Promise<{ slug: string | string[] }> }): Promise<Metadata> {
   const { slug } = await params;
+  const qaySiteId = await getQayRenderSiteId();
 
   // Handle catch-all slug (join array into path)
   const slugPath = Array.isArray(slug) ? slug.join('/') : slug;
 
   // Fetch page and global settings in parallel
   const [data, globalSettings] = await Promise.all([
-    fetchPublishedPageForMetadata(slugPath),
+    fetchPublishedPageForMetadata(slugPath, qaySiteId),
     fetchCachedGlobalSettings(),
   ]);
 
@@ -422,8 +428,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       }),
       baseUrl: getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
     }),
-    [`data-for-route-/${slugPath}-meta`],
-    { tags: ['all-pages', `route-/${slugPath}`], revalidate: false }
+    [`data-for-route-/${qaySiteId || 'global'}/${slugPath}-meta`],
+    { tags: ['all-pages', `site-${qaySiteId || 'global'}`, `route-/${slugPath}`], revalidate: false }
   )();
 
   if (baseUrl) {
