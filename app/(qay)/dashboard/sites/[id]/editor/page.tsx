@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { requireQayAuth } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
+import { buildQayIndexSlug } from '@/qay/lib/index-slug';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -44,7 +45,7 @@ export default async function QaySiteEditorGatePage({ params }: PageProps) {
 
   const { data: existingPage, error: existingPageError } = await supabase
     .from('pages')
-    .select('id, is_index, page_folder_id, created_at')
+    .select('id, is_index, page_folder_id, created_at, settings')
     .eq('is_published', false)
     .is('deleted_at', null)
     .filter('settings->>qay_site_id', 'eq', id)
@@ -60,18 +61,38 @@ export default async function QaySiteEditorGatePage({ params }: PageProps) {
   const homePage = sitePages.find((page: { is_index: boolean; page_folder_id: string | null }) => (
     page.is_index && page.page_folder_id === null
   ));
-  let pageId = homePage?.id ?? sitePages[0]?.id;
+  const fallbackRootPage = sitePages.find((page: { page_folder_id: string | null }) => page.page_folder_id === null);
+  let pageId = homePage?.id ?? fallbackRootPage?.id ?? sitePages[0]?.id;
+
+  if (!homePage && fallbackRootPage?.id) {
+    const { error: repairHomePageError } = await supabase
+      .from('pages')
+      .update({
+        slug: buildQayIndexSlug(id),
+        is_index: true,
+        page_folder_id: null,
+        settings: { ...((fallbackRootPage.settings as Record<string, unknown> | null) || {}), qay_site_id: id },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', fallbackRootPage.id)
+      .eq('is_published', false)
+      .is('deleted_at', null);
+
+    if (repairHomePageError) {
+      throw new Error(repairHomePageError.message);
+    }
+  }
 
   if (!pageId) {
     const { data: createdPage, error: createPageError } = await supabase
       .from('pages')
       .insert({
         name: 'Home',
-        slug: `qay-${id}`,
+        slug: buildQayIndexSlug(id),
         page_folder_id: null,
         order: 0,
         depth: 0,
-        is_index: false,
+        is_index: true,
         is_dynamic: false,
         error_page: null,
         settings: { qay_site_id: id },

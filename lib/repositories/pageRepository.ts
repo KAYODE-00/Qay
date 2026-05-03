@@ -10,6 +10,7 @@ import type { Page, PageSettings } from '../../types';
 import { isHomepage } from '../page-utils';
 import { incrementSiblingOrders, fixOrphanedPageSlugs } from '../services/pageService';
 import { generatePageMetadataHash } from '../hash-utils';
+import { applyQayIndexSlug, getQaySiteIdFromSettings, isQayIndexSlug } from '@/qay/lib/index-slug';
 
 /**
  * Query filters for page lookups
@@ -203,7 +204,8 @@ async function transferIndexPage(
   client: any,
   newIndexPageId: string,
   pageFolderId: string | null,
-  isPublished: boolean = false
+  isPublished: boolean = false,
+  qaySiteId?: string | null
 ): Promise<void> {
   // Find existing index page in the same folder WITH THE SAME is_published status
   // This prevents draft pages from being modified when creating published index pages
@@ -214,6 +216,10 @@ async function transferIndexPage(
     .eq('is_published', isPublished)
     .is('deleted_at', null)
     .neq('id', newIndexPageId);
+
+  if (qaySiteId) {
+    query = query.filter('settings->>qay_site_id', 'eq', qaySiteId);
+  }
 
   // Filter by parent folder
   if (pageFolderId === null || pageFolderId === undefined) {
@@ -236,7 +242,8 @@ async function transferIndexPage(
   if (existingIndex) {
     // If the existing index page already has a slug (shouldn't happen but might in edge cases),
     // we don't need to generate a new one - just unset is_index
-    if (existingIndex.slug && existingIndex.slug.trim() !== '') {
+    const existingSlug = existingIndex.slug ? existingIndex.slug.trim() : '';
+    if (existingSlug !== '' && !isQayIndexSlug(existingSlug, qaySiteId)) {
       const { error: updateError } = await client
         .from('pages')
         .update({
@@ -258,28 +265,36 @@ async function transferIndexPage(
     let newSlug = generateSlugFromName(existingIndex.name);
 
     // Check if slug already exists (regardless of published state)
-    const { data: duplicateCheck } = await client
+    let duplicateCheckQuery = client
       .from('pages')
       .select('id')
       .eq('slug', newSlug)
       .is('deleted_at', null)
-      .neq('id', existingIndex.id)
-      .limit(1)
-      .single();
+      .neq('id', existingIndex.id);
+
+    if (qaySiteId) {
+      duplicateCheckQuery = duplicateCheckQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+    }
+
+    const { data: duplicateCheck } = await duplicateCheckQuery.limit(1).single();
 
     // If slug exists, add timestamp
     if (duplicateCheck) {
       newSlug = generateSlugFromName(existingIndex.name, timestamp);
 
       // Double-check the timestamped slug doesn't exist either
-      const { data: timestampedDuplicateCheck } = await client
+      let timestampedDuplicateQuery = client
         .from('pages')
         .select('id')
         .eq('slug', newSlug)
         .is('deleted_at', null)
-        .neq('id', existingIndex.id)
-        .limit(1)
-        .single();
+        .neq('id', existingIndex.id);
+
+      if (qaySiteId) {
+        timestampedDuplicateQuery = timestampedDuplicateQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+      }
+
+      const { data: timestampedDuplicateCheck } = await timestampedDuplicateQuery.limit(1).single();
 
       // If still duplicate, add random suffix
       if (timestampedDuplicateCheck) {
@@ -317,10 +332,12 @@ async function validateIndexPageConstraints(
   client: any,
   pageData: { is_index?: boolean; slug: string; page_folder_id?: string | null; error_page?: number | null; is_dynamic?: boolean },
   excludePageId?: string,
-  currentPageData?: { is_index: boolean; page_folder_id: string | null; is_dynamic?: boolean }
+  currentPageData?: { is_index: boolean; page_folder_id: string | null; is_dynamic?: boolean },
+  qaySiteId?: string | null
 ): Promise<void> {
   // Rule 1: Index pages must have empty slug
-  if (pageData.is_index && pageData.slug.trim() !== '') {
+  const isHiddenQayIndexSlug = isQayIndexSlug(pageData.slug, qaySiteId);
+  if (pageData.is_index && pageData.slug.trim() !== '' && !isHiddenQayIndexSlug) {
     throw new Error('Index pages must have an empty slug');
   }
 
@@ -349,6 +366,10 @@ async function validateIndexPageConstraints(
       .eq('is_index', true)
       .is('page_folder_id', null)
       .is('deleted_at', null);
+
+    if (qaySiteId) {
+      query = query.filter('settings->>qay_site_id', 'eq', qaySiteId);
+    }
 
     // Exclude current page if updating
     if (excludePageId) {
@@ -381,10 +402,20 @@ export async function createPage(pageData: CreatePageData, additionalData?: Reco
   }
 
   const normalizedPageFolderId = normalizePageFolderId(pageData.page_folder_id);
-  const normalizedPageData: CreatePageData = {
+  let normalizedPageData: CreatePageData = {
     ...pageData,
     page_folder_id: normalizedPageFolderId,
   };
+  normalizedPageData = {
+    ...normalizedPageData,
+    slug: applyQayIndexSlug(
+      normalizedPageData.slug,
+      normalizedPageData.is_index || false,
+      normalizedPageFolderId,
+      normalizedPageData.settings
+    ),
+  };
+  const qaySiteId = getQaySiteIdFromSettings(normalizedPageData.settings);
 
   // Validate index page constraints (no current page data for new pages)
   await validateIndexPageConstraints(
@@ -397,7 +428,8 @@ export async function createPage(pageData: CreatePageData, additionalData?: Reco
       is_dynamic: normalizedPageData.is_dynamic || false,
     },
     undefined,
-    undefined
+    undefined,
+    qaySiteId
   );
 
   // Calculate content hash for page metadata
@@ -432,7 +464,7 @@ export async function createPage(pageData: CreatePageData, additionalData?: Reco
 
   // If setting as index page, transfer from existing index page
   if (normalizedPageData.is_index) {
-    await transferIndexPage(client, data.id, normalizedPageFolderId, normalizedPageData.is_published || false);
+    await transferIndexPage(client, data.id, normalizedPageFolderId, normalizedPageData.is_published || false, qaySiteId);
   }
 
   return data;
@@ -455,22 +487,38 @@ export async function updatePage(id: string, updates: UpdatePageData): Promise<P
     throw new Error('Page not found');
   }
 
-  const normalizedUpdates: UpdatePageData =
+  let normalizedUpdates: UpdatePageData =
     updates.page_folder_id !== undefined
       ? {
         ...updates,
         page_folder_id: normalizePageFolderId(updates.page_folder_id),
       }
       : updates;
+  const mergedSettings = normalizedUpdates.settings !== undefined
+    ? { ...(currentPage.settings || {}), ...(normalizedUpdates.settings || {}) }
+    : currentPage.settings;
+  const qaySiteId = getQaySiteIdFromSettings(mergedSettings);
 
   // Merge current data with updates for validation
   const mergedData = {
     is_index: normalizedUpdates.is_index !== undefined ? normalizedUpdates.is_index : currentPage.is_index,
-    slug: normalizedUpdates.slug !== undefined ? normalizedUpdates.slug : currentPage.slug,
+    slug: applyQayIndexSlug(
+      normalizedUpdates.slug !== undefined ? normalizedUpdates.slug : currentPage.slug,
+      normalizedUpdates.is_index !== undefined ? normalizedUpdates.is_index : currentPage.is_index,
+      normalizedUpdates.page_folder_id !== undefined ? normalizedUpdates.page_folder_id : currentPage.page_folder_id,
+      mergedSettings
+    ),
     page_folder_id: normalizedUpdates.page_folder_id !== undefined ? normalizedUpdates.page_folder_id : currentPage.page_folder_id,
     error_page: normalizedUpdates.error_page !== undefined ? normalizedUpdates.error_page : currentPage.error_page,
     is_dynamic: normalizedUpdates.is_dynamic !== undefined ? normalizedUpdates.is_dynamic : currentPage.is_dynamic,
   };
+
+  if (mergedData.slug !== (normalizedUpdates.slug !== undefined ? normalizedUpdates.slug : currentPage.slug)) {
+    normalizedUpdates = { ...normalizedUpdates, slug: mergedData.slug };
+  }
+  if (normalizedUpdates.settings !== undefined) {
+    normalizedUpdates = { ...normalizedUpdates, settings: mergedSettings };
+  }
 
   // Validate index page constraints if is_index or slug is being updated
   if (normalizedUpdates.is_index !== undefined || normalizedUpdates.slug !== undefined || normalizedUpdates.page_folder_id !== undefined) {
@@ -478,7 +526,8 @@ export async function updatePage(id: string, updates: UpdatePageData): Promise<P
       client,
       mergedData,
       id,
-      { is_index: currentPage.is_index, page_folder_id: currentPage.page_folder_id }
+      { is_index: currentPage.is_index, page_folder_id: currentPage.page_folder_id },
+      qaySiteId
     );
   }
 
@@ -503,7 +552,7 @@ export async function updatePage(id: string, updates: UpdatePageData): Promise<P
       await fixOrphanedPageSlugs(orphanedPages);
     }
 
-    await transferIndexPage(client, id, folderIdForTransfer, currentPage.is_published);
+    await transferIndexPage(client, id, folderIdForTransfer, currentPage.is_published, qaySiteId);
   }
 
   // Calculate new content hash based on merged data

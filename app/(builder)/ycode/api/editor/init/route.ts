@@ -13,6 +13,7 @@ import { getAllFonts } from '@/lib/repositories/fontRepository';
 import { getMapboxAccessToken, getGoogleMapsEmbedApiKey } from '@/lib/map-server';
 import { canAccessQaySite } from '@/qay/lib/site-access';
 import { filterAssetsForQaySite, filterAssetFoldersForQaySite } from '@/qay/lib/media-isolation';
+import { normalizeQayPageForResponse } from '@/qay/lib/index-slug';
 
 /**
  * GET /ycode/api/editor/init
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
       : pages;
     const scopedPages = Array.from(
       new Map(scopedPagesRaw.map((page) => [`${page.id}:${page.error_page ?? 'page'}`, page])).values()
-    );
+    ).map((page) => qaySiteId ? normalizeQayPageForResponse(page, qaySiteId) : page);
     const scopedPageIds = new Set(scopedPages.map((page) => page.id));
     const scopedDrafts = qaySiteId
       ? drafts.filter((draft) => scopedPageIds.has(draft.page_id))

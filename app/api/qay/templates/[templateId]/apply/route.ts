@@ -4,6 +4,7 @@ import { getKnexClient, closeKnexClient } from '@/lib/knex-client';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
+import { buildQayIndexSlug } from '@/qay/lib/index-slug';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,6 +21,10 @@ async function tagImportedTemplateData(siteId: string) {
         .whereRaw("(settings->>'qay_site_id') IS NULL")
         .update({
           settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
+          slug: knex.raw(
+            "case when is_index = true and page_folder_id is null then ? else slug end",
+            [buildQayIndexSlug(siteId)]
+          ),
         });
     }
 

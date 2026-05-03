@@ -4,6 +4,7 @@ import { deleteTranslationsInBulk } from '@/lib/repositories/translationReposito
 import { noCache } from '@/lib/api-response';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 import { canUsePageInQaySite, getQaySiteIdFromRequest } from '@/qay/lib/page-access';
+import { applyQayIndexSlug, normalizeQayPageForResponse } from '@/qay/lib/index-slug';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -39,7 +40,7 @@ export async function GET(
     }
 
     return noCache({
-      data: page,
+      data: qaySiteId ? normalizeQayPageForResponse(page, qaySiteId) : page,
     });
   } catch (error) {
     console.error('Failed to fetch page:', error);
@@ -101,29 +102,40 @@ export async function PUT(
       ? body.is_dynamic
       : currentPage.is_dynamic;
 
-    // Error pages and index pages must have empty slugs
+    const updatePayload = { ...body };
+    if (qaySiteId) {
+      updatePayload.settings = {
+        ...(currentPage.settings || {}),
+        ...(updatePayload.settings || {}),
+        qay_site_id: qaySiteId,
+      };
+    }
+
+    // Error pages and index pages must have empty slugs in the editor UI.
+    // QAY root index pages are persisted with a hidden site-specific slug.
     if (isErrorPage || isIndexPage) {
-      if (body.slug !== undefined && body.slug.trim() !== '') {
+      if (updatePayload.slug !== undefined && updatePayload.slug.trim() !== '') {
         const pageType = isErrorPage ? 'Error' : 'Index';
         return noCache(
           { error: `${pageType} pages must have an empty slug` },
           400
         );
       }
-      // Force slug to empty
-      body.slug = '';
+      updatePayload.slug = isErrorPage
+        ? ''
+        : applyQayIndexSlug('', isIndexPage, updatePayload.page_folder_id ?? currentPage.page_folder_id, updatePayload.settings);
     }
 
     // Dynamic pages should have "*" as slug (allow updates to "*")
-    if (isDynamicPage && body.slug !== undefined && body.slug !== '*') {
-      body.slug = '*';
+    if (isDynamicPage && updatePayload.slug !== undefined && updatePayload.slug !== '*') {
+      updatePayload.slug = '*';
     }
 
     // Pass all updates to the repository (it will handle further validation)
-    const page = await updatePage(id, body);
+    const page = await updatePage(id, updatePayload);
 
     return noCache({
-      data: page,
+      data: qaySiteId ? normalizeQayPageForResponse(page, qaySiteId) : page,
     });
   } catch (error) {
     console.error('Failed to update page:', error);

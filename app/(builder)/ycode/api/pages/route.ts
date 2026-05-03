@@ -4,6 +4,7 @@ import { upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { noCache } from '@/lib/api-response';
 import { canAccessQaySite } from '@/qay/lib/site-access';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
+import { applyQayIndexSlug, normalizeQayPageForResponse } from '@/qay/lib/index-slug';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
       : pages;
     const scopedPages = Array.from(
       new Map(scopedPagesRaw.map((page) => [`${page.id}:${page.error_page ?? 'page'}`, page])).values()
-    );
+    ).map((page) => qaySiteId ? normalizeQayPageForResponse(page, qaySiteId) : page);
 
     return noCache({
       data: scopedPages,
@@ -125,8 +126,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine final slug: error pages and index pages must have empty slugs
-    const finalSlug = (error_page !== null || is_index) ? '' : slug;
+    // Determine final slug: QAY root index pages use a hidden site-specific slug
+    // internally, then return as an empty slug to the editor UI.
+    const baseFinalSlug = (error_page !== null || is_index) ? '' : slug;
 
     // Validate slug requirements
     if ((error_page !== null || is_index) && slug && slug.trim() !== '') {
@@ -138,7 +140,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!is_index && error_page === null && (!finalSlug || finalSlug.trim() === '')) {
+    if (!is_index && error_page === null && (!baseFinalSlug || baseFinalSlug.trim() === '')) {
       console.error('[POST /ycode/api/pages] Validation failed: non-index page missing slug');
       return noCache(
         { error: 'Non-index pages must have a slug' },
@@ -169,6 +171,9 @@ export async function POST(request: NextRequest) {
     const scopedSettings = qaySiteId
       ? { ...settings, qay_site_id: qaySiteId }
       : settings;
+    const finalSlug = error_page !== null
+      ? ''
+      : applyQayIndexSlug(baseFinalSlug, is_index, normalizedPageFolderId, scopedSettings);
 
     // Create page
     const page = await createPage({
@@ -195,7 +200,7 @@ export async function POST(request: NextRequest) {
     await upsertDraftLayers(page.id, [bodyLayer]);
 
     return noCache({
-      data: page,
+      data: qaySiteId ? normalizeQayPageForResponse(page, qaySiteId) : page,
     });
   } catch (error) {
     console.error('[POST /ycode/api/pages] Error:', error);
