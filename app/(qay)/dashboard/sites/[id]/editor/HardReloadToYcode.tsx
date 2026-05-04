@@ -2,15 +2,23 @@
 
 import { useEffect } from 'react';
 import { QayLogo } from '@/qay/components/QayLogo';
+import { QAY_EDITOR_SITE_STORAGE_KEY } from '@/qay/lib/editor-site';
 
 type HardReloadToYcodeProps = {
+  siteId: string;
   targetUrl: string;
 };
 
-export function HardReloadToYcode({ targetUrl }: HardReloadToYcodeProps) {
+export function HardReloadToYcode({ siteId, targetUrl }: HardReloadToYcodeProps) {
   useEffect(() => {
+    try {
+      window.sessionStorage.setItem(QAY_EDITOR_SITE_STORAGE_KEY, siteId);
+    } catch {
+      // Session storage is a fallback; the server cookie is canonical.
+    }
+
     window.location.replace(targetUrl);
-  }, [targetUrl]);
+  }, [siteId, targetUrl]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#0a0a0a] px-6 text-white">

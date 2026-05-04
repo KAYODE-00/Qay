@@ -25,6 +25,7 @@ import { getDescendantFolderIds, isHomepage, findHomepage, findNextSelection } f
 import { updateLayersWithStyle, detachStyleFromLayers } from '../lib/layer-style-utils';
 import { updateLayersWithComponent, detachComponentFromLayers } from '../lib/component-utils';
 import { useComponentsStore, triggerThumbnailGeneration } from './useComponentsStore';
+import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
 
 /**
  * Module-level dedupe map for in-flight loadDraft requests.
@@ -38,19 +39,7 @@ import { useComponentsStore, triggerThumbnailGeneration } from './useComponentsS
 const inflightDraftLoads = new Map<string, Promise<void>>();
 
 function withCurrentQaySite(endpoint: string): string {
-  if (typeof window === 'undefined') {
-    return endpoint;
-  }
-
-  const siteId = new URLSearchParams(window.location.search).get('site');
-  if (!siteId) {
-    return endpoint;
-  }
-
-  const [path, query = ''] = endpoint.split('?');
-  const params = new URLSearchParams(query);
-  params.set('site', siteId);
-  return `${path}?${params.toString()}`;
+  return appendQayEditorSiteParam(endpoint);
 }
 
 interface PagesState {

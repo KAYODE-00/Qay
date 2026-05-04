@@ -2,10 +2,11 @@ import { NextRequest } from 'next/server';
 import type { Page } from '@/types';
 import { getQayAdmin } from './supabase-admin';
 import { canAccessQaySite } from './site-access';
+import { QAY_EDITOR_SITE_COOKIE } from './editor-site';
 
 export function getQaySiteIdFromRequest(request: NextRequest): string | null {
   const { searchParams } = new URL(request.url);
-  return searchParams.get('site');
+  return searchParams.get('site') || request.cookies.get(QAY_EDITOR_SITE_COOKIE)?.value || null;
 }
 
 export function getPageQaySiteId(page: Pick<Page, 'settings'> | null): string | null {

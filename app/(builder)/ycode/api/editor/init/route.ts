@@ -14,6 +14,7 @@ import { getMapboxAccessToken, getGoogleMapsEmbedApiKey } from '@/lib/map-server
 import { canAccessQaySite } from '@/qay/lib/site-access';
 import { filterAssetsForQaySite, filterAssetFoldersForQaySite } from '@/qay/lib/media-isolation';
 import { normalizeQayPageForResponse } from '@/qay/lib/index-slug';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 /**
  * GET /ycode/api/editor/init
@@ -32,8 +33,7 @@ import { normalizeQayPageForResponse } from '@/qay/lib/index-slug';
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const qaySiteId = searchParams.get('site');
+    const qaySiteId = getQaySiteIdFromRequest(request);
 
     if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
       return NextResponse.json(

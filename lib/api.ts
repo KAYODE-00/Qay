@@ -7,28 +7,13 @@
 import type { Page, PageLayers, Layer, Asset, AssetCategory, PageFolder, ApiResponse, Collection, CollectionField, CollectionItemWithValues, Component, LayerStyle, Setting, UpdateCollectionData, CreateCollectionFieldData, UpdateCollectionFieldData, Locale, Translation, CreateLocaleData, UpdateLocaleData, CreateTranslationData, UpdateTranslationData, AssetFolder, Font } from '../types';
 import type { StatusAction } from '@/lib/collection-field-utils';
 import type { CollectionUsageResult, CollectionFieldUsageResult } from '@/lib/collection-usage-utils';
+import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
 
 // All API routes are now relative (Next.js API routes)
 const API_BASE = '';
 
 function appendQaySiteParam(endpoint: string): string {
-  if (typeof window === 'undefined' || !endpoint.startsWith('/ycode/api/')) {
-    return endpoint;
-  }
-
-  const siteId = new URLSearchParams(window.location.search).get('site');
-  if (!siteId) {
-    return endpoint;
-  }
-
-  const [path, query = ''] = endpoint.split('?');
-  const params = new URLSearchParams(query);
-  if (!params.has('site')) {
-    params.set('site', siteId);
-  }
-
-  const nextQuery = params.toString();
-  return nextQuery ? `${path}?${nextQuery}` : path;
+  return appendQayEditorSiteParam(endpoint);
 }
 
 // Get Supabase auth token

@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import type { Asset, AssetFolder } from '@/types';
+import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
 
 interface AssetsState {
   assets: Asset[];
@@ -64,19 +65,7 @@ const initialState: AssetsState = {
 const pendingFetches = new Set<string>();
 
 function withCurrentQaySite(endpoint: string): string {
-  if (typeof window === 'undefined') {
-    return endpoint;
-  }
-
-  const siteId = new URLSearchParams(window.location.search).get('site');
-  if (!siteId) {
-    return endpoint;
-  }
-
-  const [path, query = ''] = endpoint.split('?');
-  const params = new URLSearchParams(query);
-  params.set('site', siteId);
-  return `${path}?${params.toString()}`;
+  return appendQayEditorSiteParam(endpoint);
 }
 
 export const useAssetsStore = create<AssetsStore>((set, get) => ({

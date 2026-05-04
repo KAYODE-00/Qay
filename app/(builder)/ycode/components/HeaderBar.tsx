@@ -37,6 +37,7 @@ import Icon from '@/components/ui/icon';
 import { Separator } from '@/components/ui/separator';
 import { BackupRestoreDialog } from '@/components/project/BackupRestoreDialog';
 import { isCloudVersion } from '@/lib/utils';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 
 interface HeaderBarProps {
   user: User | null;
@@ -94,8 +95,16 @@ export default function HeaderBar({
 
   const withCurrentSite = (path: string) => {
     if (typeof window === 'undefined') return path;
-    const siteId = new URLSearchParams(window.location.search).get('site');
-    return siteId ? `${path}?site=${siteId}` : path;
+    const editorBasePath = pathname?.startsWith('/qay/editor') ? '/qay/editor' : '/ycode';
+    const editorPath = path.startsWith('/ycode') ? path.replace('/ycode', editorBasePath) : path;
+    const siteId = readQayEditorSiteIdFromBrowser();
+    const [pathOnly, query = ''] = editorPath.split('?');
+    const params = new URLSearchParams(query);
+    if (siteId && !params.has('site')) {
+      params.set('site', siteId);
+    }
+    const nextQuery = params.toString();
+    return nextQuery ? `${pathOnly}?${nextQuery}` : pathOnly;
   };
 
   // Clear optimistic state once the URL reflects the clicked route
@@ -418,7 +427,7 @@ export default function HeaderBar({
             <DropdownMenuSeparator />
 
             <DropdownMenuItem
-              onClick={() => router.push('/ycode/profile')}
+              onClick={() => router.push(withCurrentSite('/ycode/profile'))}
             >
               My profile
             </DropdownMenuItem>
@@ -488,7 +497,7 @@ export default function HeaderBar({
                 setLastDesignUrl(window.location.pathname + window.location.search);
               }
               setOptimisticNav('forms');
-              router.push('/ycode/forms');
+              router.push(withCurrentSite('/ycode/forms'));
             }}
           >
             <Icon name="form" />
@@ -523,11 +532,11 @@ export default function HeaderBar({
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
-            {!pathname?.startsWith('/ycode/localization') && (
+            {!pathname?.startsWith('/ycode/localization') && !pathname?.startsWith('/qay/editor/localization') && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => router.push('/ycode/localization')}
+                  onClick={() => router.push(withCurrentSite('/ycode/localization'))}
                 >
                   Manage locales
                 </DropdownMenuItem>
@@ -563,7 +572,7 @@ export default function HeaderBar({
               size="xs"
               variant="default"
               className="bg-primary/20 hover:bg-primary/30 text-blue-400 hover:text-blue-300"
-              onClick={() => router.push('/ycode/settings/updates')}
+              onClick={() => router.push(withCurrentSite('/ycode/settings/updates'))}
             >
               Update available
             </Button>
@@ -632,7 +641,7 @@ export default function HeaderBar({
               setActiveSidebarTab('layers');
               const params = new URLSearchParams(window.location.search);
               params.set('preview', 'true');
-              router.push(`/ycode/layers/${currentPageId}?${params.toString()}`);
+              router.push(withCurrentSite(`/ycode/layers/${currentPageId}?${params.toString()}`));
               return;
             }
 

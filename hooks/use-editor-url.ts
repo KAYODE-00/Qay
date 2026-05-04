@@ -5,6 +5,12 @@ import { useCallback, useMemo } from 'react';
 import { useEditorStore } from '@/stores/useEditorStore';
 import { useCollectionsStore } from '@/stores/useCollectionsStore';
 
+const EDITOR_ROUTE_PREFIX_PATTERN = '(?:ycode|qay\\/editor)';
+
+function getEditorBasePath(pathname: string | null): '/ycode' | '/qay/editor' {
+  return pathname?.startsWith('/qay/editor') ? '/qay/editor' : '/ycode';
+}
+
 /**
  * Update URL query parameter using browser history API
  * Can be called from anywhere (including Zustand stores) without React hooks
@@ -62,6 +68,7 @@ export function useEditorUrl() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const editorBasePath = useMemo(() => getEditorBasePath(pathname), [pathname]);
 
   // Parse current URL to determine state
   const urlState = useMemo((): EditorUrlState => {
@@ -72,14 +79,14 @@ export function useEditorUrl() {
     // - /ycode/collections/[id] → specific collection view (with optional ?new or ?edit=itemId query params)
     // - /ycode/components/[id] → component editing
 
-    const layersMatch = pathname?.match(/^\/ycode\/layers\/([^/]+)$/);
-    const pageMatch = pathname?.match(/^\/ycode\/pages\/([^/]+)$/);
-    const collectionsBaseMatch = pathname?.match(/^\/ycode\/collections$/);
-    const collectionMatch = pathname?.match(/^\/ycode\/collections\/([^/]+)$/);
-    const componentMatch = pathname?.match(/^\/ycode\/components\/([^/]+)$/);
-    const settingsMatch = pathname?.match(/^\/ycode\/settings(?:\/([^/]+))?$/);
-    const localizationMatch = pathname?.match(/^\/ycode\/localization(?:\/([^/]+))?$/);
-    const profileMatch = pathname?.match(/^\/ycode\/profile(?:\/([^/]+))?$/);
+    const layersMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/layers\\/([^/]+)$`));
+    const pageMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/pages\\/([^/]+)$`));
+    const collectionsBaseMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/collections$`));
+    const collectionMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/collections\\/([^/]+)$`));
+    const componentMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/components\\/([^/]+)$`));
+    const settingsMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/settings(?:\\/([^/]+))?$`));
+    const localizationMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/localization(?:\\/([^/]+))?$`));
+    const profileMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/profile(?:\\/([^/]+))?$`));
 
     if (layersMatch) {
       const viewParam = searchParams?.get('view');
@@ -182,7 +189,7 @@ export function useEditorUrl() {
     }
 
     // Forms route matching
-    const formsMatch = pathname?.match(/^\/ycode\/forms(?:\/([^/]+))?$/);
+    const formsMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/forms(?:\\/([^/]+))?$`));
     if (formsMatch) {
       return {
         type: 'forms',
@@ -194,7 +201,7 @@ export function useEditorUrl() {
     }
 
     // Integrations route matching
-    const integrationsMatch = pathname?.match(/^\/ycode\/integrations(?:\/([^/]+))?$/);
+    const integrationsMatch = pathname?.match(new RegExp(`^\\/${EDITOR_ROUTE_PREFIX_PATTERN}\\/integrations(?:\\/([^/]+))?$`));
     if (integrationsMatch) {
       return {
         type: 'integrations',
@@ -245,9 +252,9 @@ export function useEditorUrl() {
       currentParams.set('layer', layerId || currentParams.get('layer') || 'body');
 
       const query = currentParams.toString();
-      router.push(`/ycode/layers/${pageId}?${query}`);
+      router.push(`${editorBasePath}/layers/${pageId}?${query}`);
     },
-    [router]
+    [editorBasePath, router]
   );
 
   const navigateToPage = useCallback(
@@ -264,9 +271,9 @@ export function useEditorUrl() {
       currentParams.set('layer', layerId || currentParams.get('layer') || 'body');
 
       const query = currentParams.toString();
-      router.push(`/ycode/pages/${pageId}?${query}`);
+      router.push(`${editorBasePath}/pages/${pageId}?${query}`);
     },
-    [router]
+    [editorBasePath, router]
   );
 
   const navigateToPageEdit = useCallback(
@@ -292,9 +299,9 @@ export function useEditorUrl() {
       }
 
       const query = currentParams.toString();
-      router.push(`/ycode/pages/${pageId}${query ? `?${query}` : ''}`);
+      router.push(`${editorBasePath}/pages/${pageId}${query ? `?${query}` : ''}`);
     },
-    [router, searchParams]
+    [editorBasePath, router, searchParams]
   );
 
   const navigateToPageLayers = useCallback(
@@ -319,14 +326,14 @@ export function useEditorUrl() {
         params.set('limit', pageSize.toString());
       }
       const query = params.toString();
-      router.push(`/ycode/collections/${collectionId}${query ? `?${query}` : ''}`);
+      router.push(`${editorBasePath}/collections/${collectionId}${query ? `?${query}` : ''}`);
     },
-    [router]
+    [editorBasePath, router]
   );
 
   const navigateToCollections = useCallback(() => {
-    router.push('/ycode/collections');
-  }, [router]);
+    router.push(`${editorBasePath}/collections`);
+  }, [editorBasePath, router]);
 
   const navigateToCollectionItem = useCallback(
     (collectionId: string, itemRId: string) => {
@@ -336,9 +343,9 @@ export function useEditorUrl() {
       if (currentParams.has('page')) params.set('page', currentParams.get('page')!);
       if (currentParams.has('limit')) params.set('limit', currentParams.get('limit')!);
       if (currentParams.has('search')) params.set('search', currentParams.get('search')!);
-      router.push(`/ycode/collections/${collectionId}?${params.toString()}`);
+      router.push(`${editorBasePath}/collections/${collectionId}?${params.toString()}`);
     },
-    [router]
+    [editorBasePath, router]
   );
 
   const navigateToNewCollectionItem = useCallback(
@@ -349,9 +356,9 @@ export function useEditorUrl() {
       if (currentParams.has('page')) params.set('page', currentParams.get('page')!);
       if (currentParams.has('limit')) params.set('limit', currentParams.get('limit')!);
       if (currentParams.has('search')) params.set('search', currentParams.get('search')!);
-      router.push(`/ycode/collections/${collectionId}?${params.toString()}`);
+      router.push(`${editorBasePath}/collections/${collectionId}?${params.toString()}`);
     },
-    [router]
+    [editorBasePath, router]
   );
 
   const navigateToComponent = useCallback(
@@ -366,14 +373,14 @@ export function useEditorUrl() {
       if (layerId) params.set('layer', layerId);
 
       const query = params.toString();
-      router.push(`/ycode/components/${componentId}${query ? `?${query}` : ''}`);
+      router.push(`${editorBasePath}/components/${componentId}${query ? `?${query}` : ''}`);
     },
-    [router]
+    [editorBasePath, router]
   );
 
   const navigateToEditor = useCallback(() => {
-    router.push('/ycode');
-  }, [router]);
+    router.push(editorBasePath);
+  }, [editorBasePath, router]);
 
   const updateQueryParams = useCallback(
     (params: {

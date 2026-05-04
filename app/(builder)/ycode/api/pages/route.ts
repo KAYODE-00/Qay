@@ -5,6 +5,7 @@ import { noCache } from '@/lib/api-response';
 import { canAccessQaySite } from '@/qay/lib/site-access';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 import { applyQayIndexSlug, normalizeQayPageForResponse } from '@/qay/lib/index-slug';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
   try {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
-    const qaySiteId = searchParams.get('site');
+    const qaySiteId = getQaySiteIdFromRequest(request);
 
     if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
       return noCache({ error: 'Not authorized for QAY site' }, 403);
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const qaySiteId = searchParams.get('site');
+    const qaySiteId = getQaySiteIdFromRequest(request);
 
     if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
       return noCache({ error: 'Not authorized for QAY site' }, 403);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllPageFolders, createPageFolder } from '@/lib/repositories/pageFolderRepository';
 import { noCache } from '@/lib/api-response';
 import { canAccessQaySite } from '@/qay/lib/site-access';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -14,8 +15,7 @@ export const revalidate = 0;
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const qaySiteId = searchParams.get('site');
+    const qaySiteId = getQaySiteIdFromRequest(request);
 
     if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
       return noCache({ error: 'Not authorized for QAY site' }, 403);
@@ -50,8 +50,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const qaySiteId = searchParams.get('site');
+    const qaySiteId = getQaySiteIdFromRequest(request);
 
     if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
       return noCache({ error: 'Not authorized for QAY site' }, 403);

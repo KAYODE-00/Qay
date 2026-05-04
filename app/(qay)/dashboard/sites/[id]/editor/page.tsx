@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { requireQayAuth } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 import { buildQayIndexSlug } from '@/qay/lib/index-slug';
+import { QAY_EDITOR_SITE_COOKIE } from '@/qay/lib/editor-site';
 import { HardReloadToYcode } from './HardReloadToYcode';
 
 type PageProps = {
@@ -128,9 +130,18 @@ export default async function QaySiteEditorGatePage({ params }: PageProps) {
     }
   }
 
+  const cookieStore = await cookies();
+  cookieStore.set(QAY_EDITOR_SITE_COOKIE, id, {
+    httpOnly: false,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+  });
+
   return (
     <HardReloadToYcode
-      targetUrl={`/ycode/layers/${pageId}?site=${id}&view=desktop&tab=design&layer=body`}
+      siteId={id}
+      targetUrl={`/qay/editor/layers/${pageId}?site=${id}&view=desktop&tab=design&layer=body`}
     />
   );
 }
