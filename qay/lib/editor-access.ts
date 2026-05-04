@@ -42,12 +42,5 @@ export async function requireQayEditorSite(siteIdFromQuery?: string | null): Pro
     notFound();
   }
 
-  cookieStore.set(QAY_EDITOR_SITE_COOKIE, siteId, {
-    httpOnly: false,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-  });
-
   return siteId;
 }

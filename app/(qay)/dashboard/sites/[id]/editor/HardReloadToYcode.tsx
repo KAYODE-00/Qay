@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { QayLogo } from '@/qay/components/QayLogo';
-import { QAY_EDITOR_SITE_STORAGE_KEY } from '@/qay/lib/editor-site';
+import { QAY_EDITOR_SITE_COOKIE, QAY_EDITOR_SITE_STORAGE_KEY } from '@/qay/lib/editor-site';
 
 type HardReloadToYcodeProps = {
   siteId: string;
@@ -17,6 +17,7 @@ export function HardReloadToYcode({ siteId, targetUrl }: HardReloadToYcodeProps)
       // Session storage is a fallback; the server cookie is canonical.
     }
 
+    document.cookie = `${QAY_EDITOR_SITE_COOKIE}=${encodeURIComponent(siteId)}; Max-Age=${60 * 60 * 24 * 30}; Path=/; SameSite=Lax`;
     window.location.replace(targetUrl);
   }, [siteId, targetUrl]);
 
