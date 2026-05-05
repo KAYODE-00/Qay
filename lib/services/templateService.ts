@@ -212,6 +212,21 @@ async function copyTemplateAssetsToUserStorage(knex: ReturnType<typeof getKnexCl
 
     for (const font of templateFonts) {
       try {
+        if (
+          typeof font.url !== 'string' ||
+          font.url.startsWith('{{ASSET_URL:') ||
+          !URL.canParse(font.url)
+        ) {
+          await knex('fonts')
+            .where('id', font.id)
+            .update({
+              url: null,
+              storage_path: null,
+              updated_at: knex.fn.now(),
+            });
+          continue;
+        }
+
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 30000);
 
