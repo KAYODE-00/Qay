@@ -295,6 +295,7 @@ export default function HeaderBar({
     }
 
     localStorage.setItem('theme', theme);
+    window.dispatchEvent(new Event('qay-theme-change'));
   }, [theme]);
 
   // Close page dropdown when clicking outside

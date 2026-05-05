@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { Bell, ExternalLink, Grid2X2, LayoutTemplate, List, MoreVertical, Plus, Settings, Trash2, UserPlus } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
+import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
 import type { QaySite } from '@/qay/types';
 
 type DashboardProps = {
@@ -98,15 +99,15 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-white">
-      <header className="border-b border-white/10 bg-black/40">
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card/80">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <QayLogo />
 
           <div className="flex items-center gap-2">
             <a
               href="/dashboard/templates"
-              className="hidden h-10 items-center gap-2 rounded-md border border-white/10 px-4 text-sm text-white/75 transition hover:bg-white/5 hover:text-white sm:inline-flex"
+              className="hidden h-10 items-center gap-2 rounded-md border border-border px-4 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground sm:inline-flex"
             >
               <LayoutTemplate className="size-4" />
               Templates
@@ -114,19 +115,20 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90"
+              className="inline-flex h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90"
             >
               <Plus className="size-4" />
               New site
             </button>
+            <QayThemeToggle />
             <button
               type="button"
               aria-label="Notifications"
-              className="flex size-10 items-center justify-center rounded-md border border-white/10 text-white/70 transition hover:bg-white/5 hover:text-white"
+              className="flex size-10 items-center justify-center rounded-md border border-border text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
             >
               <Bell className="size-4" />
             </button>
-            <div className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs font-medium text-white/80">
+            <div className="flex size-10 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground">
               {initials}
             </div>
           </div>
@@ -137,15 +139,15 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-3xl font-semibold tracking-normal">My Sites</h1>
-            <p className="mt-2 text-sm text-white/55">Create, manage, and open isolated QAY sites.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Create, manage, and open isolated QAY sites.</p>
           </div>
 
-          <div className="flex rounded-md border border-white/10 bg-white/[0.03] p-1">
+          <div className="flex rounded-md border border-border bg-muted p-1">
             <button
               type="button"
               aria-label="Grid view"
               onClick={() => setView('grid')}
-              className={`flex size-9 items-center justify-center rounded ${view === 'grid' ? 'bg-white text-black' : 'text-white/65 hover:text-white'}`}
+              className={`flex size-9 items-center justify-center rounded ${view === 'grid' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <Grid2X2 className="size-4" />
             </button>
@@ -153,7 +155,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
               type="button"
               aria-label="List view"
               onClick={() => setView('list')}
-              className={`flex size-9 items-center justify-center rounded ${view === 'list' ? 'bg-white text-black' : 'text-white/65 hover:text-white'}`}
+              className={`flex size-9 items-center justify-center rounded ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <List className="size-4" />
             </button>
@@ -165,18 +167,18 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
             <article
               key={site.id}
               className={view === 'grid'
-                ? 'rounded-lg border border-white/10 bg-white/[0.03] p-4'
-                : 'flex items-center gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4'}
+                ? 'rounded-lg border border-border bg-card p-4'
+                : 'flex items-center gap-4 rounded-lg border border-border bg-card p-4'}
             >
               <div className={view === 'grid'
-                ? 'flex aspect-video items-center justify-center rounded-md border border-white/10 bg-gradient-to-br from-white/10 to-transparent'
-                : 'flex h-20 w-32 shrink-0 items-center justify-center rounded-md border border-white/10 bg-gradient-to-br from-white/10 to-transparent'}
+                ? 'flex aspect-video items-center justify-center rounded-md border border-border bg-muted'
+                : 'flex h-20 w-32 shrink-0 items-center justify-center rounded-md border border-border bg-muted'}
               >
                 {site.thumbnail_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={site.thumbnail_url} alt="" className="h-full w-full rounded-md object-cover" />
                 ) : (
-                  <span className="text-sm font-medium text-white/35">{site.name.slice(0, 2).toUpperCase()}</span>
+                  <span className="text-sm font-medium text-muted-foreground">{site.name.slice(0, 2).toUpperCase()}</span>
                 )}
               </div>
 
@@ -184,37 +186,37 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="truncate text-base font-medium">{site.name}</h2>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-white/55">
-                      <span className={`size-2 rounded-full ${site.publish_status === 'published' ? 'bg-emerald-400' : 'bg-white/35'}`} />
+                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className={`size-2 rounded-full ${site.publish_status === 'published' ? 'bg-emerald-500' : 'bg-muted-foreground/35'}`} />
                       <span>{site.publish_status === 'published' ? 'Live' : 'Draft'}</span>
                       <span>{formatRelativeDate(site.updated_at)}</span>
                     </div>
                   </div>
 
                   <details className="relative">
-                    <summary className="flex size-8 cursor-pointer list-none items-center justify-center rounded-md text-white/55 transition hover:bg-white/5 hover:text-white">
+                    <summary className="flex size-8 cursor-pointer list-none items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-accent-foreground">
                       <MoreVertical className="size-4" />
                     </summary>
-                    <div className="absolute right-0 z-10 mt-2 w-44 rounded-md border border-white/10 bg-[#111] p-1 shadow-xl">
+                    <div className="absolute right-0 z-10 mt-2 w-44 rounded-md border border-border bg-popover p-1 shadow-xl">
                       <a
                         href={site.live_url || `/api/qay/sites/${site.id}/open`}
                         target={site.live_url ? '_blank' : undefined}
                         rel={site.live_url ? 'noreferrer' : undefined}
-                        className="flex items-center gap-2 rounded px-3 py-2 text-sm text-white/75 hover:bg-white/5 hover:text-white"
+                        className="flex items-center gap-2 rounded px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                       >
                         <ExternalLink className="size-4" />
                         Open site
                       </a>
                       <a
                         href={`/dashboard/sites/${site.id}/settings`}
-                        className="flex items-center gap-2 rounded px-3 py-2 text-sm text-white/75 hover:bg-white/5 hover:text-white"
+                        className="flex items-center gap-2 rounded px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                       >
                         <Settings className="size-4" />
                         Site settings
                       </a>
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-white/75 hover:bg-white/5 hover:text-white"
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                       >
                         <UserPlus className="size-4" />
                         Invite client
@@ -234,7 +236,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
                 <button
                   type="button"
                   onClick={() => openEditor(site.id)}
-                  className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90"
+                  className="mt-4 h-10 w-full rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90"
                 >
                   Edit
                 </button>
@@ -245,7 +247,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="flex min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-white/15 bg-white/[0.02] text-white/60 transition hover:border-white/35 hover:bg-white/[0.04] hover:text-white"
+            className="flex min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
           >
             <Plus className="mb-3 size-6" />
             <span className="text-sm font-medium">New Site</span>
@@ -255,23 +257,23 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <form onSubmit={createSite} className="w-full max-w-md rounded-lg border border-white/10 bg-[#101010] p-6 shadow-2xl">
+          <form onSubmit={createSite} className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold tracking-normal">Create new site</h2>
-                <p className="mt-1 text-sm text-white/55">Each site opens Ycode with its own QAY site context.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Each site opens Ycode with its own QAY site context.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="rounded-md px-2 py-1 text-sm text-white/50 hover:bg-white/5 hover:text-white"
+                className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               >
                 Close
               </button>
             </div>
 
             <div className="mt-6 space-y-4">
-              <label className="block space-y-2 text-sm text-white/75">
+              <label className="block space-y-2 text-sm text-muted-foreground">
                 <span>Site name</span>
                 <input
                   value={siteName}
@@ -280,17 +282,17 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
                     setSiteSlug((current) => current || makeSlug(event.target.value));
                   }}
                   required
-                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
                 />
               </label>
 
-              <label className="block space-y-2 text-sm text-white/75">
+              <label className="block space-y-2 text-sm text-muted-foreground">
                 <span>Slug</span>
                 <input
                   value={siteSlug}
                   onChange={(event) => setSiteSlug(makeSlug(event.target.value))}
                   required
-                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
                 />
               </label>
 
@@ -299,7 +301,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
               <button
                 type="submit"
                 disabled={isCreating}
-                className="h-11 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-11 w-full rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isCreating ? 'Creating...' : 'Create and open editor'}
               </button>

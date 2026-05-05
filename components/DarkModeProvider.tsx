@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 
+const QAY_THEME_EVENT = 'qay-theme-change';
+
 /**
  * Resolves whether dark mode should be active based on the user's
  * saved theme preference and the system color scheme.
@@ -16,6 +18,23 @@ function shouldApplyDark(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
+function isThemedAppRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (pathname.startsWith('/ycode/preview')) return false;
+
+  return (
+    pathname.startsWith('/ycode') ||
+    pathname.startsWith('/qay') ||
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/client') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/invite')
+  );
+}
+
 /**
  * DarkModeProvider
  * 
@@ -23,26 +42,38 @@ function shouldApplyDark(): boolean {
  * based on the current pathname. This avoids using headers() in
  * the root layout which would force all pages to be dynamic.
  * 
- * For /ycode/* routes (except preview), it respects the user's
- * saved theme preference from localStorage.
- * For all other routes, dark mode is removed.
+ * For QAY app routes and /ycode/* routes (except preview), it
+ * respects the user's saved theme preference from localStorage.
  */
 export default function DarkModeProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
   useEffect(() => {
-    const isPreviewRoute = pathname?.startsWith('/ycode/preview');
-    const isBuilderRoute = !isPreviewRoute && pathname?.startsWith('/ycode');
-    
-    if (isBuilderRoute) {
+    const applyTheme = () => {
+      if (!isThemedAppRoute(pathname)) {
+        document.documentElement.classList.remove('dark');
+        return;
+      }
+
       if (shouldApplyDark()) {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
       }
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    };
+
+    applyTheme();
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    media.addEventListener('change', applyTheme);
+    window.addEventListener('storage', applyTheme);
+    window.addEventListener(QAY_THEME_EVENT, applyTheme);
+
+    return () => {
+      media.removeEventListener('change', applyTheme);
+      window.removeEventListener('storage', applyTheme);
+      window.removeEventListener(QAY_THEME_EVENT, applyTheme);
+    };
   }, [pathname]);
 
   return <>{children}</>;
