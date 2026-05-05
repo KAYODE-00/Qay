@@ -42,6 +42,52 @@ function withCurrentQaySite(endpoint: string): string {
   return appendQayEditorSiteParam(endpoint);
 }
 
+function getRecordQaySiteId(record: { settings?: unknown } | null | undefined): string | null {
+  const settings = record?.settings as Record<string, unknown> | null;
+  return typeof settings?.qay_site_id === 'string' ? settings.qay_site_id : null;
+}
+
+function filterPagesForCurrentQaySite(pages: Page[]): Page[] {
+  const siteId = readQayEditorSiteIdFromBrowser();
+  const scopedPages = siteId
+    ? pages.filter((page) => page.error_page !== null || getRecordQaySiteId(page) === siteId)
+    : pages;
+
+  return Array.from(new Map(scopedPages.map((page) => [page.id, page])).values());
+}
+
+function filterFoldersForCurrentQaySite(folders: PageFolder[]): PageFolder[] {
+  const siteId = readQayEditorSiteIdFromBrowser();
+  const scopedFolders = siteId
+    ? folders.filter((folder) => getRecordQaySiteId(folder) === siteId)
+    : folders;
+
+  return Array.from(new Map(scopedFolders.map((folder) => [folder.id, folder])).values());
+}
+
+function ensureUniqueLayerIds(layers: Layer[], seen = new Set<string>()): Layer[] {
+  return layers.map((layer) => {
+    let id = layer.id;
+    if (seen.has(id)) {
+      id = generateId();
+    }
+    seen.add(id);
+
+    return {
+      ...layer,
+      id,
+      children: layer.children ? ensureUniqueLayerIds(layer.children, seen) : layer.children,
+    };
+  });
+}
+
+function sanitizeDraft(draft: PageLayers): PageLayers {
+  return {
+    ...draft,
+    layers: ensureUniqueLayerIds(draft.layers || []),
+  };
+}
+
 interface PagesState {
   pages: Page[];
   folders: PageFolder[];
@@ -245,19 +291,23 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
   isLoading: false,
   error: null,
 
-  setPages: (pages) => set({ pages }),
-  setFolders: (folders) => set({ folders }),
+  setPages: (pages) => set({ pages: filterPagesForCurrentQaySite(pages) }),
+  setFolders: (folders) => set({ folders: filterFoldersForCurrentQaySite(folders) }),
 
   setPagesAndDrafts: (pages, drafts) => {
+    const scopedPages = filterPagesForCurrentQaySite(pages);
+    const scopedPageIds = new Set(scopedPages.map((page) => page.id));
+    const scopedDrafts = drafts.filter((draft) => scopedPageIds.has(draft.page_id)).map(sanitizeDraft);
+
     // Build a map of pageId -> PageLayers
     const draftsMap: Record<string, PageLayers> = {};
 
-    drafts.forEach((draft) => {
+    scopedDrafts.forEach((draft) => {
       draftsMap[draft.page_id] = draft;
     });
 
     // For pages that don't have drafts in the database, initialize empty drafts
-    pages.forEach((page) => {
+    scopedPages.forEach((page) => {
       if (!draftsMap[page.id]) {
         draftsMap[page.id] = {
           id: `draft-${page.id}`,
@@ -270,7 +320,7 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
       }
     });
 
-    set({ pages, draftsByPageId: draftsMap });
+    set({ pages: scopedPages, draftsByPageId: draftsMap });
 
     // Initialize version tracking for all drafts
     import('@/lib/version-tracking').then(({ initializeVersionTracking }) => {
@@ -295,7 +345,7 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
 
       // Note: Default homepage with draft layers is created during migrations (20250101000002_create_page_layers_table.ts)
 
-      set({ pages, isLoading: false });
+      set({ pages: filterPagesForCurrentQaySite(pages), isLoading: false });
     } catch (error) {
       console.error('[usePagesStore.loadPages] Exception loading pages:', error);
       set({ error: 'Failed to load pages', isLoading: false });
@@ -312,7 +362,7 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
         return;
       }
       const folders = response.data || [];
-      set({ folders, isLoading: false });
+      set({ folders: filterFoldersForCurrentQaySite(folders), isLoading: false });
     } catch (error) {
       console.error('[usePagesStore.loadFolders] Exception loading folders:', error);
       set({ error: 'Failed to load folders', isLoading: false });
@@ -348,14 +398,15 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
             console.warn('⚠️ loadDraft: Overwriting local changes with server data');
           }
 
+          const sanitizedDraft = sanitizeDraft(response.data);
           set((state) => ({
-            draftsByPageId: { ...state.draftsByPageId, [pageId]: response.data! },
+            draftsByPageId: { ...state.draftsByPageId, [pageId]: sanitizedDraft },
           }));
 
           // Initialize version tracking with loaded state (awaited to ensure it completes before edits)
           try {
             const { initializeVersionTracking } = await import('@/lib/version-tracking');
-            initializeVersionTracking('page_layers', pageId, response.data!.layers);
+            initializeVersionTracking('page_layers', pageId, sanitizedDraft.layers);
           } catch (err) {
             console.error('Failed to initialize version tracking:', err);
           }
@@ -383,9 +434,12 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
       // Build a map of pageId -> PageLayers
       const draftsMap: Record<string, PageLayers> = {};
 
+      const pageIds = new Set(get().pages.map((page) => page.id));
       if (response.data) {
         response.data.forEach((draft) => {
-          draftsMap[draft.page_id] = draft;
+          if (pageIds.has(draft.page_id)) {
+            draftsMap[draft.page_id] = sanitizeDraft(draft);
+          }
         });
       }
 
@@ -427,7 +481,7 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
     const draft: PageLayers = {
       id: `draft-${page.id}`,
       page_id: page.id,
-      layers: initialLayers,
+      layers: ensureUniqueLayerIds(initialLayers),
       is_published: false,
       created_at: new Date().toISOString(),
       deleted_at: null,
@@ -1240,7 +1294,7 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
     set({
       draftsByPageId: {
         ...draftsByPageId,
-        [pageId]: { ...draft, layers },
+        [pageId]: { ...draft, layers: ensureUniqueLayerIds(layers) },
       },
     });
 
