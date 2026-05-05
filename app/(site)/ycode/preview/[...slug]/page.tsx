@@ -8,6 +8,7 @@ import { generateColorVariablesCss } from '@/lib/repositories/colorVariableRepos
 
 import { generatePageMetadata } from '@/lib/generate-page-metadata';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
+import { getQayRenderSiteId } from '@/qay/lib/render-site';
 
 async function fetchPreviewDraftCss() {
   const settings = await getSettingsByKeys(['draft_css']);
@@ -21,12 +22,13 @@ export const revalidate = 0;
 export default async function Page({ params }: { params: Promise<{ slug: string | string[] }> }) {
   // Await params (Next.js 15 requirement)
   const { slug } = await params;
+  const qaySiteId = await getQayRenderSiteId();
 
   // Handle catch-all slug (join array into path)
   const slugPath = Array.isArray(slug) ? slug.join('/') : slug;
 
   // Fetch draft page and layers data (no caching)
-  const data = await fetchPageByPath(slugPath, false);
+  const data = await fetchPageByPath(slugPath, false, undefined, undefined, qaySiteId);
 
   // Fetch draft CSS and color variables
   const [draftCSS, colorVariablesCss] = await Promise.all([
@@ -130,12 +132,13 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 // Generate metadata
 export async function generateMetadata({ params }: { params: Promise<{ slug: string | string[] }> }): Promise<Metadata> {
   const { slug } = await params;
+  const qaySiteId = await getQayRenderSiteId();
 
   // Handle catch-all slug (join array into path)
   const slugPath = Array.isArray(slug) ? slug.join('/') : slug;
 
   // Fetch draft page to get name and SEO settings
-  const data = await fetchPageByPath(slugPath, false);
+  const data = await fetchPageByPath(slugPath, false, undefined, undefined, qaySiteId);
 
   if (!data) {
     return {

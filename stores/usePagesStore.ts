@@ -25,7 +25,7 @@ import { getDescendantFolderIds, isHomepage, findHomepage, findNextSelection } f
 import { updateLayersWithStyle, detachStyleFromLayers } from '../lib/layer-style-utils';
 import { updateLayersWithComponent, detachComponentFromLayers } from '../lib/component-utils';
 import { useComponentsStore, triggerThumbnailGeneration } from './useComponentsStore';
-import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
+import { appendQayEditorSiteParam, readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 
 /**
  * Module-level dedupe map for in-flight loadDraft requests.
@@ -1818,6 +1818,18 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
       const response = await pagesApi.update(pageId, updates);
 
       if (response.error) {
+        const activeQaySiteId = readQayEditorSiteIdFromBrowser();
+        if (response.error === 'Page not found' && activeQaySiteId) {
+          set({
+            pages: [],
+            draftsByPageId: {},
+            error: null,
+            isLoading: false
+          });
+          window.location.assign(`/dashboard/sites/${activeQaySiteId}/editor`);
+          return { success: false, error: response.error };
+        }
+
         console.error('[usePagesStore.updatePage] Error:', response.error);
         // Rollback optimistic update
         set({

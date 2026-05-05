@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { QAY_EDITOR_SITE_COOKIE } from '@/qay/lib/editor-site';
+import { QAY_RENDER_SITE_COOKIE } from '@/qay/lib/render-site';
 
 export const dynamic = 'force-dynamic';
 
@@ -91,6 +92,12 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(targetUrl);
     response.cookies.set(QAY_EDITOR_SITE_COOKIE, siteId, {
       httpOnly: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    response.cookies.set(QAY_RENDER_SITE_COOKIE, siteId, {
+      httpOnly: true,
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 30,

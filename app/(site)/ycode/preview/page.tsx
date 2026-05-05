@@ -6,6 +6,7 @@ import { getSettingsByKeys } from '@/lib/repositories/settingsRepository';
 import { generateColorVariablesCss } from '@/lib/repositories/colorVariableRepository';
 import { generatePageMetadata } from '@/lib/generate-page-metadata';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
+import { getQayRenderSiteId } from '@/qay/lib/render-site';
 import type { Metadata } from 'next';
 
 async function fetchPreviewDraftCss() {
@@ -18,8 +19,9 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function Home() {
+  const qaySiteId = await getQayRenderSiteId();
   // Fetch draft homepage data (no caching)
-  const data = await fetchHomepage(false);
+  const data = await fetchHomepage(false, undefined, undefined, undefined, undefined, qaySiteId);
 
   // If no homepage, show default landing page
   if (!data || !data.pageLayers) {
@@ -112,7 +114,8 @@ export default async function Home() {
 
 // Generate metadata
 export async function generateMetadata(): Promise<Metadata> {
-  const data = await fetchHomepage(false);
+  const qaySiteId = await getQayRenderSiteId();
+  const data = await fetchHomepage(false, undefined, undefined, undefined, undefined, qaySiteId);
 
   if (!data) {
     return {
