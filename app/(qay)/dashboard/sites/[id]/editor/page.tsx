@@ -1,9 +1,8 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { requireQayAuth } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 import { buildQayIndexSlug } from '@/qay/lib/index-slug';
-import { HardReloadToYcode } from './HardReloadToYcode';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -128,10 +127,5 @@ export default async function QaySiteEditorGatePage({ params }: PageProps) {
     }
   }
 
-  return (
-    <HardReloadToYcode
-      siteId={id}
-      targetUrl={`/qay/editor/layers/${pageId}?site=${id}&view=desktop&tab=design&layer=body`}
-    />
-  );
+  redirect(`/api/qay/editor/open?site=${id}&page=${pageId}&view=desktop&tab=design&layer=body`);
 }
