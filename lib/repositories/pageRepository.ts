@@ -10,7 +10,7 @@ import type { Page, PageSettings } from '../../types';
 import { isHomepage } from '../page-utils';
 import { incrementSiblingOrders, fixOrphanedPageSlugs } from '../services/pageService';
 import { generatePageMetadataHash } from '../hash-utils';
-import { applyQayIndexSlug, getQaySiteIdFromSettings, isQayIndexSlug } from '@/qay/lib/index-slug';
+import { applyQayIndexSlug, buildQayIndexSlug, getQaySiteIdFromSettings, isQayIndexSlug } from '@/qay/lib/index-slug';
 
 /**
  * Query filters for page lookups
@@ -68,6 +68,78 @@ function normalizePageFolderId(folderId?: string | null): string | null {
   }
 
   return folderId;
+}
+
+async function ensureQayRootIndexPage(
+  client: any,
+  qaySiteId: string | null | undefined,
+  isPublished: boolean = false
+): Promise<void> {
+  if (!qaySiteId) return;
+
+  const { data: existingIndex, error: existingError } = await client
+    .from('pages')
+    .select('id')
+    .eq('is_index', true)
+    .eq('is_published', isPublished)
+    .is('page_folder_id', null)
+    .is('deleted_at', null)
+    .filter('settings->>qay_site_id', 'eq', qaySiteId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(`Failed to check QAY root index page: ${existingError.message}`);
+  }
+
+  if (existingIndex) return;
+
+  const now = new Date().toISOString();
+  const settings = { qay_site_id: qaySiteId };
+  const { data: createdPage, error: createError } = await client
+    .from('pages')
+    .insert({
+      name: 'Home',
+      slug: buildQayIndexSlug(qaySiteId),
+      order: 0,
+      depth: 0,
+      page_folder_id: null,
+      is_index: true,
+      is_dynamic: false,
+      error_page: null,
+      settings,
+      is_published: isPublished,
+      content_hash: generatePageMetadataHash({
+        name: 'Home',
+        slug: buildQayIndexSlug(qaySiteId),
+        settings,
+        is_index: true,
+        is_dynamic: false,
+        error_page: null,
+      }),
+      created_at: now,
+      updated_at: now,
+    })
+    .select('id')
+    .single();
+
+  if (createError) {
+    throw new Error(`Failed to create QAY root index page: ${createError.message}`);
+  }
+
+  const { error: layersError } = await client
+    .from('page_layers')
+    .insert({
+      page_id: createdPage.id,
+      layers: [{ id: 'body', name: 'body', classes: '', children: [] }],
+      is_published: isPublished,
+      created_at: now,
+      updated_at: now,
+    });
+
+  if (layersError) {
+    throw new Error(`Failed to create QAY root index layers: ${layersError.message}`);
+  }
 }
 
 /**
@@ -416,6 +488,10 @@ export async function createPage(pageData: CreatePageData, additionalData?: Reco
     ),
   };
   const qaySiteId = getQaySiteIdFromSettings(normalizedPageData.settings);
+
+  if (qaySiteId && !normalizedPageData.is_index && normalizedPageFolderId === null && normalizedPageData.error_page === null) {
+    await ensureQayRootIndexPage(client, qaySiteId, normalizedPageData.is_published || false);
+  }
 
   // Validate index page constraints (no current page data for new pages)
   await validateIndexPageConstraints(
