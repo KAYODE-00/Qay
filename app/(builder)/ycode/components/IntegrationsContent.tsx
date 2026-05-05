@@ -3,6 +3,7 @@
 import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 
 const INTEGRATIONS_ITEMS = [
   { id: 'apps', label: 'Apps', path: '/ycode/integrations/apps' },
@@ -30,12 +31,13 @@ export default function IntegrationsContent({ children }: IntegrationsContentPro
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-0">
             {INTEGRATIONS_ITEMS.map((item) => {
-              const isActive = pathname === item.path;
+              const itemPath = toCurrentEditorPath(item.path, pathname);
+              const isActive = pathname === item.path || pathname === itemPath;
 
               return (
                 <button
                   key={item.id}
-                  onClick={() => router.push(item.path)}
+                  onClick={() => router.push(itemPath)}
                   className={cn(
                     'group relative flex items-center h-8 outline-none focus:outline-none rounded-lg cursor-pointer select-none w-full text-left px-2 text-xs',
                     'hover:bg-secondary/50',

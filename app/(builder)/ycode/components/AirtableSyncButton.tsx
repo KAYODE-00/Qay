@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import { toast } from 'sonner';
 import airtableLogo from '@/lib/apps/airtable/logo.svg';
 import { airtableApi, fetchCachedConnections, getCachedConnection } from '@/lib/apps/airtable/client';
 import type { AirtableConnection } from '@/lib/apps/airtable/types';
+import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 
 interface AirtableSyncButtonProps {
   collectionId: string;
@@ -26,6 +28,7 @@ interface AirtableSyncButtonProps {
 /** Renders an Airtable dropdown in the CMS toolbar when the collection has an active connection */
 function AirtableSyncButton({ collectionId, onSyncComplete }: AirtableSyncButtonProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [connection, setConnection] = useState<AirtableConnection | null>(
     () => getCachedConnection(collectionId)
   );
@@ -86,7 +89,7 @@ function AirtableSyncButton({ collectionId, onSyncComplete }: AirtableSyncButton
         >
           {isSyncing ? 'Syncing data...' : 'Sync data now'}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push('/ycode/integrations/apps?app=airtable')}>
+        <DropdownMenuItem onClick={() => router.push(toCurrentEditorPath('/ycode/integrations/apps?app=airtable', pathname))}>
           Go to settings
         </DropdownMenuItem>
       </DropdownMenuContent>

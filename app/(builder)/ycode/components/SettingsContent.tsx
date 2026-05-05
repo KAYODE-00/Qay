@@ -4,6 +4,7 @@ import React from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { SETTINGS_NAV_ITEMS } from '@/lib/settings-nav-items';
+import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 
 interface SettingsContentProps {
   children: React.ReactNode;
@@ -26,12 +27,13 @@ export default function SettingsContent({ children }: SettingsContentProps) {
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-0">
             {SETTINGS_NAV_ITEMS.map((item) => {
-              const isActive = pathname === item.path;
+              const itemPath = toCurrentEditorPath(item.path, pathname, siteId);
+              const isActive = pathname === item.path || pathname === itemPath.split('?')[0];
 
               return (
                 <button
                   key={item.id}
-                  onClick={() => router.push(siteId ? `${item.path}?site=${siteId}` : item.path)}
+                  onClick={() => router.push(itemPath)}
                   className={cn(
                     'group relative flex items-center h-8 outline-none focus:outline-none rounded-lg cursor-pointer select-none w-full text-left px-2 text-xs',
                     'hover:bg-secondary/50',

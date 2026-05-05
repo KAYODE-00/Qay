@@ -4,12 +4,9 @@ import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
 import { useEditorStore } from '@/stores/useEditorStore';
 import { useCollectionsStore } from '@/stores/useCollectionsStore';
+import { getEditorBasePath } from '@/qay/lib/editor-path';
 
 const EDITOR_ROUTE_PREFIX_PATTERN = '(?:ycode|qay\\/editor)';
-
-function getEditorBasePath(pathname: string | null): '/ycode' | '/qay/editor' {
-  return pathname?.startsWith('/qay/editor') ? '/qay/editor' : '/ycode';
-}
 
 /**
  * Update URL query parameter using browser history API

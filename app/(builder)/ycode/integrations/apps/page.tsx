@@ -45,6 +45,7 @@ import { MAILERLITE_SUBSCRIBER_FIELDS } from '@/lib/apps/mailerlite/types';
 import type { MailerLiteConnection, MailerLiteFieldMapping } from '@/lib/apps/mailerlite/types';
 import AirtableSettings from './airtable-settings';
 import WebflowSettings from './webflow-settings';
+import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 
 // =============================================================================
 // Types
@@ -1086,7 +1087,7 @@ export default function AppsPage() {
                 onCloseAndNavigate={(path) => {
                   setIsSheetMounted(false);
                   closeAppSettings();
-                  router.push(path);
+                  router.push(toCurrentEditorPath(path, pathname, searchParams.get('site')));
                 }}
               />
             )}
@@ -1098,7 +1099,7 @@ export default function AppsPage() {
                 onCloseAndNavigate={(path) => {
                   setIsSheetMounted(false);
                   closeAppSettings();
-                  router.push(path);
+                  router.push(toCurrentEditorPath(path, pathname, searchParams.get('site')));
                 }}
               />
             )}

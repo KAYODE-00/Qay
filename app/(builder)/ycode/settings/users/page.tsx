@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { FieldDescription, FieldLegend } from '@/components/ui/field';
@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { getUserInitials, generateUserColor } from '@/lib/collaboration-utils';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 
 interface ActiveUser {
   id: string;
@@ -41,6 +42,7 @@ interface PendingInvite {
 
 export default function UsersSettingsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const siteId = searchParams.get('site');
   const currentUser = useAuthStore((state) => state.user);
@@ -307,7 +309,7 @@ export default function UsersSettingsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             {currentUser?.id === user.id ? (
-                              <DropdownMenuItem onClick={() => router.push('/ycode/profile')}>
+                              <DropdownMenuItem onClick={() => router.push(toCurrentEditorPath('/ycode/profile', pathname, searchParams.get('site')))}>
                                 My profile
                               </DropdownMenuItem>
                             ) : user.is_owner ? (

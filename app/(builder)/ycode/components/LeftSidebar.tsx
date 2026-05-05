@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useCallback, useRef, startTransition, Suspense, lazy } from 'react';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -28,6 +29,7 @@ import { useLayerLocks } from '@/hooks/use-layer-locks';
 // 6. Types
 import type { Layer } from '@/types';
 import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
+import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 
 import type { UseLiveLayerUpdatesReturn } from '@/hooks/use-live-layer-updates';
 import type { UseLiveComponentUpdatesReturn } from '@/hooks/use-live-component-updates';
@@ -51,6 +53,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
   liveLayerUpdates,
   liveComponentUpdates,
 }: LeftSidebarProps) {
+  const pathname = usePathname();
   const { sidebarTab } = useEditorUrl();
   const [showElementLibrary, setShowElementLibrary] = useState(false);
   const [assetMessage, setAssetMessage] = useState<string | null>(null);
@@ -299,7 +302,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
               const targetPageId = currentPageId || (pages.length > 0 ? pages[0].id : null);
               if (targetPageId) {
                 const segment = newTab === 'layers' ? 'layers' : 'pages';
-                const newPath = `/ycode/${segment}/${targetPageId}${window.location.search}`;
+                const newPath = toCurrentEditorPath(`/ycode/${segment}/${targetPageId}${window.location.search}`, pathname);
                 window.history.replaceState(null, '', newPath);
               }
             }}

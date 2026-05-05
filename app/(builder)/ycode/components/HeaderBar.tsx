@@ -38,6 +38,7 @@ import { Separator } from '@/components/ui/separator';
 import { BackupRestoreDialog } from '@/components/project/BackupRestoreDialog';
 import { isCloudVersion } from '@/lib/utils';
 import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
+import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 
 interface HeaderBarProps {
   user: User | null;
@@ -95,16 +96,7 @@ export default function HeaderBar({
 
   const withCurrentSite = (path: string) => {
     if (typeof window === 'undefined') return path;
-    const editorBasePath = pathname?.startsWith('/qay/editor') ? '/qay/editor' : '/ycode';
-    const editorPath = path.startsWith('/ycode') ? path.replace('/ycode', editorBasePath) : path;
-    const siteId = readQayEditorSiteIdFromBrowser();
-    const [pathOnly, query = ''] = editorPath.split('?');
-    const params = new URLSearchParams(query);
-    if (siteId && !params.has('site')) {
-      params.set('site', siteId);
-    }
-    const nextQuery = params.toString();
-    return nextQuery ? `${pathOnly}?${nextQuery}` : pathOnly;
+    return toCurrentEditorPath(path, pathname, readQayEditorSiteIdFromBrowser());
   };
 
   // Clear optimistic state once the URL reflects the clicked route
