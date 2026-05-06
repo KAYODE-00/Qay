@@ -1,0 +1,9 @@
+:root {
+  --qay-primary: #ffffff;
+  --qay-bg: #0a0a0a;
+  --qay-accent: #e5e5e5;
+}
+
+a[href*="ycode.com"][style*="position: fixed"] {
+  display: none !important;
+}
