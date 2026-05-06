@@ -116,6 +116,7 @@ interface LayerRendererProps {
   folders?: any[]; // Folders for link resolution
   collectionItemSlugs?: Record<string, string>; // Maps collection_item_id -> slug value for link resolution
   isPreview?: boolean; // Whether we're in preview mode (prefix links with /ycode/preview)
+  previewBasePath?: string; // Preview route base path for generated internal links
   translations?: Record<string, any> | null; // Translations for localized URL generation
   anchorMap?: Record<string, string>; // Pre-built map of layerId -> anchor value for O(1) lookups
   /** Pre-resolved assets (asset_id -> { url, width, height }) for SSR resolution */
@@ -173,6 +174,7 @@ const LayerRenderer: React.FC<LayerRendererProps> = ({
   pages: pagesProp,
   folders: foldersProp,
   isPreview = false,
+  previewBasePath = '/ycode/preview',
   translations,
   anchorMap: anchorMapProp,
   resolvedAssets,
@@ -387,6 +389,7 @@ const LayerItem: React.FC<{
   folders?: any[]; // Folders for link resolution
   collectionItemSlugs?: Record<string, string>; // Maps collection_item_id -> slug value for link resolution
   isPreview?: boolean; // Whether we're in preview mode
+  previewBasePath?: string;
   translations?: Record<string, any> | null; // Translations for localized URL generation
   anchorMap?: Record<string, string>; // Pre-built map of layerId -> anchor value
   resolvedAssets?: Record<string, { url: string; width?: number | null; height?: number | null }>;
@@ -441,6 +444,7 @@ const LayerItem: React.FC<{
   folders,
   collectionItemSlugs,
   isPreview,
+  previewBasePath,
   translations,
   anchorMap,
   resolvedAssets,
@@ -538,6 +542,7 @@ const LayerItem: React.FC<{
     folders,
     collectionItemSlugs,
     isPreview,
+    previewBasePath,
     translations,
     anchorMap,
     resolvedAssets,
@@ -547,7 +552,7 @@ const LayerItem: React.FC<{
   // selectedLayerId and hoveredLayerId kept in the object for SSR/published mode
   // but excluded from deps so changes don't cascade re-renders in edit mode.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [isEditMode, isPublished, onLayerClick, onLayerUpdate, onLayerHover, pageId, collectionLayerData, collectionLayerItemId, effectiveLayerDataMap, pageCollectionItemId, pageCollectionItemData, pageCollectionSortedItemIds, hiddenLayerInfo, editorHiddenLayerIds, editorBreakpoint, currentLocale, availableLocales, localeSelectorFormat, liveLayerUpdates, liveComponentUpdates, isInsideForm, isInsideLink, parentFormSettings, pages, folders, collectionItemSlugs, isPreview, translations, anchorMap, resolvedAssets, componentsProp, serverSettings, onComponentEdit]);
+  }), [isEditMode, isPublished, onLayerClick, onLayerUpdate, onLayerHover, pageId, collectionLayerData, collectionLayerItemId, effectiveLayerDataMap, pageCollectionItemId, pageCollectionItemData, pageCollectionSortedItemIds, hiddenLayerInfo, editorHiddenLayerIds, editorBreakpoint, currentLocale, availableLocales, localeSelectorFormat, liveLayerUpdates, liveComponentUpdates, isInsideForm, isInsideLink, parentFormSettings, pages, folders, collectionItemSlugs, isPreview, previewBasePath, translations, anchorMap, resolvedAssets, componentsProp, serverSettings, onComponentEdit]);
 
   // Callback for rendering embedded components inside rich-text content
   // Clicks on the embedded component's internal layers should select the text layer
@@ -1580,6 +1585,7 @@ const LayerItem: React.FC<{
     collectionItemData: collectionLayerData,
     pageCollectionItemData: pageCollectionItemData || undefined,
     isPreview,
+    previewBasePath,
     locale: currentLocale,
     translations,
     getAsset,
@@ -2295,6 +2301,7 @@ const LayerItem: React.FC<{
                 folders,
                 collectionItemSlugs,
                 isPreview,
+                previewBasePath,
                 locale: currentLocale,
                 translations,
                 getAsset,
