@@ -3,6 +3,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { headers } from 'next/headers';
 import { getQayAdmin } from './supabase-admin';
+import { QAY_EDITOR_SITE_COOKIE } from './editor-site';
 
 export const QAY_RENDER_SITE_COOKIE = 'qay_render_site_id';
 
@@ -29,14 +30,32 @@ function getSubdomain(host: string): string | null {
   return first && first !== 'www' ? first : null;
 }
 
-export async function getQayRenderSiteId(): Promise<string | null> {
+type GetQayRenderSiteIdOptions = {
+  preferCookie?: boolean;
+};
+
+async function readQaySiteIdFromCookies() {
+  const cookieStore = await cookies();
+  return (
+    cookieStore.get(QAY_RENDER_SITE_COOKIE)?.value
+    || cookieStore.get(QAY_EDITOR_SITE_COOKIE)?.value
+    || null
+  );
+}
+
+export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}): Promise<string | null> {
+  const { preferCookie = false } = options;
+  const cookieSiteId = await readQaySiteIdFromCookies();
+
+  if (preferCookie && cookieSiteId) {
+    return cookieSiteId;
+  }
+
   const headerStore = await headers();
   const host = normalizeHost(headerStore.get('x-forwarded-host') || headerStore.get('host'));
   if (!host) return null;
 
   if (host === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-    const cookieStore = await cookies();
-    const cookieSiteId = cookieStore.get(QAY_RENDER_SITE_COOKIE)?.value;
     if (cookieSiteId) {
       return cookieSiteId;
     }
@@ -57,5 +76,5 @@ export async function getQayRenderSiteId(): Promise<string | null> {
     throw new Error(error.message);
   }
 
-  return data?.id ?? null;
+  return data?.id ?? cookieSiteId ?? null;
 }
