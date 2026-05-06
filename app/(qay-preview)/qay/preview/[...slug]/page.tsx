@@ -6,13 +6,8 @@ import { fetchPageByPath, fetchErrorPage } from '@/lib/page-fetcher';
 import { fetchGlobalPageSettings, generatePageMetadata } from '@/lib/generate-page-metadata';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { generateColorVariablesCss } from '@/lib/repositories/colorVariableRepository';
-import { getSettingsByKeys } from '@/lib/repositories/settingsRepository';
 import { getQayRenderSiteId } from '@/qay/lib/render-site';
-
-async function fetchPreviewDraftCss() {
-  const settings = await getSettingsByKeys(['draft_css', 'published_css']);
-  return (settings.draft_css as string) || (settings.published_css as string) || undefined;
-}
+import { generatePreviewCss } from '@/qay/lib/preview-css';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -24,7 +19,7 @@ export default async function QayPreviewPage({ params }: { params: Promise<{ slu
   const data = await fetchPageByPath(slugPath, false, undefined, undefined, qaySiteId);
 
   const [draftCSS, colorVariablesCss, globalSettings] = await Promise.all([
-    fetchPreviewDraftCss(),
+    data ? generatePreviewCss(data.pageLayers.layers || [], data.components) : Promise.resolve(undefined),
     generateColorVariablesCss(),
     fetchGlobalPageSettings(),
   ]);

@@ -3,12 +3,7 @@ import PageRenderer from '@/components/PageRenderer';
 import { fetchErrorPage } from '@/lib/page-fetcher';
 import { fetchGlobalPageSettings, generatePageMetadata } from '@/lib/generate-page-metadata';
 import { generateColorVariablesCss } from '@/lib/repositories/colorVariableRepository';
-import { getSettingsByKeys } from '@/lib/repositories/settingsRepository';
-
-async function fetchPreviewDraftCss() {
-  const settings = await getSettingsByKeys(['draft_css', 'published_css']);
-  return (settings.draft_css as string) || (settings.published_css as string) || undefined;
-}
+import { generatePreviewCss } from '@/qay/lib/preview-css';
 
 interface ErrorPagePreviewProps {
   params: Promise<{ code: string }>;
@@ -35,7 +30,7 @@ export default async function QayErrorPagePreview({ params }: ErrorPagePreviewPr
 
   const { page, pageLayers, components, locale, availableLocales, translations } = pageData;
   const [draftCSS, colorVariablesCss, globalSettings] = await Promise.all([
-    fetchPreviewDraftCss(),
+    generatePreviewCss(pageLayers.layers || [], components),
     generateColorVariablesCss(),
     fetchGlobalPageSettings(),
   ]);
