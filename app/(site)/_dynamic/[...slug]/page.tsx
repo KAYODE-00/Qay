@@ -7,6 +7,7 @@ import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Redirect as RedirectType } from '@/types';
 
 // Internal pagination path: always dynamic/no-store.
@@ -58,6 +59,9 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
   };
 
   const data = await fetchPageByPath(slugPath, true, paginationContext, undefined, qaySiteId);
+  const siteScopedCss = data
+    ? await generatePreviewCss(data.pageLayers.layers || [], data.components)
+    : undefined;
 
   if (!data) {
     const errorPageData = await fetchErrorPage(404, true);
@@ -65,13 +69,13 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
       const { page, pageLayers, components } = errorPageData;
       const publishedCSS = await getSettingByKey('published_css');
 
-      return (
-        <PageRenderer
-          page={page}
-          layers={pageLayers.layers || []}
-          components={components}
-          generatedCss={publishedCSS}
-        />
+        return (
+          <PageRenderer
+            page={page}
+            layers={pageLayers.layers || []}
+            components={components}
+            generatedCss={siteScopedCss || publishedCSS}
+          />
       );
     }
 
@@ -99,7 +103,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
             page={errorPage}
             layers={errorPageLayers.layers || []}
             components={errorComponents}
-            generatedCss={publishedCSS}
+            generatedCss={siteScopedCss || publishedCSS}
             passwordProtection={{
               pageId: protection.protectedBy === 'page' ? protection.protectedById : undefined,
               folderId: protection.protectedBy === 'folder' ? protection.protectedById : undefined,
@@ -135,7 +139,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
       page={page}
       layers={pageLayers.layers || []}
       components={components}
-      generatedCss={globalSettings.publishedCss || undefined}
+      generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
       colorVariablesCss={globalSettings.colorVariablesCss || undefined}
       collectionItem={collectionItem}
       collectionFields={collectionFields}

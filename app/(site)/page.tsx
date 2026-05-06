@@ -9,6 +9,7 @@ import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/l
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Metadata } from 'next';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -112,6 +113,9 @@ export default async function Home({
   const qaySiteId = await getQayRenderSiteId();
   // Cache-first homepage path; pagination is served through internal dynamic routes.
   const data = await fetchPublishedHomepage(qaySiteId);
+  const siteScopedCss = data
+    ? await generatePreviewCss(data.pageLayers.layers || [], data.components)
+    : undefined;
 
   // If no published homepage exists, show default landing page
   if (!data || !data.pageLayers) {
@@ -221,7 +225,7 @@ export default async function Home({
             page={errorPage}
             layers={errorPageLayers.layers || []}
             components={errorComponents}
-            generatedCss={globalSettings.publishedCss || undefined}
+            generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
             globalCustomCodeHead={globalSettings.globalCustomCodeHead}
             globalCustomCodeBody={globalSettings.globalCustomCodeBody}
             passwordProtection={{
@@ -259,7 +263,7 @@ export default async function Home({
       page={data.page}
       layers={data.pageLayers.layers || []}
       components={data.components}
-      generatedCss={globalSettings.publishedCss || undefined}
+      generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
       colorVariablesCss={globalSettings.colorVariablesCss || undefined}
       locale={data.locale}
       availableLocales={data.availableLocales}
