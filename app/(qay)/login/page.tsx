@@ -5,6 +5,7 @@ import { FormEvent, Suspense, useState } from 'react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { createClient } from '@/lib/supabase-browser';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { buildPublicAppUrl } from '@/qay/lib/public-app-url';
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
@@ -61,7 +62,7 @@ function LoginPageContent() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/ycode/api/auth/callback?next=/dashboard`,
+          redirectTo: buildPublicAppUrl('/ycode/api/auth/callback?next=/dashboard'),
         },
       });
 

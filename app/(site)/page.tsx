@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
 import { fetchHomepage, fetchErrorPage, splitPageData, reassemblePageData, slimPageData } from '@/lib/page-fetcher';
 import type { PageData } from '@/lib/page-fetcher';
@@ -94,7 +95,20 @@ async function fetchCachedErrorPage(errorCode: 401) {
   )();
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const oauthCode = typeof resolvedSearchParams.code === 'string' ? resolvedSearchParams.code : null;
+  const oauthNext = typeof resolvedSearchParams.next === 'string' ? resolvedSearchParams.next : '/dashboard';
+
+  if (oauthCode) {
+    const callbackParams = new URLSearchParams({ code: oauthCode, next: oauthNext });
+    redirect(`/ycode/api/auth/callback?${callbackParams.toString()}`);
+  }
+
   const qaySiteId = await getQayRenderSiteId();
   // Cache-first homepage path; pagination is served through internal dynamic routes.
   const data = await fetchPublishedHomepage(qaySiteId);

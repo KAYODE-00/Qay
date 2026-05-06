@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { createClient } from '@/lib/supabase-browser';
+import { buildPublicAppUrl } from '@/qay/lib/public-app-url';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -19,7 +20,7 @@ export default function ForgotPasswordPage() {
     try {
       const supabase = await createClient();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: buildPublicAppUrl('/reset-password'),
       });
 
       if (resetError) {
