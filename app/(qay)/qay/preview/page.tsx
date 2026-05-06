@@ -10,8 +10,8 @@ import { getSettingsByKeys } from '@/lib/repositories/settingsRepository';
 import { getQayRenderSiteId } from '@/qay/lib/render-site';
 
 async function fetchPreviewDraftCss() {
-  const settings = await getSettingsByKeys(['draft_css']);
-  return (settings.draft_css as string) || undefined;
+  const settings = await getSettingsByKeys(['draft_css', 'published_css']);
+  return (settings.draft_css as string) || (settings.published_css as string) || undefined;
 }
 
 export const dynamic = 'force-dynamic';
