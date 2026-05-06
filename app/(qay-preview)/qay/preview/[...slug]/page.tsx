@@ -43,6 +43,7 @@ export default async function QayPreviewPage({ params }: { params: Promise<{ slu
           generatedCss={draftCSS}
           colorVariablesCss={colorVariablesCss || undefined}
           isPreview={true}
+          previewBasePath="/qay/preview"
           globalCustomCodeHead={globalSettings.globalCustomCodeHead}
           globalCustomCodeBody={globalSettings.globalCustomCodeBody}
         />
@@ -83,6 +84,7 @@ export default async function QayPreviewPage({ params }: { params: Promise<{ slu
           generatedCss={draftCSS}
           colorVariablesCss={colorVariablesCss || undefined}
           isPreview={true}
+          previewBasePath="/qay/preview"
           globalCustomCodeHead={globalSettings.globalCustomCodeHead}
           globalCustomCodeBody={globalSettings.globalCustomCodeBody}
           passwordProtection={{
