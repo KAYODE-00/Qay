@@ -252,7 +252,7 @@ export default function HeaderBar({
 
     // Error pages use special preview route
     if (currentPage.error_page !== null) {
-      return `/ycode/preview/error-pages/${currentPage.error_page}`;
+      return `/qay/preview/error-pages/${currentPage.error_page}`;
     }
 
     // For dynamic pages, use localized dynamic URL builder
@@ -260,7 +260,7 @@ export default function HeaderBar({
       ? buildLocalizedDynamicPageUrl(currentPage, folders, collectionItemSlug, selectedLocale, localeTranslations)
       : localizedPagePath;
 
-    return `/ycode/preview${path === '/' ? '' : path}`;
+    return `/qay/preview${path === '/' ? '' : path}`;
   }, [currentPage, folders, localizedPagePath, collectionItemSlug, selectedLocale, localeTranslations]);
 
   // Build published URL (for the link in the center)

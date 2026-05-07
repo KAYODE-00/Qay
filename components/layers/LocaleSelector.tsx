@@ -19,8 +19,9 @@ export default function LocaleSelector({
   currentPageSlug,
   isPublished,
 }: LocaleSelectorProps) {
-  // Detect if we're in preview mode
-  const isPreviewMode = typeof window !== 'undefined' && window.location.pathname.startsWith('/ycode/preview');
+  const previewBasePath = typeof window !== 'undefined'
+    ? getPreviewBasePath(window.location.pathname)
+    : '';
 
   // Get default locale (fallback when no locale is detected)
   const defaultLocale = availableLocales.find(l => l.is_default) || availableLocales[0];
@@ -32,7 +33,7 @@ export default function LocaleSelector({
 
     if (selectedLocale) {
       // Build the new URL for the selected locale
-      const newUrl = buildLocalizedUrl(currentPageSlug, selectedLocale, currentLocale || null, isPreviewMode);
+      const newUrl = buildLocalizedUrl(currentPageSlug, selectedLocale, currentLocale || null, previewBasePath);
 
       // Redirect to the new URL
       window.location.href = newUrl;
@@ -72,7 +73,7 @@ function buildLocalizedUrl(
   currentPageSlug: string,
   targetLocale: Locale,
   currentLocale: Locale | null,
-  isPreviewMode: boolean
+  previewBasePath: string
 ): string {
   // Remove current locale prefix if present
   let pathWithoutLocale = currentPageSlug;
@@ -89,6 +90,12 @@ function buildLocalizedUrl(
     : pathWithoutLocale ? `${targetLocale.code}/${pathWithoutLocale}` : targetLocale.code;
 
   // Add appropriate prefix
-  const prefix = isPreviewMode ? '/ycode/preview' : '';
+  const prefix = previewBasePath;
   return localizedPath ? `${prefix}/${localizedPath}` : (prefix || '/');
+}
+
+function getPreviewBasePath(pathname: string): string {
+  if (pathname.startsWith('/qay/preview')) return '/qay/preview';
+  if (pathname.startsWith('/ycode/preview')) return '/ycode/preview';
+  return '';
 }

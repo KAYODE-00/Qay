@@ -1694,7 +1694,7 @@ const CenterCanvas = React.memo(function CenterCanvas({
 
     // Error pages use special preview route
     if (currentPage.error_page !== null) {
-      return `/ycode/preview/error-pages/${currentPage.error_page}`;
+      return `/qay/preview/error-pages/${currentPage.error_page}`;
     }
 
     // Get collection item slug value for dynamic pages (with translation support)
@@ -1741,7 +1741,7 @@ const CenterCanvas = React.memo(function CenterCanvas({
       ? buildLocalizedDynamicPageUrl(currentPage, folders, collectionItemSlug, selectedLocale, localeTranslations)
       : buildLocalizedSlugPath(currentPage, folders, 'page', selectedLocale, localeTranslations);
 
-    return `/ycode/preview${path === '/' ? '' : path}`;
+    return `/qay/preview${path === '/' ? '' : path}`;
   }, [currentPage, folders, currentPageCollectionItemId, collectionItemsFromStore, collectionFieldsFromStore, selectedLocale, localeTranslations]);
 
   // Reload preview iframe every time preview mode opens (covers all change sources:

@@ -7,6 +7,7 @@ import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { generatePreviewCss } from '@/qay/lib/preview-css';
 
 // Internal pagination path: always dynamic/no-store.
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,9 @@ export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
   };
 
   const data = await fetchHomepage(true, paginationContext, undefined, undefined, undefined, qaySiteId);
+  const siteScopedCss = data
+    ? await generatePreviewCss(data.pageLayers.layers || [], data.components)
+    : undefined;
 
   if (!data || !data.pageLayers) {
     return (
@@ -78,7 +82,7 @@ export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
             page={errorPage}
             layers={errorPageLayers.layers || []}
             components={errorComponents}
-            generatedCss={publishedCSS}
+            generatedCss={siteScopedCss || publishedCSS}
             passwordProtection={{
               pageId: protection.protectedBy === 'page' ? protection.protectedById : undefined,
               folderId: protection.protectedBy === 'folder' ? protection.protectedById : undefined,
@@ -113,8 +117,8 @@ export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
     <PageRenderer
       page={data.page}
       layers={data.pageLayers.layers || []}
-      components={[]}
-      generatedCss={globalSettings.publishedCss || undefined}
+      components={data.components}
+      generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
       colorVariablesCss={globalSettings.colorVariablesCss || undefined}
       locale={data.locale}
       availableLocales={data.availableLocales}

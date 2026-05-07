@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
 import { fetchHomepage, fetchErrorPage, splitPageData, reassemblePageData, slimPageData } from '@/lib/page-fetcher';
 import type { PageData } from '@/lib/page-fetcher';
@@ -8,6 +9,7 @@ import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/l
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Metadata } from 'next';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -94,10 +96,26 @@ async function fetchCachedErrorPage(errorCode: 401) {
   )();
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const oauthCode = typeof resolvedSearchParams.code === 'string' ? resolvedSearchParams.code : null;
+  const oauthNext = typeof resolvedSearchParams.next === 'string' ? resolvedSearchParams.next : '/dashboard';
+
+  if (oauthCode) {
+    const callbackParams = new URLSearchParams({ code: oauthCode, next: oauthNext });
+    redirect(`/ycode/api/auth/callback?${callbackParams.toString()}`);
+  }
+
   const qaySiteId = await getQayRenderSiteId();
   // Cache-first homepage path; pagination is served through internal dynamic routes.
   const data = await fetchPublishedHomepage(qaySiteId);
+  const siteScopedCss = data
+    ? await generatePreviewCss(data.pageLayers.layers || [], data.components)
+    : undefined;
 
   // If no published homepage exists, show default landing page
   if (!data || !data.pageLayers) {
@@ -207,7 +225,7 @@ export default async function Home() {
             page={errorPage}
             layers={errorPageLayers.layers || []}
             components={errorComponents}
-            generatedCss={globalSettings.publishedCss || undefined}
+            generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
             globalCustomCodeHead={globalSettings.globalCustomCodeHead}
             globalCustomCodeBody={globalSettings.globalCustomCodeBody}
             passwordProtection={{
@@ -245,7 +263,7 @@ export default async function Home() {
       page={data.page}
       layers={data.pageLayers.layers || []}
       components={data.components}
-      generatedCss={globalSettings.publishedCss || undefined}
+      generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
       colorVariablesCss={globalSettings.colorVariablesCss || undefined}
       locale={data.locale}
       availableLocales={data.availableLocales}

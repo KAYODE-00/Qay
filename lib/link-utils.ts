@@ -254,6 +254,7 @@ export interface LinkResolutionContext {
   collectionItemData?: Record<string, string>;
   pageCollectionItemData?: Record<string, string>;
   isPreview?: boolean;
+  previewBasePath?: string;
   locale?: Locale | null;
   translations?: Record<string, any> | null;
   getAsset?: (id: string) => { public_url?: string | null; content?: string | null } | null;
@@ -387,7 +388,15 @@ export function resolveCollectionLinkValue(
   linkValue: CollectionLinkValue,
   context: LinkResolutionContext
 ): string | null {
-  const { pages, folders, collectionItemSlugs, isPreview, locale, translations } = context;
+  const {
+    pages,
+    folders,
+    collectionItemSlugs,
+    isPreview,
+    previewBasePath = '/ycode/preview',
+    locale,
+    translations,
+  } = context;
 
   if (linkValue.type === 'url') {
     return linkValue.url || null;
@@ -410,9 +419,9 @@ export function resolveCollectionLinkValue(
       href = buildLocalizedSlugPath(page, folders, 'page', locale, translations || undefined);
     }
 
-    // Prefix with /ycode/preview in preview mode
+    // Prefix with the active preview route in preview mode
     if (isPreview && href) {
-      href = `/ycode/preview${href}`;
+      href = `${previewBasePath}${href}`;
     }
 
     // Append anchor if present
@@ -445,6 +454,7 @@ export function generateLinkHref(
     collectionItemData,
     pageCollectionItemData,
     isPreview,
+    previewBasePath = '/ycode/preview',
     locale,
     translations,
     getAsset,
@@ -532,9 +542,9 @@ export function generateLinkHref(
             href = buildLocalizedSlugPath(page, folders, 'page', locale, translations || undefined);
           }
 
-          // Prefix with /ycode/preview in preview mode
+          // Prefix with the active preview route in preview mode
           if (isPreview && href) {
-            href = `/ycode/preview${href}`;
+            href = `${previewBasePath}${href}`;
           }
         }
       }

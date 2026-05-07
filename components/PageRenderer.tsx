@@ -192,6 +192,7 @@ interface PageRendererProps {
   locale?: Locale | null;
   availableLocales?: Locale[];
   isPreview?: boolean;
+  previewBasePath?: string;
   translations?: Record<string, any> | null;
   gaMeasurementId?: string | null;
   globalCustomCodeHead?: string | null;
@@ -234,6 +235,7 @@ export default async function PageRenderer({
   locale,
   availableLocales = [],
   isPreview = false,
+  previewBasePath = '/ycode/preview',
   translations,
   gaMeasurementId,
   globalCustomCodeHead,
@@ -436,7 +438,7 @@ export default async function PageRenderer({
   return (
     <>
       {/* Global head code fallback when layout skips it (SKIP_SETUP mode) */}
-      {process.env.SKIP_SETUP === 'true' && globalCustomCodeHead && (
+      {(isPreview || process.env.SKIP_SETUP === 'true') && globalCustomCodeHead && (
         renderRootLayoutHeadCode(globalCustomCodeHead, 'global-head')
       )}
 
@@ -540,6 +542,7 @@ export default async function PageRenderer({
           folders={folders as any}
           collectionItemSlugs={collectionItemSlugs}
           isPreview={isPreview}
+          previewBasePath={previewBasePath}
           translations={translations}
           resolvedAssets={resolvedAssets}
           components={components}

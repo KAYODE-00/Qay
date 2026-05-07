@@ -11,6 +11,7 @@ import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Page, PageFolder, Translation, Redirect as RedirectType } from '@/types';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -279,6 +280,9 @@ export default async function Page({ params }: PageProps) {
     fetchPublishedPageWithLayers(slugPath, qaySiteId),
     fetchCachedGlobalSettings(),
   ]);
+  const siteScopedCss = data
+    ? await generatePreviewCss(data.pageLayers.layers || [], data.components)
+    : undefined;
 
   // If page not found, try to show custom 404 error page
   if (!data) {
@@ -287,15 +291,15 @@ export default async function Page({ params }: PageProps) {
     if (errorPageData) {
       const { page: errorPage, pageLayers: errorPageLayers, components: errorComponents } = errorPageData;
 
-      return (
-        <PageRenderer
-          page={errorPage}
-          layers={errorPageLayers.layers || []}
-          components={errorComponents}
-          generatedCss={globalSettings.publishedCss || undefined}
-          globalCustomCodeHead={globalSettings.globalCustomCodeHead}
-          globalCustomCodeBody={globalSettings.globalCustomCodeBody}
-        />
+        return (
+          <PageRenderer
+            page={errorPage}
+            layers={errorPageLayers.layers || []}
+            components={errorComponents}
+            generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
+            globalCustomCodeHead={globalSettings.globalCustomCodeHead}
+            globalCustomCodeBody={globalSettings.globalCustomCodeBody}
+          />
       );
     }
 
@@ -327,7 +331,7 @@ export default async function Page({ params }: PageProps) {
             page={errorPage}
             layers={errorPageLayers.layers || []}
             components={errorComponents}
-            generatedCss={globalSettings.publishedCss || undefined}
+            generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
             globalCustomCodeHead={globalSettings.globalCustomCodeHead}
             globalCustomCodeBody={globalSettings.globalCustomCodeBody}
             passwordProtection={{
@@ -364,7 +368,7 @@ export default async function Page({ params }: PageProps) {
       page={page}
       layers={pageLayers.layers || []}
       components={components}
-      generatedCss={globalSettings.publishedCss || undefined}
+      generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
       colorVariablesCss={globalSettings.colorVariablesCss || undefined}
       collectionItem={collectionItem}
       collectionFields={collectionFields}

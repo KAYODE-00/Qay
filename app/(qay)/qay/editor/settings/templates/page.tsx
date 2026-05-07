@@ -1,1 +1,5 @@
-export { default } from '@/app/(builder)/ycode/settings/templates/page';
+import { redirect } from 'next/navigation';
+
+export default function QayEditorSettingsTemplatesPage() {
+  redirect('/dashboard/templates');
+}
