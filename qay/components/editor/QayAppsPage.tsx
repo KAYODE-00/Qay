@@ -17,6 +17,7 @@ type AppWithStatus = {
 export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: boolean }) {
   const [apps, setApps] = useState<AppWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeApp, setActiveApp] = useState<AppWithStatus | null>(null);
   const [jsonValue, setJsonValue] = useState('{}');
 
@@ -27,7 +28,14 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
     try {
       const response = await fetch(`/api/qay/apps?site=${encodeURIComponent(siteId)}`);
       const result = await response.json();
-      if (result.data) setApps(result.data);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.data) {
+        setApps(result.data);
+        setError(null);
+      }
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : 'Failed to load apps');
     } finally {
       setLoading(false);
     }
@@ -72,6 +80,12 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
             {connectedCount} app{connectedCount === 1 ? '' : 's'} connected for this site. Settings here are stored per site, not globally.
           </p>
         </header>
+
+        {error && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+            {error}
+          </div>
+        )}
 
         {loading ? (
           <div className="py-10 text-sm text-muted-foreground">Loading...</div>
