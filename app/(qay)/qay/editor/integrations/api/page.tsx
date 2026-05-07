@@ -1,11 +1,17 @@
-import { SiteIsolationNotice } from '@/qay/components/editor/SiteIsolationNotice';
+import { requireQayEditorSite } from '@/qay/lib/editor-access';
+import { getQaySiteAccess } from '@/qay/lib/site-access';
+import { QayApiKeysPage } from '@/qay/components/editor/QayApiKeysPage';
 
-export default function QayEditorIntegrationsApiPage() {
-  return (
-    <SiteIsolationNotice
-      title="API settings are unavailable in QAY editor mode"
-      body="These API controls still point at project-wide configuration. Blocking them here keeps isolated sites from inheriting or exposing another site's access surface."
-      href="/dashboard"
-    />
-  );
+type PageProps = {
+  searchParams: Promise<{ site?: string }>;
+};
+
+export const dynamic = 'force-dynamic';
+
+export default async function QayEditorIntegrationsApiPage({ searchParams }: PageProps) {
+  const { site } = await searchParams;
+  const siteId = await requireQayEditorSite(site);
+  const access = await getQaySiteAccess(siteId);
+
+  return <QayApiKeysPage siteId={siteId} canManage={access.role === 'owner'} />;
 }

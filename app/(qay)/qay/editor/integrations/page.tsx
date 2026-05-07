@@ -32,12 +32,35 @@ export default async function QayEditorIntegrationsPage({ searchParams }: PagePr
             </p>
           </Link>
 
-          <div className="rounded-lg border border-dashed p-5">
-            <div className="text-base font-medium">More integrations</div>
+          <Link
+            href={`/qay/editor/integrations/api?site=${encodeURIComponent(siteId)}`}
+            className="rounded-lg border bg-secondary/10 p-5 transition-colors hover:bg-secondary/20"
+          >
+            <div className="text-base font-medium">API keys</div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Additional site-isolated integrations can be added here without exposing workspace-wide settings.
+              Generate keys that exist only for this site.
             </p>
-          </div>
+          </Link>
+
+          <Link
+            href={`/qay/editor/integrations/webhooks?site=${encodeURIComponent(siteId)}`}
+            className="rounded-lg border bg-secondary/10 p-5 transition-colors hover:bg-secondary/20"
+          >
+            <div className="text-base font-medium">Webhooks</div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Send site-specific events without leaking workspace-level hooks.
+            </p>
+          </Link>
+
+          <Link
+            href={`/qay/editor/integrations/apps?site=${encodeURIComponent(siteId)}`}
+            className="rounded-lg border bg-secondary/10 p-5 transition-colors hover:bg-secondary/20"
+          >
+            <div className="text-base font-medium">Apps</div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Save app configuration per site instead of globally.
+            </p>
+          </Link>
         </div>
       </div>
     </div>
