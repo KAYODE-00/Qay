@@ -1,6 +1,7 @@
 import { buildPublicAppUrl } from './public-app-url';
 import { getQayAdmin } from './supabase-admin';
 import { createToken, deleteToken } from '@/lib/repositories/mcpTokenRepository';
+import { isMissingQaySchemaError, qaySchemaSetupMessage } from './schema';
 
 export type QayMcpTokenRecord = {
   id: string;
@@ -30,10 +31,12 @@ export async function listQaySiteMcpTokens(siteId: string): Promise<QayMcpTokenR
         updated_at
       )
     `)
-    .eq('site_id', siteId)
-    .order('created_at', { ascending: false, referencedTable: 'mcp_tokens' });
+    .eq('site_id', siteId);
 
   if (error) {
+    if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
+      throw new Error(qaySchemaSetupMessage(error.message));
+    }
     throw new Error(`Failed to list site MCP tokens: ${error.message}`);
   }
 
@@ -46,7 +49,8 @@ export async function listQaySiteMcpTokens(siteId: string): Promise<QayMcpTokenR
         site_id: row.site_id,
       } as QayMcpTokenRecord;
     })
-    .filter(Boolean) as QayMcpTokenRecord[];
+    .filter(Boolean)
+    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as QayMcpTokenRecord[];
 }
 
 export async function createQaySiteMcpToken(siteId: string, userId: string, name: string) {
@@ -62,6 +66,10 @@ export async function createQaySiteMcpToken(siteId: string, userId: string, name
     });
 
   if (error) {
+    if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
+      await deleteToken(token.id).catch(() => {});
+      throw new Error(qaySchemaSetupMessage(error.message));
+    }
     await deleteToken(token.id).catch(() => {});
     throw new Error(`Failed to attach MCP token to site: ${error.message}`);
   }
@@ -94,6 +102,9 @@ export async function getQaySiteMcpTokenById(siteId: string, tokenId: string): P
     .maybeSingle();
 
   if (error) {
+    if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
+      throw new Error(qaySchemaSetupMessage(error.message));
+    }
     throw new Error(`Failed to fetch site MCP token: ${error.message}`);
   }
 
@@ -141,6 +152,9 @@ export async function validateQayMcpToken(token: string): Promise<(QayMcpTokenRe
     .maybeSingle();
 
   if (error) {
+    if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
+      throw new Error(qaySchemaSetupMessage(error.message));
+    }
     throw new Error(`Failed to validate site MCP token: ${error.message}`);
   }
 

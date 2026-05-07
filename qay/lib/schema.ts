@@ -6,6 +6,8 @@ import { closeKnexClient, getKnexClient } from '@/lib/knex-client';
 
 const MISSING_SCHEMA_PATTERNS = [
   'qay_sites',
+  'qay_site_mcp_tokens',
+  'qay_site_collections',
   'schema cache',
   'relation "public.qay_sites" does not exist',
   'relation "qay_sites" does not exist',
@@ -55,6 +57,7 @@ export function qaySchemaSetupMessage(error?: string) {
   return [
     'QAY database tables are not ready yet.',
     'Run the QAY core migration after Ycode setup: qay/database/migrations/001_qay_core.sql.',
+    'Then run any follow-up QAY migrations such as qay/database/migrations/002_qay_mcp_tokens.sql and qay/database/migrations/003_qay_site_collections.sql.',
     error ? `Details: ${error}` : null,
   ].filter(Boolean).join(' ');
 }

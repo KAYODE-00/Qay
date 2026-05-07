@@ -9,6 +9,7 @@ import { findStatusFieldId, isAssetFieldType, isMultipleAssetField } from '@/lib
 import type { StatusAction } from '@/lib/collection-field-utils';
 import { noCache } from '@/lib/api-response';
 import type { CollectionItemWithValues, CollectionField } from '@/types';
+import { canUseCollectionInQaySite, getQaySiteIdFromCollectionRequest } from '@/qay/lib/collection-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const siteId = getQaySiteIdFromCollectionRequest(request);
+
+    if (siteId && !(await canUseCollectionInQaySite(siteId, id))) {
+      return noCache({ error: 'Collection not found' }, 404);
+    }
 
     // Extract query parameters
     const { searchParams } = new URL(request.url);
@@ -214,6 +220,11 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const siteId = getQaySiteIdFromCollectionRequest(request);
+
+    if (siteId && !(await canUseCollectionInQaySite(siteId, id))) {
+      return noCache({ error: 'Collection not found' }, 404);
+    }
 
     const body = await request.json();
 
