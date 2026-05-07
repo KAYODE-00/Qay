@@ -1,11 +1,17 @@
-import { SiteIsolationNotice } from '@/qay/components/editor/SiteIsolationNotice';
+import { requireQayEditorSite } from '@/qay/lib/editor-access';
+import { getQaySiteAccess } from '@/qay/lib/site-access';
+import { QayWebhooksPage } from '@/qay/components/editor/QayWebhooksPage';
 
-export default function QayEditorIntegrationsWebhooksPage() {
-  return (
-    <SiteIsolationNotice
-      title="Webhooks are blocked in QAY editor mode"
-      body="Webhook configuration is still backed by workspace-level data upstream. QAY keeps it out of the isolated editor until webhook ownership is stored per site."
-      href="/dashboard"
-    />
-  );
+type PageProps = {
+  searchParams: Promise<{ site?: string }>;
+};
+
+export const dynamic = 'force-dynamic';
+
+export default async function QayEditorIntegrationsWebhooksPage({ searchParams }: PageProps) {
+  const { site } = await searchParams;
+  const siteId = await requireQayEditorSite(site);
+  const access = await getQaySiteAccess(siteId);
+
+  return <QayWebhooksPage siteId={siteId} canManage={access.role === 'owner'} />;
 }

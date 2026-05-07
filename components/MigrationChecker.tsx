@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import BuilderLoading from '@/components/BuilderLoading';
@@ -15,6 +16,7 @@ interface MigrationCheckerProps {
 }
 
 export default function MigrationChecker({ onComplete }: MigrationCheckerProps) {
+  const searchParams = useSearchParams();
   const [isChecking, setIsChecking] = useState(true);
   const [progress, setProgress] = useState('Checking database status...');
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +25,14 @@ export default function MigrationChecker({ onComplete }: MigrationCheckerProps) 
   const hasRunRef = useRef(false);
 
   const checkAndRunMigrations = useCallback(async () => {
+    const activeSiteId = searchParams.get('site');
+
+    // QAY site-scoped editor sessions should not hit Ycode's original setup migrator.
+    if (activeSiteId) {
+      onComplete();
+      return;
+    }
+
     try {
       setIsChecking(true);
       setProgress('Checking and running migrations...');
@@ -55,7 +65,7 @@ export default function MigrationChecker({ onComplete }: MigrationCheckerProps) 
       setError(err instanceof Error ? err.message : 'Migration failed');
       setIsChecking(false);
     }
-  }, [onComplete]);
+  }, [onComplete, searchParams]);
 
   useEffect(() => {
     // Skip if already run (React Strict Mode protection)

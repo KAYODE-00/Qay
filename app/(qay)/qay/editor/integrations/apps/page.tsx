@@ -1,11 +1,17 @@
-import { SiteIsolationNotice } from '@/qay/components/editor/SiteIsolationNotice';
+import { requireQayEditorSite } from '@/qay/lib/editor-access';
+import { getQaySiteAccess } from '@/qay/lib/site-access';
+import { QayAppsPage } from '@/qay/components/editor/QayAppsPage';
 
-export default function QayEditorIntegrationsAppsPage() {
-  return (
-    <SiteIsolationNotice
-      title="Apps are unavailable for isolated QAY sites"
-      body="App connections in the upstream builder are shared at the project level. QAY blocks this screen inside the isolated editor until app credentials can be stored and resolved per site."
-      href="/dashboard"
-    />
-  );
+type PageProps = {
+  searchParams: Promise<{ site?: string }>;
+};
+
+export const dynamic = 'force-dynamic';
+
+export default async function QayEditorIntegrationsAppsPage({ searchParams }: PageProps) {
+  const { site } = await searchParams;
+  const siteId = await requireQayEditorSite(site);
+  const access = await getQaySiteAccess(siteId);
+
+  return <QayAppsPage siteId={siteId} canManage={access.role === 'owner'} />;
 }
