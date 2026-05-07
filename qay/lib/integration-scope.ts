@@ -188,7 +188,9 @@ export async function listQaySiteApps(siteId: string) {
   const supabase = getQayAdmin() as any;
   const { data, error } = await supabase.from('qay_site_app_settings').select('app_id').eq('site_id', siteId);
   if (error) {
-    if (isIntegrationTableError(error, 'qay_site_app_settings')) throw integrationSchemaError(error);
+    if (isIntegrationTableError(error, 'qay_site_app_settings')) {
+      return getAllApps().map((app) => ({ ...app, connected: false }));
+    }
     throw new Error(`Failed to fetch app settings: ${error.message}`);
   }
   const connectedIds = new Set((data || []).map((row: { app_id: string }) => row.app_id));
@@ -205,7 +207,7 @@ export async function getQaySiteAppSettings(siteId: string, appId: string) {
     .eq('app_id', appId)
     .order('key', { ascending: true });
   if (error) {
-    if (isIntegrationTableError(error, 'qay_site_app_settings')) throw integrationSchemaError(error);
+    if (isIntegrationTableError(error, 'qay_site_app_settings')) return {};
     throw new Error(`Failed to fetch app settings: ${error.message}`);
   }
   return (data || []).reduce((acc: Record<string, unknown>, row: { key: string; value: unknown }) => {
