@@ -2,7 +2,7 @@ import { requireDeveloper } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import type { QaySite } from '@/qay/types';
 import { DeveloperDashboard } from './DeveloperDashboard';
-import { isMissingQaySchemaError, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
+import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
 
 function DashboardSetupNotice({ message }: { message: string }) {
   return (
@@ -20,11 +20,10 @@ function DashboardSetupNotice({ message }: { message: string }) {
 }
 
 export default async function DashboardPage() {
-  let user;
+  const user = await requireDeveloper();
   let supabase;
 
   try {
-    user = await requireDeveloper();
     supabase = getQayAdmin() as any;
   } catch (error) {
     return <DashboardSetupNotice message={error instanceof Error ? error.message : 'QAY could not read Supabase configuration.'} />;
@@ -37,6 +36,10 @@ export default async function DashboardPage() {
     .order('updated_at', { ascending: false });
 
   if (error && isMissingQaySchemaError(error)) {
+    if (!allowRuntimeQaySchemaChanges()) {
+      return <DashboardSetupNotice message={qaySchemaSetupMessage()} />;
+    }
+
     const migration = await runQayCoreMigration();
 
     if (!migration.success) {

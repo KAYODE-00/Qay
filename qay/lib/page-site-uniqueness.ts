@@ -1,9 +1,14 @@
 import { getKnexClient, closeKnexClient } from '@/lib/knex-client';
+import { allowRuntimeQaySchemaChanges } from './schema';
 
 let ensured = false;
 
 export async function ensureQayPageSiteUniqueness() {
   if (ensured) return;
+  if (!allowRuntimeQaySchemaChanges()) {
+    ensured = true;
+    return;
+  }
 
   const knex = await getKnexClient();
 

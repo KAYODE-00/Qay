@@ -25,6 +25,10 @@ export function isMissingQaySchemaError(error: unknown): boolean {
   return normalized.includes('qay_sites') && MISSING_SCHEMA_PATTERNS.some((pattern) => normalized.includes(pattern));
 }
 
+export function allowRuntimeQaySchemaChanges() {
+  return process.env.QAY_ENABLE_RUNTIME_SCHEMA_REPAIRS === 'true';
+}
+
 export async function runQayCoreMigration() {
   const knex = await getKnexClient();
 

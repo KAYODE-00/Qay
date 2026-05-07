@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { isMissingQaySchemaError, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
+import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
 
 function slugify(value: string) {
   return value
@@ -28,6 +28,10 @@ export async function GET() {
       .order('updated_at', { ascending: false });
 
     if (error && isMissingQaySchemaError(error)) {
+      if (!allowRuntimeQaySchemaChanges()) {
+        return NextResponse.json({ error: qaySchemaSetupMessage() }, { status: 503 });
+      }
+
       const migration = await runQayCoreMigration();
       if (!migration.success) {
         return NextResponse.json({ error: qaySchemaSetupMessage(migration.error) }, { status: 503 });
@@ -93,6 +97,10 @@ export async function POST(request: Request) {
     let { data, error } = await insertSite();
 
     if (error && isMissingQaySchemaError(error)) {
+      if (!allowRuntimeQaySchemaChanges()) {
+        return NextResponse.json({ error: qaySchemaSetupMessage() }, { status: 503 });
+      }
+
       const migration = await runQayCoreMigration();
       if (!migration.success) {
         return NextResponse.json({ error: qaySchemaSetupMessage(migration.error) }, { status: 503 });
