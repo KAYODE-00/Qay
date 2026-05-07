@@ -26,7 +26,7 @@
     "dev:webpack": "next dev -p 3002 --webpack",
     "prod": "npm run build && npm run start",
     "build": "next build",
-    "start": "next start -p 3002",
+    "start": "node scripts/start-next.mjs",
     "cache:clear": "rm -rf .next",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",

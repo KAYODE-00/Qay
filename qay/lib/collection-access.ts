@@ -1,6 +1,7 @@
 import type { Collection, CollectionField } from '@/types';
 import { getQayAdmin } from './supabase-admin';
 import { canAccessQaySite, getQaySiteAccess } from './site-access';
+import { isMissingQaySchemaError, qaySchemaSetupMessage } from './schema';
 
 export function getQaySiteIdFromCollectionRequest(request: Request): string | null {
   const { searchParams } = new URL(request.url);
@@ -19,6 +20,9 @@ export async function listQaySiteCollectionIds(siteId: string): Promise<string[]
     .eq('site_id', siteId);
 
   if (error) {
+    if (isMissingQaySchemaError(error)) {
+      throw new Error(qaySchemaSetupMessage(error.message));
+    }
     throw new Error(`Failed to list site collections: ${error.message}`);
   }
 
@@ -39,6 +43,9 @@ export async function canUseCollectionInQaySite(siteId: string, collectionId: st
     .maybeSingle();
 
   if (error) {
+    if (isMissingQaySchemaError(error)) {
+      throw new Error(qaySchemaSetupMessage(error.message));
+    }
     throw new Error(`Failed to verify site collection access: ${error.message}`);
   }
 
@@ -64,6 +71,9 @@ export async function attachCollectionToQaySite(siteId: string, collectionId: st
     });
 
   if (error) {
+    if (isMissingQaySchemaError(error)) {
+      throw new Error(qaySchemaSetupMessage(error.message));
+    }
     throw new Error(`Failed to attach collection to site: ${error.message}`);
   }
 }
