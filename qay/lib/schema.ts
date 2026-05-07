@@ -24,7 +24,7 @@ export function isMissingQaySchemaError(error: unknown): boolean {
         : '';
 
   const normalized = message.toLowerCase();
-  return normalized.includes('qay_sites') && MISSING_SCHEMA_PATTERNS.some((pattern) => normalized.includes(pattern));
+  return MISSING_SCHEMA_PATTERNS.some((pattern) => normalized.includes(pattern));
 }
 
 export function allowRuntimeQaySchemaChanges() {
