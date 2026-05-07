@@ -1,11 +1,45 @@
-import { SiteIsolationNotice } from '@/qay/components/editor/SiteIsolationNotice';
+import Link from 'next/link';
+import { requireQayEditorSite } from '@/qay/lib/editor-access';
 
-export default function QayEditorIntegrationsPage() {
+type PageProps = {
+  searchParams: Promise<{ site?: string }>;
+};
+
+export const dynamic = 'force-dynamic';
+
+export default async function QayEditorIntegrationsPage({ searchParams }: PageProps) {
+  const { site } = await searchParams;
+  const siteId = await requireQayEditorSite(site);
+
   return (
-    <SiteIsolationNotice
-      title="Integrations are blocked in QAY editor mode"
-      body="The upstream integrations screens still operate on workspace-wide data. QAY keeps this section closed here so one site cannot see or reuse another site's tokens, apps, or webhook setup."
-      href="/dashboard"
-    />
+    <div className="p-8">
+      <div className="mx-auto max-w-4xl">
+        <header className="pb-8 pt-8">
+          <h1 className="text-xl font-semibold">Integrations</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Site-scoped integrations live here. Each QAY site keeps its own isolated connection state.
+          </p>
+        </header>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Link
+            href={`/qay/editor/integrations/mcp?site=${encodeURIComponent(siteId)}`}
+            className="rounded-lg border bg-secondary/10 p-5 transition-colors hover:bg-secondary/20"
+          >
+            <div className="text-base font-medium">MCP</div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Create site-scoped MCP URLs for Claude, Cursor, and other assistants.
+            </p>
+          </Link>
+
+          <div className="rounded-lg border border-dashed p-5">
+            <div className="text-base font-medium">More integrations</div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Additional site-isolated integrations can be added here without exposing workspace-wide settings.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

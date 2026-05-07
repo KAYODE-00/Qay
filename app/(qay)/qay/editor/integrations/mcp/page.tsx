@@ -1,11 +1,17 @@
-import { SiteIsolationNotice } from '@/qay/components/editor/SiteIsolationNotice';
+import { requireQayEditorSite } from '@/qay/lib/editor-access';
+import { getQaySiteAccess } from '@/qay/lib/site-access';
+import { QayMcpPage } from '@/qay/components/editor/QayMcpPage';
 
-export default function QayEditorIntegrationsMcpPage() {
-  return (
-    <SiteIsolationNotice
-      title="MCP is disabled for isolated QAY sites"
-      body="The upstream MCP server and token store are still global to the whole Ycode workspace. QAY blocks MCP inside the site editor so one client or developer cannot see or operate another site's MCP connection."
-      href="/dashboard"
-    />
-  );
+type PageProps = {
+  searchParams: Promise<{ site?: string }>;
+};
+
+export const dynamic = 'force-dynamic';
+
+export default async function QayEditorIntegrationsMcpPage({ searchParams }: PageProps) {
+  const { site } = await searchParams;
+  const siteId = await requireQayEditorSite(site);
+  const access = await getQaySiteAccess(siteId);
+
+  return <QayMcpPage siteId={siteId} canManage={access.role === 'owner'} />;
 }

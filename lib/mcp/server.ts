@@ -25,12 +25,21 @@ import { registerSettingsTools } from '@/lib/mcp/tools/settings';
 import { registerPublishingTools } from '@/lib/mcp/tools/publishing';
 import { registerReferenceResources } from '@/lib/mcp/resources/reference';
 import { registerSiteResources } from '@/lib/mcp/resources/site';
+import { registerQaySiteResources } from '@/qay/lib/mcp-site-resources';
+import { registerQaySiteTools } from '@/qay/lib/mcp-site-tools';
 
-export function createMcpServer(): McpServer {
+export function createMcpServer(options?: { qaySiteId?: string }): McpServer {
   const server = new McpServer(
     { name: 'ycode', version: '0.4.0' },
     { instructions: SYSTEM_INSTRUCTIONS },
   );
+
+  if (options?.qaySiteId) {
+    registerQaySiteTools(server, options.qaySiteId);
+    registerReferenceResources(server);
+    registerQaySiteResources(server, options.qaySiteId);
+    return server;
+  }
 
   registerPageTools(server);
   registerPageFolderTools(server);
