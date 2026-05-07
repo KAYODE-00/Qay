@@ -1,7 +1,9 @@
 CREATE TABLE IF NOT EXISTS qay_site_collections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   site_id UUID NOT NULL REFERENCES qay_sites(id) ON DELETE CASCADE,
-  collection_id UUID UNIQUE NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  -- Ycode collections use a composite primary key (id, is_published),
+  -- so collection_id cannot reference collections(id) directly.
+  collection_id UUID UNIQUE NOT NULL,
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );

@@ -12,6 +12,7 @@ import { getAllAssetFolders } from '@/lib/repositories/assetFolderRepository';
 import { getAllFonts } from '@/lib/repositories/fontRepository';
 import { getMapboxAccessToken, getGoogleMapsEmbedApiKey } from '@/lib/map-server';
 import { canAccessQaySite } from '@/qay/lib/site-access';
+import { filterCollectionsForQaySite } from '@/qay/lib/collection-access';
 import { filterAssetsForQaySite, filterAssetFoldersForQaySite } from '@/qay/lib/media-isolation';
 import { normalizeQayPageForResponse } from '@/qay/lib/index-slug';
 import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
@@ -84,6 +85,9 @@ export async function GET(request: NextRequest) {
     const scopedAssetFolders = qaySiteId
       ? await filterAssetFoldersForQaySite(qaySiteId, assetFolders)
       : assetFolders;
+    const scopedCollections = qaySiteId
+      ? await filterCollectionsForQaySite(qaySiteId, collections)
+      : collections;
 
     // Inject app-sourced tokens into settings so they're available via settingsByKey
     const enrichedSettings = [...settings];
@@ -111,7 +115,7 @@ export async function GET(request: NextRequest) {
         components,
         styles,
         settings: enrichedSettings,
-        collections,
+        collections: scopedCollections,
         locales,
         assets: scopedAssets,
         assetFolders: scopedAssetFolders,

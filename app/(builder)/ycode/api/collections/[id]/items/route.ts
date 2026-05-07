@@ -35,15 +35,16 @@ export async function GET(
     const { id } = await params;
     const siteId = getQaySiteIdFromCollectionRequest(request);
 
-    if (siteId && !(await canUseCollectionInQaySite(siteId, id))) {
-      return noCache({ error: 'Collection not found' }, 404);
-    }
-
     // Extract query parameters
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || undefined;
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '25', 10);
+
+    if (siteId && !(await canUseCollectionInQaySite(siteId, id))) {
+      return noCache({ data: { items: [], total: 0, page, limit } });
+    }
+
+    const search = searchParams.get('search') || undefined;
     const sortBy = searchParams.get('sortBy') || undefined;
     const sortOrder = (searchParams.get('sortOrder') || 'asc') as 'asc' | 'desc';
     const offsetParam = searchParams.get('offset');

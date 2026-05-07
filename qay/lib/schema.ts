@@ -34,6 +34,10 @@ export function allowRuntimeQaySchemaChanges() {
   return process.env.QAY_ENABLE_RUNTIME_SCHEMA_REPAIRS === 'true';
 }
 
+export function qaySchemaPublicMessage() {
+  return 'This part of QAY is still being set up. Please try again in a moment.';
+}
+
 export async function runQayCoreMigration() {
   const knex = await getKnexClient();
 

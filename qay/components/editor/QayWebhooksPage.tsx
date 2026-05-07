@@ -93,7 +93,7 @@ export function QayWebhooksPage({ siteId, canManage }: { siteId: string; canMana
         <header className="flex items-center justify-between pb-6 pt-8">
           <div>
             <h1 className="text-base font-medium">Site webhooks</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Each webhook here belongs only to this site.</p>
+            <p className="mt-2 text-sm text-muted-foreground">These webhooks send events for this site only.</p>
           </div>
           {canManage && <Button variant="secondary" size="sm" onClick={() => setShowCreate(true)}>Create webhook</Button>}
         </header>
@@ -129,7 +129,7 @@ export function QayWebhooksPage({ siteId, canManage }: { siteId: string; canMana
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create site webhook</DialogTitle>
-            <DialogDescription>Webhook delivery is isolated to this site.</DialogDescription>
+            <DialogDescription>This webhook will be used only for this site.</DialogDescription>
           </DialogHeader>
           <Field>
             <FieldLabel htmlFor="site-webhook-name">Name</FieldLabel>

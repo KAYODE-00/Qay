@@ -23,7 +23,7 @@ export async function GET(
     const siteId = getQaySiteIdFromCollectionRequest(request);
 
     if (siteId && !(await canUseCollectionInQaySite(siteId, id))) {
-      return noCache({ error: 'Collection not found' }, 404);
+      return noCache({ data: [] });
     }
 
     // Extract search query parameter

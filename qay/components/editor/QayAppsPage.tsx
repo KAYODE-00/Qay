@@ -14,6 +14,14 @@ type AppWithStatus = {
   connected: boolean;
 };
 
+function toFriendlyErrorMessage(message: string) {
+  if (!message) return 'Something went wrong. Please try again.';
+  if (message.includes('Not authenticated')) return 'Please sign in again.';
+  if (message.includes('Not authorized')) return 'You do not have access to this page.';
+  if (message.includes('still being set up')) return 'This area is still being set up. Please try again in a moment.';
+  return 'Something went wrong. Please try again.';
+}
+
 export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: boolean }) {
   const [apps, setApps] = useState<AppWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,13 +37,13 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
       const response = await fetch(`/api/qay/apps?site=${encodeURIComponent(siteId)}`);
       const result = await response.json();
       if (result.error) {
-        setError(result.error);
+        setError(toFriendlyErrorMessage(result.error));
       } else if (result.data) {
         setApps(result.data);
         setError(null);
       }
     } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : 'Failed to load apps');
+      setError(toFriendlyErrorMessage(fetchError instanceof Error ? fetchError.message : ''));
     } finally {
       setLoading(false);
     }
@@ -77,7 +85,7 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
         <header className="pb-6 pt-8">
           <h1 className="text-base font-medium">Site apps</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {connectedCount} app{connectedCount === 1 ? '' : 's'} connected for this site. Settings here are stored per site, not globally.
+            {connectedCount} app{connectedCount === 1 ? '' : 's'} connected for this site.
           </p>
         </header>
 
@@ -92,13 +100,14 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {apps.map((app) => (
-              <button
+              <div
                 key={app.id}
-                type="button"
-                className="flex items-start gap-3 rounded-lg bg-secondary/20 p-4 text-left transition hover:bg-secondary/30"
-                onClick={() => openApp(app)}
+                className={[
+                  'flex items-start gap-3 rounded-lg bg-secondary/20 p-4 text-left',
+                  app.implemented ? 'transition hover:bg-secondary/30' : 'cursor-not-allowed opacity-70',
+                ].join(' ')}
               >
-                <div className="flex size-10 items-center justify-center overflow-hidden rounded-lg bg-secondary shrink-0">
+                <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary">
                   <Image src={app.logo} alt={`${app.name} logo`} width={24} height={24} className="size-6 object-contain" />
                 </div>
                 <div className="flex-1">
@@ -108,8 +117,21 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
                     {!app.implemented && <span className="rounded border px-1.5 py-0.5 text-[10px]">Coming soon</span>}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{app.description}</p>
+                  {app.implemented && (
+                    <div className="mt-3">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => openApp(app)}
+                        disabled={!canManage}
+                      >
+                        {app.connected ? 'Manage' : 'Connect'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
@@ -120,7 +142,7 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
           <DialogHeader>
             <DialogTitle>{activeApp?.name} settings</DialogTitle>
             <DialogDescription>
-              Save JSON settings for this site only. This keeps each app instance isolated per site.
+              Save settings for this site.
             </DialogDescription>
           </DialogHeader>
           <textarea

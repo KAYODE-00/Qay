@@ -139,7 +139,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-3xl font-semibold tracking-normal">My Sites</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Create, manage, and open isolated QAY sites.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Create, manage, and open your sites.</p>
           </div>
 
           <div className="flex rounded-md border border-border bg-muted p-1">
@@ -261,7 +261,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold tracking-normal">Create new site</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Each site opens Ycode with its own QAY site context.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Each site opens in its own editor.</p>
               </div>
               <button
                 type="button"

@@ -2,7 +2,7 @@ import { requireDeveloper } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import type { QaySite } from '@/qay/types';
 import { DeveloperDashboard } from './DeveloperDashboard';
-import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
+import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
 
 function DashboardSetupNotice({ message }: { message: string }) {
   return (
@@ -11,9 +11,6 @@ function DashboardSetupNotice({ message }: { message: string }) {
         <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/45">QAY setup</p>
         <h1 className="mt-3 text-2xl font-semibold tracking-normal">Database setup needs attention</h1>
         <p className="mt-3 text-sm leading-6 text-white/65">{message}</p>
-        <div className="mt-6 rounded-md border border-white/10 bg-black/40 p-4 text-sm text-white/65">
-          Run <span className="font-mono text-white">qay/database/migrations/001_qay_core.sql</span> in your Supabase SQL editor after Ycode setup, or update <span className="font-mono text-white">SUPABASE_CONNECTION_URL</span> with the real database password so QAY can apply it automatically.
-        </div>
       </section>
     </main>
   );
@@ -37,13 +34,15 @@ export default async function DashboardPage() {
 
   if (error && isMissingQaySchemaError(error)) {
     if (!allowRuntimeQaySchemaChanges()) {
-      return <DashboardSetupNotice message={qaySchemaSetupMessage()} />;
+      console.error('QAY dashboard unavailable:', qaySchemaSetupMessage());
+      return <DashboardSetupNotice message={qaySchemaPublicMessage()} />;
     }
 
     const migration = await runQayCoreMigration();
 
     if (!migration.success) {
-      return <DashboardSetupNotice message={qaySchemaSetupMessage(migration.error)} />;
+      console.error('QAY dashboard migration failed:', qaySchemaSetupMessage(migration.error));
+      return <DashboardSetupNotice message={qaySchemaPublicMessage()} />;
     }
 
     const retry = await supabase

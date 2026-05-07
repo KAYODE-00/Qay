@@ -30,7 +30,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { Component } from '@/types';
-import Image from 'next/image';
 import { getLayerFromTemplate, getBlockName, getBlockIcon, getLayoutTemplate, getLayoutCategory, getLayoutPreviewImage, getLayoutsByCategory, getAllLayoutKeys } from '@/lib/templates/blocks';
 import { DEFAULT_ASSETS } from '@/lib/asset-constants';
 import { canHaveChildren, assignOrderClassToNewLayer, collectAllSettingsIds, generateUniqueSettingsId, findLayerById } from '@/lib/layer-utils';
@@ -1487,13 +1486,13 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
                                 variant="card"
                               >
                                 {previewImage && (
-                                  <Image
+                                  <img
                                     src={previewImage}
                                     width={640}
                                     height={262}
                                     alt="Layout preview"
                                     loading="eager"
-                                    className="object-contain w-full h-full rounded pointer-events-none"
+                                    className="pointer-events-none h-full w-full rounded object-contain"
                                   />
                                 )}
                               </ElementButton>
