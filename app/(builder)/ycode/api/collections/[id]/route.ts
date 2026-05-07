@@ -3,6 +3,7 @@ import { getCollectionById, updateCollection, deleteCollection } from '@/lib/rep
 import { getItemsByCollectionId } from '@/lib/repositories/collectionItemRepository';
 import { deleteTranslationsInBulk } from '@/lib/repositories/translationRepository';
 import { noCache } from '@/lib/api-response';
+import { canUseCollectionInQaySite, getQaySiteIdFromCollectionRequest } from '@/qay/lib/collection-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const siteId = getQaySiteIdFromCollectionRequest(request);
+
+    if (siteId && !(await canUseCollectionInQaySite(siteId, id))) {
+      return noCache({ error: 'Collection not found' }, 404);
+    }
 
     // Always get draft version in the builder
     const collection = await getCollectionById(id, false);
@@ -46,6 +52,11 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const siteId = getQaySiteIdFromCollectionRequest(request);
+
+    if (siteId && !(await canUseCollectionInQaySite(siteId, id))) {
+      return noCache({ error: 'Collection not found' }, 404);
+    }
 
     const body = await request.json();
 
@@ -72,6 +83,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const siteId = getQaySiteIdFromCollectionRequest(request);
+
+    if (siteId && !(await canUseCollectionInQaySite(siteId, id))) {
+      return noCache({ error: 'Collection not found' }, 404);
+    }
 
     // Get all items in this collection (draft versions)
     const { items } = await getItemsByCollectionId(id, false);

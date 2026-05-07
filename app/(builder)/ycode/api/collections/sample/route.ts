@@ -3,6 +3,12 @@ import { createSampleCollection } from '@/lib/services/sampleCollectionService';
 import { getAllCollections } from '@/lib/repositories/collectionRepository';
 import { getSampleCollectionById } from '@/lib/sample-collections';
 import { noCache } from '@/lib/api-response';
+import {
+  attachCollectionToQaySite,
+  filterCollectionsForQaySite,
+  getQaySiteIdFromCollectionRequest,
+  requireQayCollectionOwner,
+} from '@/qay/lib/collection-access';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,6 +21,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { sampleId } = body;
+    const siteId = getQaySiteIdFromCollectionRequest(request);
 
     if (!sampleId || typeof sampleId !== 'string') {
       return noCache({ error: 'Missing required field: sampleId' }, 400);
@@ -27,9 +34,15 @@ export async function POST(request: NextRequest) {
 
     // Get existing collection names to avoid duplicates
     const existing = await getAllCollections({ is_published: false, deleted: false });
-    const existingNames = existing.map(c => c.name);
+    const scopedExisting = siteId ? await filterCollectionsForQaySite(siteId, existing) : existing;
+    const existingNames = scopedExisting.map(c => c.name);
 
     const result = await createSampleCollection(sampleId, existingNames);
+
+    if (siteId) {
+      const user = await requireQayCollectionOwner(siteId);
+      await attachCollectionToQaySite(siteId, result.collection.id, user.id);
+    }
 
     return noCache({ data: result }, 201);
   } catch (error) {

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllCollections, createCollection } from '@/lib/repositories/collectionRepository';
 import { noCache } from '@/lib/api-response';
+import {
+  attachCollectionToQaySite,
+  filterCollectionsForQaySite,
+  getQaySiteIdFromCollectionRequest,
+  requireQayCollectionOwner,
+} from '@/qay/lib/collection-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -10,13 +16,15 @@ export const revalidate = 0;
  * GET /ycode/api/collections
  * Get all collections (draft by default)
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Always get draft collections in the builder
+    const siteId = getQaySiteIdFromCollectionRequest(request);
     const collections = await getAllCollections({ is_published: false, deleted: false });
+    const data = siteId ? await filterCollectionsForQaySite(siteId, collections) : collections;
     
     return noCache({
-      data: collections,
+      data,
     });
   } catch (error) {
     console.error('Error fetching collections:', error);
@@ -34,6 +42,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const siteId = getQaySiteIdFromCollectionRequest(request);
     
     // Validate required fields
     if (!body.name) {
@@ -49,6 +58,11 @@ export async function POST(request: NextRequest) {
       order: body.order ?? 0,
       is_published: false, // Always create as draft
     });
+
+    if (siteId) {
+      const user = await requireQayCollectionOwner(siteId);
+      await attachCollectionToQaySite(siteId, collection.id, user.id);
+    }
     
     return noCache(
       { data: collection },
