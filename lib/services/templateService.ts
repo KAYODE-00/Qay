@@ -58,6 +58,18 @@ export interface ApplyTemplateResult {
   error?: string;
 }
 
+export interface ProcessedTemplateApplyPayload {
+  template: {
+    id: string;
+    name: string;
+    lastMigration?: string | null;
+  };
+  sql: {
+    clearPreviousTemplate?: string;
+    insert: string;
+  };
+}
+
 /**
  * List available templates and categories from the template service
  */
@@ -123,7 +135,10 @@ export async function getTemplate(id: string): Promise<TemplateDetails | null> {
  *
  * @param knex - Knex transaction or client
  */
-async function copyTemplateAssetsToUserStorage(knex: ReturnType<typeof getKnexClient> extends Promise<infer T> ? T : never): Promise<void> {
+export async function copyTemplateAssetsToUserStorage(
+  knex: ReturnType<typeof getKnexClient> extends Promise<infer T> ? T : never,
+  importedAfter?: Date
+): Promise<void> {
   const supabase = await getSupabaseAdmin();
   if (!supabase) {
     console.warn('[copyTemplateAssets] Supabase not configured, skipping asset copy');
@@ -131,11 +146,16 @@ async function copyTemplateAssetsToUserStorage(knex: ReturnType<typeof getKnexCl
   }
 
   // Find all template assets that need to be copied (have public_url but no storage_path)
-  const templateAssets = await knex('assets')
+  let templateAssetsQuery = knex('assets')
     .whereNotNull('public_url')
     .whereNull('storage_path')
-    .where('source', 'like', 'template:%')
-    .select('id', 'filename', 'public_url', 'mime_type');
+    .where('source', 'like', 'template:%');
+
+  if (importedAfter && await knex.schema.hasColumn('assets', 'created_at')) {
+    templateAssetsQuery = templateAssetsQuery.where('created_at', '>=', importedAfter.toISOString());
+  }
+
+  const templateAssets = await templateAssetsQuery.select('id', 'filename', 'public_url', 'mime_type');
 
   if (templateAssets.length === 0) {
     return;
@@ -205,10 +225,15 @@ async function copyTemplateAssetsToUserStorage(knex: ReturnType<typeof getKnexCl
   // Copy custom font files (fonts with url from template CDN but no storage_path)
   const fontsTableExists = await knex.schema.hasTable('fonts');
   if (fontsTableExists) {
-    const templateFonts = await knex('fonts')
+    let templateFontsQuery = knex('fonts')
       .whereNotNull('url')
-      .whereNull('storage_path')
-      .select('id', 'name', 'kind', 'url');
+      .whereNull('storage_path');
+
+    if (importedAfter && await knex.schema.hasColumn('fonts', 'created_at')) {
+      templateFontsQuery = templateFontsQuery.where('created_at', '>=', importedAfter.toISOString());
+    }
+
+    const templateFonts = await templateFontsQuery.select('id', 'name', 'kind', 'url');
 
     for (const font of templateFonts) {
       try {
@@ -320,7 +345,7 @@ function getPendingMigrationsForTemplate(
  * @param knex - Knex client
  * @param templateLastMigration - The last migration the template was created with
  */
-async function runPendingMigrationsForTemplate(
+export async function runPendingMigrationsForTemplate(
   knex: Awaited<ReturnType<typeof getKnexClient>>,
   templateLastMigration: string | null | undefined
 ): Promise<void> {
@@ -371,25 +396,7 @@ export async function applyTemplate(
   const knex = await getKnexClient();
 
   try {
-    // 1. Fetch processed SQL from template service
-    const response = await fetch(
-      `${YCODE_EXTERNAL_API_URL}/api/templates/${templateId}/apply`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId }),
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response.json();
-      return {
-        success: false,
-        error: error.error || 'Failed to fetch template',
-      };
-    }
-
-    const { template, sql } = await response.json();
+    const { template, sql } = await fetchProcessedTemplateApplyPayload(templateId, tenantId);
 
     // 2. Execute in a transaction for atomicity
     await knex.transaction(async (trx) => {
@@ -398,7 +405,7 @@ export async function applyTemplate(
 
       // 2a. Clear previous template assets (keep user uploads) - only if table exists
       const assetsTableExists = await trx.schema.hasTable('assets');
-      if (assetsTableExists) {
+      if (assetsTableExists && sql.clearPreviousTemplate) {
         await trx.raw(sql.clearPreviousTemplate);
       }
 
@@ -460,4 +467,32 @@ export async function applyTemplate(
   } finally {
     await closeKnexClient();
   }
+}
+
+export async function fetchProcessedTemplateApplyPayload(
+  templateId: string,
+  tenantId?: string
+): Promise<ProcessedTemplateApplyPayload> {
+  const response = await fetch(
+    `${YCODE_EXTERNAL_API_URL}/api/templates/${templateId}/apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId }),
+      cache: 'no-store',
+    }
+  );
+
+  if (!response.ok) {
+    let message = 'Failed to fetch template';
+    try {
+      const error = await response.json();
+      message = error.error || message;
+    } catch {
+      // ignore JSON parsing failures and use the generic message
+    }
+    throw new Error(message);
+  }
+
+  return await response.json();
 }

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { applyTemplate } from '@/lib/services/templateService';
+import {
+  copyTemplateAssetsToUserStorage,
+  fetchProcessedTemplateApplyPayload,
+  runPendingMigrationsForTemplate,
+} from '@/lib/services/templateService';
 import { getKnexClient, closeKnexClient } from '@/lib/knex-client';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
@@ -9,16 +13,35 @@ import { buildQayIndexSlug } from '@/qay/lib/index-slug';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-async function tagImportedTemplateData(siteId: string) {
+async function restorePageSiteUniqueIndex(knex: Awaited<ReturnType<typeof getKnexClient>>) {
+  await knex.raw(`
+    CREATE UNIQUE INDEX IF NOT EXISTS pages_slug_is_published_folder_unique
+    ON pages(
+      slug,
+      is_published,
+      COALESCE(page_folder_id, '00000000-0000-0000-0000-000000000000'::uuid),
+      COALESCE(error_page, 0),
+      COALESCE(settings->>'qay_site_id', '__ycode_global__')
+    )
+    WHERE deleted_at IS NULL
+  `);
+}
+
+async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
   const knex = await getKnexClient();
   const siteSettings = JSON.stringify({ qay_site_id: siteId });
+  const importedAfterIso = importedAfter.toISOString();
 
   try {
-    if (await knex.schema.hasTable('pages')) {
+    const pagesHasCreatedAt =
+      await knex.schema.hasTable('pages') && await knex.schema.hasColumn('pages', 'created_at');
+    if (pagesHasCreatedAt) {
+      await knex.raw('DROP INDEX IF EXISTS pages_slug_is_published_folder_unique');
+
       await knex('pages')
         .whereNull('deleted_at')
         .whereNull('error_page')
-        .whereRaw("(settings->>'qay_site_id') IS NULL")
+        .where('created_at', '>=', importedAfterIso)
         .update({
           settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
           slug: knex.raw(
@@ -26,12 +49,16 @@ async function tagImportedTemplateData(siteId: string) {
             [buildQayIndexSlug(siteId)]
           ),
         });
+
+      await restorePageSiteUniqueIndex(knex);
     }
 
-    if (await knex.schema.hasTable('page_folders')) {
+    const pageFoldersHasCreatedAt =
+      await knex.schema.hasTable('page_folders') && await knex.schema.hasColumn('page_folders', 'created_at');
+    if (pageFoldersHasCreatedAt) {
       await knex('page_folders')
         .whereNull('deleted_at')
-        .whereRaw("(settings->>'qay_site_id') IS NULL")
+        .where('created_at', '>=', importedAfterIso)
         .update({
           settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
         });
@@ -41,10 +68,15 @@ async function tagImportedTemplateData(siteId: string) {
       await knex.schema.hasTable('assets') &&
       await knex.schema.hasTable('qay_site_assets')
     ) {
-      const assets = await knex('assets')
+      let assetsQuery = knex('assets')
         .whereNull('deleted_at')
-        .where('source', 'like', 'template:%')
-        .select('id');
+        .where('source', 'like', 'template:%');
+
+      if (await knex.schema.hasColumn('assets', 'created_at')) {
+        assetsQuery = assetsQuery.where('created_at', '>=', importedAfterIso);
+      }
+
+      const assets = await assetsQuery.select('id');
 
       if (assets.length > 0) {
         await knex('qay_site_assets')
@@ -58,9 +90,13 @@ async function tagImportedTemplateData(siteId: string) {
       await knex.schema.hasTable('asset_folders') &&
       await knex.schema.hasTable('qay_site_asset_folders')
     ) {
-      const folders = await knex('asset_folders')
-        .whereNull('deleted_at')
-        .select('id');
+      let foldersQuery = knex('asset_folders').whereNull('deleted_at');
+
+      if (await knex.schema.hasColumn('asset_folders', 'created_at')) {
+        foldersQuery = foldersQuery.where('created_at', '>=', importedAfterIso);
+      }
+
+      const folders = await foldersQuery.select('id');
 
       if (folders.length > 0) {
         await knex('qay_site_asset_folders')
@@ -74,10 +110,15 @@ async function tagImportedTemplateData(siteId: string) {
       await knex.schema.hasTable('collections') &&
       await knex.schema.hasTable('qay_site_collections')
     ) {
-      const collections = await knex('collections')
+      let collectionsQuery = knex('collections')
         .whereNull('deleted_at')
-        .where('is_published', false)
-        .select('id');
+        .where('is_published', false);
+
+      if (await knex.schema.hasColumn('collections', 'created_at')) {
+        collectionsQuery = collectionsQuery.where('created_at', '>=', importedAfterIso);
+      }
+
+      const collections = await collectionsQuery.select('id');
 
       if (collections.length > 0) {
         await knex('qay_site_collections')
@@ -139,28 +180,42 @@ export async function POST(
   }
 
   await ensureQayPageSiteUniqueness();
+  const importedAt = new Date();
+  const knex = await getKnexClient();
 
-  // QAY site ids are not Ycode cloud tenant ids. Passing siteId as tenantId makes
-  // the template service generate tenant_id SQL for tables that do not have it.
-  const result = await applyTemplate(templateId);
+  try {
+    const { template, sql } = await fetchProcessedTemplateApplyPayload(templateId);
 
-  if (!result.success) {
+    await knex.transaction(async (trx) => {
+      await trx.raw('DROP INDEX IF EXISTS pages_slug_is_published_folder_unique');
+      await trx.raw(sql.insert);
+    });
+
+    await tagImportedTemplateData(siteId, importedAt);
+    await copyTemplateAssetsToUserStorage(knex, importedAt);
+    await runPendingMigrationsForTemplate(knex, template.lastMigration);
+
+    await supabase
+      .from('qay_sites')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', siteId);
+
+    return NextResponse.json({
+      success: true,
+      templateName: template.name,
+      siteId,
+    });
+  } catch (error) {
+    try {
+      await restorePageSiteUniqueIndex(knex);
+    } catch {
+      // Keep the original template error as the response.
+    }
     return NextResponse.json(
-      { error: result.error || 'Failed to apply template' },
+      { error: error instanceof Error ? error.message : 'Failed to apply template' },
       { status: 500 }
     );
+  } finally {
+    await closeKnexClient();
   }
-
-  await tagImportedTemplateData(siteId);
-
-  await supabase
-    .from('qay_sites')
-    .update({ updated_at: new Date().toISOString() })
-    .eq('id', siteId);
-
-  return NextResponse.json({
-    success: true,
-    templateName: result.templateName,
-    siteId,
-  });
 }
