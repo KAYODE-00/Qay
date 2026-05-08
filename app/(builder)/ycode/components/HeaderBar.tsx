@@ -84,6 +84,7 @@ export default function HeaderBar({
   const router = useRouter();
   const pathname = usePathname();
   const pageDropdownRef = useRef<HTMLDivElement>(null);
+  const currentQaySiteId = readQayEditorSiteIdFromBrowser();
   const { currentPageCollectionItemId, currentPageId: storeCurrentPageId, isPreviewMode, setPreviewMode, openFileManager, setKeyboardShortcutsOpen, setActiveSidebarTab, lastDesignUrl, setLastDesignUrl, previewReturnUrl, previewReturnTab, setPreviewReturn } = useEditorStore();
   const { folders, pages: storePages } = usePagesStore();
   const { items, fields, collections, selectedCollectionId: storeSelectedCollectionId, setSelectedCollectionId } = useCollectionsStore();
@@ -96,7 +97,7 @@ export default function HeaderBar({
 
   const withCurrentSite = (path: string) => {
     if (typeof window === 'undefined') return path;
-    return toCurrentEditorPath(path, pathname, readQayEditorSiteIdFromBrowser());
+    return toCurrentEditorPath(path, pathname, currentQaySiteId);
   };
 
   // Clear optimistic state once the URL reflects the clicked route
@@ -367,9 +368,16 @@ export default function HeaderBar({
               </>
             )}
             <DropdownMenuItem
-              onClick={() => router.push(withCurrentSite('/ycode/settings/general'))}
+              onClick={() => {
+                if (currentQaySiteId) {
+                  router.push(`/dashboard/sites/${currentQaySiteId}/settings`);
+                  return;
+                }
+
+                router.push(withCurrentSite('/ycode/settings/general'));
+              }}
             >
-              Settings
+              {currentQaySiteId ? 'Site settings' : 'Settings'}
             </DropdownMenuItem>
 
             <DropdownMenuItem
