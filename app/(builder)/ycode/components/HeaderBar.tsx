@@ -394,16 +394,9 @@ export default function HeaderBar({
               </>
             )}
             <DropdownMenuItem
-              onClick={() => {
-                if (currentQaySiteId) {
-                  router.push(`/dashboard/sites/${currentQaySiteId}/settings`);
-                  return;
-                }
-
-                router.push(withCurrentSite('/ycode/settings/general'));
-              }}
+              onClick={() => router.push(withCurrentSite('/ycode/settings/general'))}
             >
-              {currentQaySiteId ? 'Site settings' : 'Settings'}
+              {currentQaySiteId ? 'General settings' : 'Settings'}
             </DropdownMenuItem>
 
             <DropdownMenuItem
