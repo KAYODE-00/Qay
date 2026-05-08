@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   copyTemplateAssetsToUserStorage,
   fetchProcessedTemplateApplyPayload,
+  getTemplate,
   runPendingMigrationsForTemplate,
 } from '@/lib/services/templateService';
 import { getKnexClient, closeKnexClient } from '@/lib/knex-client';
@@ -567,7 +568,11 @@ export async function POST(
       fonts: await loadExistingIds(knex, 'fonts'),
     };
 
-    const { template, sql } = await fetchProcessedTemplateApplyPayload(templateId);
+    const [payload, templateDetails] = await Promise.all([
+      fetchProcessedTemplateApplyPayload(templateId),
+      getTemplate(templateId).catch(() => null),
+    ]);
+    const { template, sql } = payload;
     const importSql = stripQayUnsafeTemplateStatements(sql.insert);
 
     await knex.transaction(async (trx) => {
@@ -583,7 +588,10 @@ export async function POST(
 
     await supabase
       .from('qay_sites')
-      .update({ updated_at: new Date().toISOString() })
+      .update({
+        updated_at: new Date().toISOString(),
+        thumbnail_url: templateDetails?.preview || null,
+      })
       .eq('id', siteId);
 
     return NextResponse.json({
