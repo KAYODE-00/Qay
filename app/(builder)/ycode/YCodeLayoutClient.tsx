@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useRef } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import YCodeBuilder from './components/YCodeBuilderMain';
 import { useEditorUrl } from '@/hooks/use-editor-url';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -34,6 +34,7 @@ import { usePagesStore } from '@/stores/usePagesStore';
 
 // Inner component that uses useSearchParams (via useEditorUrl)
 function YCodeLayoutInner({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { routeType } = useEditorUrl();
@@ -73,6 +74,10 @@ function YCodeLayoutInner({ children }: { children: React.ReactNode }) {
       builderDataPreloaded: false,
       isSaving: false,
       isLoading: false,
+      activeSidebarTab: 'layers',
+      lastDesignUrl: null,
+      previewReturnUrl: null,
+      previewReturnTab: null,
     });
   }, [qaySiteId]);
 
@@ -80,11 +85,27 @@ function YCodeLayoutInner({ children }: { children: React.ReactNode }) {
   // These routes should render independently without the editor UI
   const prefixRoutes = ['/ycode/preview', '/ycode/devtools/'];
   const exactRoutes = ['/ycode/welcome', '/ycode/accept-invite'];
-
-  if (
+  const isExcludedRoute =
     prefixRoutes.some(route => pathname?.startsWith(route))
-    || exactRoutes.includes(pathname || '')
-  ) {
+    || exactRoutes.includes(pathname || '');
+
+  useEffect(() => {
+    if (!qaySiteId || !pathname?.startsWith('/ycode') || isExcludedRoute) {
+      return;
+    }
+
+    const query = searchParams.toString();
+    const nextPath = pathname.replace(/^\/ycode/, '/qay/editor');
+    const nextUrl = `${nextPath}${query ? `?${query}` : ''}`;
+
+    router.replace(nextUrl);
+  }, [isExcludedRoute, pathname, qaySiteId, router, searchParams]);
+
+  if (qaySiteId && pathname?.startsWith('/ycode') && !isExcludedRoute) {
+    return null;
+  }
+
+  if (isExcludedRoute) {
     return <>{children}</>;
   }
 
