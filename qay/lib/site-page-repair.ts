@@ -10,6 +10,7 @@ type PageRecord = {
   order: number | null;
   depth: number | null;
   settings: Record<string, unknown> | null;
+  created_at?: string | null;
 };
 
 function getSiteIdFromSettings(settings: Record<string, unknown> | null | undefined) {
@@ -91,7 +92,7 @@ export async function ensureQayDraftHomePage(siteId: string): Promise<string> {
   const supabase = getQayAdmin() as any;
   const { data, error } = await supabase
     .from('pages')
-    .select('id, name, slug, is_index, page_folder_id, order, depth, settings, error_page')
+    .select('id, name, slug, is_index, page_folder_id, order, depth, settings, error_page, created_at')
     .eq('is_published', false)
     .is('deleted_at', null)
     .order('order', { ascending: true })
@@ -110,15 +111,20 @@ export async function ensureQayDraftHomePage(siteId: string): Promise<string> {
     return homePage.id;
   }
 
-  const fallbackRootPage = sitePages.find((page) => page.page_folder_id === null);
-  if (fallbackRootPage) {
-    const repaired = await repairPageAsHome(supabase, fallbackRootPage, siteId);
+  // Preserve existing site work before creating anything new.
+  // If the site already has pages, prefer repairing one of them into the site home page.
+  const fallbackSitePage =
+    sitePages.find((page) => page.page_folder_id === null)
+    ?? sitePages[0];
+
+  if (fallbackSitePage) {
+    const repaired = await repairPageAsHome(supabase, fallbackSitePage, siteId);
     return repaired.id;
   }
 
-  const unscopedRootPages = regularPages.filter((page) => !getSiteIdFromSettings(page.settings) && page.page_folder_id === null);
-  if (unscopedRootPages.length === 1) {
-    const adopted = await repairPageAsHome(supabase, unscopedRootPages[0], siteId);
+  // Support the one-page migrated case without grabbing arbitrary shared content.
+  if (regularPages.length === 1) {
+    const adopted = await repairPageAsHome(supabase, regularPages[0], siteId);
     return adopted.id;
   }
 

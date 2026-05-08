@@ -16,7 +16,6 @@ import { filterCollectionsForQaySite } from '@/qay/lib/collection-access';
 import { filterAssetsForQaySite, filterAssetFoldersForQaySite } from '@/qay/lib/media-isolation';
 import { normalizeQayPageForResponse } from '@/qay/lib/index-slug';
 import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
-import { ensureQayDraftHomePage } from '@/qay/lib/site-page-repair';
 
 /**
  * GET /ycode/api/editor/init
@@ -42,10 +41,6 @@ export async function GET(request: NextRequest) {
         { error: 'Not authorized for QAY site' },
         { status: 403 }
       );
-    }
-
-    if (qaySiteId) {
-      await ensureQayDraftHomePage(qaySiteId);
     }
 
     // Load all data in parallel (only drafts for editor)
