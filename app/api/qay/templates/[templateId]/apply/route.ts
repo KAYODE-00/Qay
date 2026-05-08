@@ -67,6 +67,102 @@ async function restoreLayerStyleNameConstraint(knex: Awaited<ReturnType<typeof g
   `);
 }
 
+type ImportedPageRecord = {
+  id: string;
+  name: string | null;
+  slug: string;
+  is_index: boolean;
+  is_published: boolean;
+  page_folder_id: string | null;
+  error_page: number | null;
+  created_at: string | null;
+};
+
+function slugifyTemplatePage(value: string | null | undefined) {
+  const slug = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || 'page';
+}
+
+async function normalizeImportedPageSlugs(
+  knex: Awaited<ReturnType<typeof getKnexClient>>,
+  siteId: string,
+  importedAfterIso: string
+) {
+  if (!(await knex.schema.hasTable('pages'))) return;
+
+  const pages = await knex('pages')
+    .whereNull('deleted_at')
+    .whereRaw("coalesce(settings->>'qay_site_id', '') = ?", [siteId])
+    .select<ImportedPageRecord[]>(
+      'id',
+      'name',
+      'slug',
+      'is_index',
+      'is_published',
+      'page_folder_id',
+      'error_page',
+      'created_at'
+    )
+    .orderBy('created_at', 'asc')
+    .orderBy('id', 'asc');
+
+  const seen = new Set<string>();
+  let homepageClaimed = false;
+
+  for (const page of pages) {
+    const isImported = !!page.created_at && page.created_at >= importedAfterIso;
+    let nextIsIndex = page.is_index;
+    let nextSlug = page.slug || '';
+
+    const isRegularPage = page.error_page === null;
+    const isRootPage = page.page_folder_id === null;
+
+    if (isRegularPage && isRootPage && page.is_index) {
+      if (!homepageClaimed) {
+        nextSlug = buildQayIndexSlug(siteId);
+        homepageClaimed = true;
+      } else if (isImported) {
+        nextIsIndex = false;
+        nextSlug = slugifyTemplatePage(page.name || page.slug);
+      }
+    }
+
+    if (isImported && isRegularPage && !nextIsIndex && nextSlug.trim() === '') {
+      nextSlug = slugifyTemplatePage(page.name);
+    }
+
+    const keyBase = `${page.is_published}:${page.page_folder_id ?? 'root'}:${page.error_page ?? 0}`;
+    let candidateSlug = nextSlug;
+    let candidateKey = `${keyBase}:${candidateSlug}`;
+    let counter = 2;
+
+    while (seen.has(candidateKey)) {
+      const baseSlug = slugifyTemplatePage(nextSlug || page.name || 'page');
+      candidateSlug = `${baseSlug}-${counter++}`;
+      candidateKey = `${keyBase}:${candidateSlug}`;
+      nextIsIndex = false;
+    }
+
+    seen.add(candidateKey);
+
+    if (nextSlug !== page.slug || nextIsIndex !== page.is_index) {
+      await knex('pages')
+        .where('id', page.id)
+        .where('is_published', page.is_published)
+        .update({
+          slug: candidateSlug,
+          is_index: nextIsIndex,
+          updated_at: knex.fn.now(),
+        });
+    }
+  }
+}
+
 async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
   const knex = await getKnexClient();
   const siteSettings = JSON.stringify({ qay_site_id: siteId });
@@ -91,6 +187,7 @@ async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
           ),
         });
 
+      await normalizeImportedPageSlugs(knex, siteId, importedAfterIso);
       await restorePageSiteUniqueIndex(knex);
     }
 
