@@ -29,6 +29,13 @@ type DuplicatePageSlotRecord = ImportedPageRecord & {
   qay_site_id: string | null;
 };
 
+type LayerStyleRecord = {
+  id: string;
+  name: string;
+  is_published: boolean;
+  created_at: string | null;
+};
+
 type ImportedRowIds = {
   pages: string[];
   pageFolders: string[];
@@ -327,11 +334,83 @@ async function resolveDuplicatePageSlots(
   }
 }
 
+async function resolveDuplicateLayerStyleNames(
+  knex: Awaited<ReturnType<typeof getKnexClient>>,
+  importedLayerStyleIds: Set<string>,
+  siteId: string
+) {
+  if (!(await knex.schema.hasTable('layer_styles'))) return;
+
+  const styles = await knex('layer_styles')
+    .whereNull('deleted_at')
+    .select<LayerStyleRecord[]>('id', 'name', 'is_published', 'created_at')
+    .orderBy('created_at', 'asc')
+    .orderBy('id', 'asc');
+
+  const groups = new Map<string, LayerStyleRecord[]>();
+  for (const style of styles) {
+    const key = `${style.name}\t${style.is_published ? 'published' : 'draft'}`;
+    const current = groups.get(key) || [];
+    current.push(style);
+    groups.set(key, current);
+  }
+
+  for (const entries of groups.values()) {
+    if (entries.length < 2) continue;
+
+    const sorted = [...entries].sort((a, b) => {
+      const aImported = importedLayerStyleIds.has(a.id);
+      const bImported = importedLayerStyleIds.has(b.id);
+      if (aImported !== bImported) {
+        return aImported ? 1 : -1;
+      }
+      return `${a.created_at ?? ''}:${a.id}`.localeCompare(`${b.created_at ?? ''}:${b.id}`);
+    });
+
+    const keeper = sorted[0];
+    const duplicates = sorted.slice(1);
+
+    for (const duplicate of duplicates) {
+      let baseName = duplicate.name;
+      if (importedLayerStyleIds.has(duplicate.id)) {
+        baseName = `${duplicate.name} (${siteId.slice(0, 6)})`;
+      }
+
+      let candidate = baseName;
+      let counter = 2;
+      while (
+        styles.some(
+          (style) =>
+            style.id !== duplicate.id &&
+            style.name === candidate &&
+            style.is_published === duplicate.is_published
+        )
+      ) {
+        candidate = `${baseName} ${counter++}`;
+      }
+
+      if (candidate === duplicate.name && duplicate.id !== keeper.id) {
+        candidate = `${baseName} ${counter++}`;
+      }
+
+      await knex('layer_styles')
+        .where('id', duplicate.id)
+        .where('is_published', duplicate.is_published)
+        .update({
+          name: candidate,
+          updated_at: knex.fn.now(),
+        });
+
+      duplicate.name = candidate;
+    }
+  }
+}
+
 async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowIds) {
   const knex = await getKnexClient();
   const siteSettings = JSON.stringify({ qay_site_id: siteId });
-  const styleSuffix = ` (${siteId.slice(0, 6)})`;
   const importedPageIds = new Set(importedIds.pages);
+  const importedLayerStyleIds = new Set(importedIds.layerStyles);
 
   try {
     if (await knex.schema.hasTable('pages') && importedIds.pages.length > 0) {
@@ -363,13 +442,8 @@ async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowI
         });
     }
 
-    if (await knex.schema.hasTable('layer_styles') && importedIds.layerStyles.length > 0) {
-      await knex('layer_styles')
-        .whereNull('deleted_at')
-        .whereIn('id', importedIds.layerStyles)
-        .update({
-          name: knex.raw("name || ?", [styleSuffix]),
-        });
+    if (await knex.schema.hasTable('layer_styles')) {
+      await resolveDuplicateLayerStyleNames(knex, importedLayerStyleIds, siteId);
     }
 
     if (
