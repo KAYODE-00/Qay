@@ -335,6 +335,101 @@ async function resolveDuplicatePageSlots(
   }
 }
 
+async function resolveLegacyGlobalDuplicatePageSlots(
+  knex: Awaited<ReturnType<typeof getKnexClient>>
+) {
+  if (!(await knex.schema.hasTable('pages'))) return;
+
+  const pages = await knex('pages')
+    .whereNull('deleted_at')
+    .select<DuplicatePageSlotRecord[]>(
+      'id',
+      'name',
+      'slug',
+      'is_index',
+      'is_published',
+      'page_folder_id',
+      'error_page',
+      'created_at',
+      'deleted_at',
+      knex.raw("settings->>'qay_site_id' as qay_site_id")
+    )
+    .orderBy('created_at', 'asc')
+    .orderBy('id', 'asc');
+
+  const groups = new Map<string, DuplicatePageSlotRecord[]>();
+  for (const page of pages) {
+    const key = [
+      page.slug,
+      page.is_published ? 'published' : 'draft',
+      page.page_folder_id ?? 'root',
+      page.error_page ?? 0,
+      page.qay_site_id ?? '__ycode_global__',
+    ].join('\t');
+    const current = groups.get(key) || [];
+    current.push(page);
+    groups.set(key, current);
+  }
+
+  for (const entries of groups.values()) {
+    if (entries.length < 2) continue;
+
+    const sorted = [...entries].sort((a, b) =>
+      `${a.created_at ?? ''}:${a.id}`.localeCompare(`${b.created_at ?? ''}:${b.id}`)
+    );
+
+    const keeper = sorted[0];
+    const duplicates = sorted.slice(1);
+
+    for (const duplicate of duplicates) {
+      if (duplicate.error_page !== null) {
+        await knex('pages')
+          .where('id', duplicate.id)
+          .where('is_published', duplicate.is_published)
+          .update({
+            deleted_at: knex.fn.now(),
+            updated_at: knex.fn.now(),
+          });
+        continue;
+      }
+
+      let baseSlug = slugifyTemplatePage(duplicate.name || duplicate.slug);
+      if (!baseSlug || baseSlug === keeper.slug) {
+        baseSlug = `${slugifyTemplatePage(duplicate.name || 'page')}-2`;
+      }
+
+      let candidate = baseSlug;
+      let counter = 3;
+      while (
+        pages.some(
+          (page) =>
+            page.id !== duplicate.id &&
+            page.deleted_at === null &&
+            page.slug === candidate &&
+            page.is_published === duplicate.is_published &&
+            (page.page_folder_id ?? null) === (duplicate.page_folder_id ?? null) &&
+            (page.error_page ?? null) === (duplicate.error_page ?? null) &&
+            (page.qay_site_id ?? null) === (duplicate.qay_site_id ?? null)
+        )
+      ) {
+        candidate = `${baseSlug}-${counter++}`;
+      }
+
+      await knex('pages')
+        .where('id', duplicate.id)
+        .where('is_published', duplicate.is_published)
+        .update({
+          slug: candidate,
+          is_index: false,
+          updated_at: knex.fn.now(),
+        });
+
+      duplicate.slug = candidate;
+      duplicate.is_index = false;
+    }
+  }
+}
+
 async function resolveDuplicateLayerStyleNames(
   knex: Awaited<ReturnType<typeof getKnexClient>>,
   importedLayerStyleIds: Set<string>,
@@ -430,6 +525,7 @@ async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowI
     await normalizeImportedPageSlugs(knex, siteId, importedPageIds);
     await resolveDuplicatePageSlots(knex, importedPageIds, siteId);
     await resolveDuplicatePageSlots(knex, importedPageIds);
+    await resolveLegacyGlobalDuplicatePageSlots(knex);
     await restorePageSiteUniqueIndex(knex);
   }
 
