@@ -413,110 +413,106 @@ async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowI
   const importedPageIds = new Set(importedIds.pages);
   const importedLayerStyleIds = new Set(importedIds.layerStyles);
 
-  try {
-    if (await knex.schema.hasTable('pages') && importedIds.pages.length > 0) {
-      await knex.raw('DROP INDEX IF EXISTS pages_slug_is_published_folder_unique');
+  if (await knex.schema.hasTable('pages') && importedIds.pages.length > 0) {
+    await knex.raw('DROP INDEX IF EXISTS pages_slug_is_published_folder_unique');
 
-      await knex('pages')
-        .whereNull('deleted_at')
-        .whereIn('id', importedIds.pages)
-        .update({
-          settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
-          slug: knex.raw(
-            "case when error_page is null and is_index = true and page_folder_id is null then ? else slug end",
-            [buildQayIndexSlug(siteId)]
-          ),
-        });
+    await knex('pages')
+      .whereNull('deleted_at')
+      .whereIn('id', importedIds.pages)
+      .update({
+        settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
+        slug: knex.raw(
+          "case when error_page is null and is_index = true and page_folder_id is null then ? else slug end",
+          [buildQayIndexSlug(siteId)]
+        ),
+      });
 
-      await normalizeImportedPageSlugs(knex, siteId, importedPageIds);
-      await resolveDuplicatePageSlots(knex, importedPageIds, siteId);
-      await resolveDuplicatePageSlots(knex, importedPageIds);
-      await restorePageSiteUniqueIndex(knex);
+    await normalizeImportedPageSlugs(knex, siteId, importedPageIds);
+    await resolveDuplicatePageSlots(knex, importedPageIds, siteId);
+    await resolveDuplicatePageSlots(knex, importedPageIds);
+    await restorePageSiteUniqueIndex(knex);
+  }
+
+  if (await knex.schema.hasTable('page_folders') && importedIds.pageFolders.length > 0) {
+    await knex('page_folders')
+      .whereNull('deleted_at')
+      .whereIn('id', importedIds.pageFolders)
+      .update({
+        settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
+      });
+  }
+
+  if (await knex.schema.hasTable('layer_styles')) {
+    await resolveDuplicateLayerStyleNames(knex, importedLayerStyleIds, siteId);
+  }
+
+  if (
+    await knex.schema.hasTable('assets') &&
+    await knex.schema.hasTable('qay_site_assets') &&
+    importedIds.assets.length > 0
+  ) {
+    const assets = await knex('assets')
+      .whereNull('deleted_at')
+      .whereIn('id', importedIds.assets)
+      .select('id');
+
+    if (assets.length > 0) {
+      await knex('qay_site_assets')
+        .insert(assets.map((asset) => ({ qay_site_id: siteId, asset_id: asset.id })))
+        .onConflict(['qay_site_id', 'asset_id'])
+        .ignore();
     }
+  }
 
-    if (await knex.schema.hasTable('page_folders') && importedIds.pageFolders.length > 0) {
-      await knex('page_folders')
-        .whereNull('deleted_at')
-        .whereIn('id', importedIds.pageFolders)
-        .update({
-          settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
-        });
+  if (
+    await knex.schema.hasTable('asset_folders') &&
+    await knex.schema.hasTable('qay_site_asset_folders') &&
+    importedIds.assetFolders.length > 0
+  ) {
+    const folders = await knex('asset_folders')
+      .whereNull('deleted_at')
+      .whereIn('id', importedIds.assetFolders)
+      .select('id');
+
+    if (folders.length > 0) {
+      await knex('qay_site_asset_folders')
+        .insert(folders.map((folder) => ({ qay_site_id: siteId, asset_folder_id: folder.id })))
+        .onConflict(['qay_site_id', 'asset_folder_id'])
+        .ignore();
     }
+  }
 
-    if (await knex.schema.hasTable('layer_styles')) {
-      await resolveDuplicateLayerStyleNames(knex, importedLayerStyleIds, siteId);
+  if (
+    await knex.schema.hasTable('collections') &&
+    await knex.schema.hasTable('qay_site_collections') &&
+    importedIds.collections.length > 0
+  ) {
+    const collections = await knex('collections')
+      .whereNull('deleted_at')
+      .where('is_published', false)
+      .whereIn('id', importedIds.collections)
+      .select('id');
+
+    if (collections.length > 0) {
+      await knex('qay_site_collections')
+        .insert(collections.map((collection) => ({
+          site_id: siteId,
+          collection_id: collection.id,
+        })))
+        .onConflict('collection_id')
+        .ignore();
     }
+  }
 
-    if (
-      await knex.schema.hasTable('assets') &&
-      await knex.schema.hasTable('qay_site_assets') &&
-      importedIds.assets.length > 0
-    ) {
-      const assets = await knex('assets')
-        .whereNull('deleted_at')
-        .whereIn('id', importedIds.assets)
-        .select('id');
-
-      if (assets.length > 0) {
-        await knex('qay_site_assets')
-          .insert(assets.map((asset) => ({ qay_site_id: siteId, asset_id: asset.id })))
-          .onConflict(['qay_site_id', 'asset_id'])
-          .ignore();
-      }
-    }
-
-    if (
-      await knex.schema.hasTable('asset_folders') &&
-      await knex.schema.hasTable('qay_site_asset_folders') &&
-      importedIds.assetFolders.length > 0
-    ) {
-      const folders = await knex('asset_folders')
-        .whereNull('deleted_at')
-        .whereIn('id', importedIds.assetFolders)
-        .select('id');
-
-      if (folders.length > 0) {
-        await knex('qay_site_asset_folders')
-          .insert(folders.map((folder) => ({ qay_site_id: siteId, asset_folder_id: folder.id })))
-          .onConflict(['qay_site_id', 'asset_folder_id'])
-          .ignore();
-      }
-    }
-
-    if (
-      await knex.schema.hasTable('collections') &&
-      await knex.schema.hasTable('qay_site_collections') &&
-      importedIds.collections.length > 0
-    ) {
-      const collections = await knex('collections')
-        .whereNull('deleted_at')
-        .where('is_published', false)
-        .whereIn('id', importedIds.collections)
-        .select('id');
-
-      if (collections.length > 0) {
-        await knex('qay_site_collections')
-          .insert(collections.map((collection) => ({
-            site_id: siteId,
-            collection_id: collection.id,
-          })))
-          .onConflict('collection_id')
-          .ignore();
-      }
-    }
-
-    if (await knex.schema.hasTable('fonts') && importedIds.fonts.length > 0) {
-      await knex('fonts')
-        .whereIn('id', importedIds.fonts)
-        .where('url', 'like', '{{ASSET_URL:%')
-        .update({
-          url: null,
-          storage_path: null,
-          updated_at: knex.fn.now(),
-        });
-    }
-  } finally {
-    await closeKnexClient();
+  if (await knex.schema.hasTable('fonts') && importedIds.fonts.length > 0) {
+    await knex('fonts')
+      .whereIn('id', importedIds.fonts)
+      .where('url', 'like', '{{ASSET_URL:%')
+      .update({
+        url: null,
+        storage_path: null,
+        updated_at: knex.fn.now(),
+      });
   }
 }
 
