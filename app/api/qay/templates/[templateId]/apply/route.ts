@@ -44,10 +44,34 @@ async function restorePageSiteUniqueIndex(knex: Awaited<ReturnType<typeof getKne
   `);
 }
 
+async function dropLayerStyleNameConstraint(knex: Awaited<ReturnType<typeof getKnexClient>>) {
+  if (!(await knex.schema.hasTable('layer_styles'))) return;
+  await knex.raw('ALTER TABLE layer_styles DROP CONSTRAINT IF EXISTS layer_styles_name_is_published_unique');
+}
+
+async function restoreLayerStyleNameConstraint(knex: Awaited<ReturnType<typeof getKnexClient>>) {
+  if (!(await knex.schema.hasTable('layer_styles'))) return;
+  await knex.raw(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'layer_styles_name_is_published_unique'
+      ) THEN
+        ALTER TABLE layer_styles
+        ADD CONSTRAINT layer_styles_name_is_published_unique
+        UNIQUE (name, is_published);
+      END IF;
+    END $$;
+  `);
+}
+
 async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
   const knex = await getKnexClient();
   const siteSettings = JSON.stringify({ qay_site_id: siteId });
   const importedAfterIso = importedAfter.toISOString();
+  const styleSuffix = ` (${siteId.slice(0, 6)})`;
 
   try {
     const pagesHasCreatedAt =
@@ -78,6 +102,17 @@ async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
         .where('created_at', '>=', importedAfterIso)
         .update({
           settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
+        });
+    }
+
+    const layerStylesHasCreatedAt =
+      await knex.schema.hasTable('layer_styles') && await knex.schema.hasColumn('layer_styles', 'created_at');
+    if (layerStylesHasCreatedAt) {
+      await knex('layer_styles')
+        .whereNull('deleted_at')
+        .where('created_at', '>=', importedAfterIso)
+        .update({
+          name: knex.raw("name || ?", [styleSuffix]),
         });
     }
 
@@ -206,6 +241,7 @@ export async function POST(
 
     await knex.transaction(async (trx) => {
       await trx.raw('DROP INDEX IF EXISTS pages_slug_is_published_folder_unique');
+      await dropLayerStyleNameConstraint(trx);
       await trx.raw(importSql);
     });
 
@@ -226,6 +262,7 @@ export async function POST(
   } catch (error) {
     try {
       await restorePageSiteUniqueIndex(knex);
+      await restoreLayerStyleNameConstraint(knex);
     } catch {
       // Keep the original template error as the response.
     }
@@ -234,6 +271,11 @@ export async function POST(
       { status: 500 }
     );
   } finally {
+    try {
+      await restoreLayerStyleNameConstraint(knex);
+    } catch {
+      // Do not mask the main response path.
+    }
     await closeKnexClient();
   }
 }
