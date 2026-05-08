@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSettingByKey, setSetting } from '@/lib/repositories/settingsRepository';
 import { clearAllCache } from '@/lib/services/cacheService';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
+import { getQaySiteSetting, isQaySiteScopedSettingKey, setQaySiteSettings } from '@/qay/lib/site-settings';
 
 /**
  * GET /ycode/api/settings/[key]
@@ -13,7 +15,10 @@ export async function GET(
 ) {
   try {
     const { key } = await params;
-    const value = await getSettingByKey(key);
+    const siteId = getQaySiteIdFromRequest(request);
+    const value = siteId && isQaySiteScopedSettingKey(key)
+      ? (await getQaySiteSetting(siteId, key)) ?? await getSettingByKey(key)
+      : await getSettingByKey(key);
 
     if (value === null) {
       return NextResponse.json(
@@ -45,6 +50,7 @@ export async function PUT(
     const { key } = await params;
     const body = await request.json();
     const { value } = body;
+    const siteId = getQaySiteIdFromRequest(request);
 
     if (value === undefined) {
       return NextResponse.json(
@@ -53,7 +59,11 @@ export async function PUT(
       );
     }
 
-    await setSetting(key, value);
+    if (siteId && isQaySiteScopedSettingKey(key)) {
+      await setQaySiteSettings(siteId, { [key]: value });
+    } else {
+      await setSetting(key, value);
+    }
 
     await clearAllCache();
 
