@@ -13,6 +13,23 @@ import { buildQayIndexSlug } from '@/qay/lib/index-slug';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+function stripQayUnsafeTemplateStatements(sql: string): string {
+  return sql
+    .split('\n')
+    .filter((line) => {
+      const trimmed = line.trim().toLowerCase();
+      if (!trimmed.startsWith('insert into ')) {
+        return true;
+      }
+
+      return !(
+        trimmed.startsWith('insert into locales ') ||
+        trimmed.startsWith('insert into translations ')
+      );
+    })
+    .join('\n');
+}
+
 async function restorePageSiteUniqueIndex(knex: Awaited<ReturnType<typeof getKnexClient>>) {
   await knex.raw(`
     CREATE UNIQUE INDEX IF NOT EXISTS pages_slug_is_published_folder_unique
@@ -185,10 +202,11 @@ export async function POST(
 
   try {
     const { template, sql } = await fetchProcessedTemplateApplyPayload(templateId);
+    const importSql = stripQayUnsafeTemplateStatements(sql.insert);
 
     await knex.transaction(async (trx) => {
       await trx.raw('DROP INDEX IF EXISTS pages_slug_is_published_folder_unique');
-      await trx.raw(sql.insert);
+      await trx.raw(importSql);
     });
 
     await tagImportedTemplateData(siteId, importedAt);
