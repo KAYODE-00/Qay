@@ -100,6 +100,32 @@ export default function HeaderBar({
     return toCurrentEditorPath(path, pathname, currentQaySiteId);
   };
 
+  const getValidLastDesignUrl = () => {
+    if (!lastDesignUrl || typeof window === 'undefined') {
+      return null;
+    }
+
+    try {
+      const url = new URL(lastDesignUrl, window.location.origin);
+      const matchedPageId = url.pathname.match(/\/(?:ycode|qay\/editor)\/layers\/([^/]+)$/)?.[1]
+        || url.pathname.match(/\/(?:ycode|qay\/editor)\/pages\/([^/]+)$/)?.[1];
+
+      if (!matchedPageId) {
+        return null;
+      }
+
+      const targetSiteId = url.searchParams.get('site');
+      if ((currentQaySiteId || targetSiteId) && currentQaySiteId !== targetSiteId) {
+        return null;
+      }
+
+      const pageExists = storePages.some((page) => page.id === matchedPageId);
+      return pageExists ? `${url.pathname}${url.search}` : null;
+    } catch {
+      return null;
+    }
+  };
+
   // Clear optimistic state once the URL reflects the clicked route
   useEffect(() => {
     if (!optimisticNav) return;
@@ -450,10 +476,13 @@ export default function HeaderBar({
             onClick={() => {
               setOptimisticNav('design');
               setActiveSidebarTab('layers');
-              // Restore last design URL if available
-              if (lastDesignUrl) {
-                router.push(lastDesignUrl);
+              const validLastDesignUrl = getValidLastDesignUrl();
+              if (validLastDesignUrl) {
+                router.push(validLastDesignUrl);
               } else {
+                if (lastDesignUrl) {
+                  setLastDesignUrl(null);
+                }
                 const targetPageId = storeCurrentPageId || findHomepage(storePages)?.id || storePages[0]?.id;
                 if (targetPageId) {
                   navigateToLayers(targetPageId);
