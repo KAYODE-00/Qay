@@ -1,6 +1,18 @@
 export const QAY_EDITOR_SITE_COOKIE = 'qay_editor_site_id';
 export const QAY_EDITOR_SITE_STORAGE_KEY = 'qay_editor_site_id';
 
+function persistQayEditorSiteId(siteId: string | null) {
+  if (typeof window === 'undefined' || !siteId) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(QAY_EDITOR_SITE_STORAGE_KEY, siteId);
+  } catch {
+    // Ignore storage failures in restricted contexts.
+  }
+}
+
 export function readQayEditorSiteIdFromBrowser(): string | null {
   if (typeof window === 'undefined') {
     return null;
@@ -8,6 +20,7 @@ export function readQayEditorSiteIdFromBrowser(): string | null {
 
   const fromQuery = new URLSearchParams(window.location.search).get('site');
   if (fromQuery) {
+    persistQayEditorSiteId(fromQuery);
     return fromQuery;
   }
 
@@ -24,7 +37,12 @@ export function readQayEditorSiteIdFromBrowser(): string | null {
     .split('; ')
     .find((entry) => entry.startsWith(`${QAY_EDITOR_SITE_COOKIE}=`));
 
-  return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null;
+  const fromCookie = cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null;
+  if (fromCookie) {
+    persistQayEditorSiteId(fromCookie);
+  }
+
+  return fromCookie;
 }
 
 export function appendQayEditorSiteParam(endpoint: string): string {
