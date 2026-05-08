@@ -28,6 +28,14 @@ type McpToken = {
   site_id: string;
 };
 
+function toFriendlyMcpError(message: string) {
+  if (!message) return 'Something went wrong. Please try again.';
+  if (message.includes('Not authenticated')) return 'Please sign in again.';
+  if (message.includes('Not authorized')) return 'You do not have access to this page.';
+  if (message.includes('still being set up')) return 'This area is still being set up. Please try again in a moment.';
+  return 'Something went wrong. Please try again.';
+}
+
 export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: boolean }) {
   const [tokens, setTokens] = useState<McpToken[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,11 +62,11 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
       const response = await fetch(`/api/qay/mcp-tokens${siteQuery}`);
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to fetch MCP tokens');
+        throw new Error(result.error || 'Failed to fetch links');
       }
       setTokens(result.data ?? []);
     } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : 'Failed to fetch MCP tokens');
+      setError(toFriendlyMcpError(fetchError instanceof Error ? fetchError.message : ''));
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +84,7 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
       });
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to create MCP token');
+        throw new Error(result.error || 'Failed to create link');
       }
       setGeneratedToken(result.data);
       setShowGenerateDialog(false);
@@ -84,7 +92,7 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
       setNewTokenName('');
       void fetchTokens();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Failed to create MCP token');
+      setError(toFriendlyMcpError(createError instanceof Error ? createError.message : ''));
     } finally {
       setIsGenerating(false);
     }
@@ -99,11 +107,11 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
       });
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete MCP token');
+        throw new Error(result.error || 'Failed to delete link');
       }
       setTokens((current) => current.filter((token) => token.id !== tokenToDelete.id));
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete MCP token');
+      setError(toFriendlyMcpError(deleteError instanceof Error ? deleteError.message : ''));
     } finally {
       setShowDeleteDialog(false);
       setTokenToDelete(null);
@@ -116,7 +124,7 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError('Failed to copy MCP URL');
+      setError('Could not copy the link. Please try again.');
     }
   }
 
@@ -137,14 +145,14 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
       <div className="mx-auto max-w-3xl">
         <header className="flex items-center justify-between pb-6 pt-8">
           <div>
-            <span className="text-base font-medium">MCP</span>
+            <span className="text-base font-medium">Connection links</span>
             <p className="mt-2 text-sm text-muted-foreground">
-              This site has its own isolated MCP connections. Tokens created here only operate on this site&apos;s pages and layers.
+              Create private links for tools like Claude Desktop and Cursor.
             </p>
           </div>
           {canManage ? (
             <Button variant="secondary" size="sm" onClick={() => setShowGenerateDialog(true)}>
-              Generate MCP URL
+              Create link
             </Button>
           ) : null}
         </header>
@@ -182,7 +190,7 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
                   <DropdownMenuContent align="end">
                     {token.mcp_url ? (
                       <DropdownMenuItem onClick={() => copyToClipboard(token.mcp_url!)}>
-                        Copy URL
+                        Copy link
                       </DropdownMenuItem>
                     ) : null}
                     {canManage ? (
@@ -203,7 +211,7 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
           </div>
         ) : (
           <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-            No site MCP connections yet.
+            No links yet.
           </div>
         )}
 
@@ -215,21 +223,21 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
           <section>
             <h3 className="mb-2 font-medium">Claude Desktop</h3>
             <p className="text-muted-foreground">
-              Settings → Connectors → Add custom connector → Paste the MCP URL
+              Open Settings, add a custom connector, and paste the link.
             </p>
           </section>
 
           <section>
             <h3 className="mb-2 font-medium">Cursor</h3>
             <p className="text-muted-foreground">
-              Settings → MCP → Add new MCP server → Type: “SSE” → Paste the MCP URL
+              Open Settings, add a new server, and paste the link.
             </p>
           </section>
 
           <section>
-            <h3 className="mb-2 font-medium">Scope</h3>
+            <h3 className="mb-2 font-medium">Access</h3>
             <p className="text-muted-foreground">
-              This MCP connection can only read and write the active QAY site. It cannot see another site&apos;s pages, folders, or layer content.
+              Each link works only for the current site.
             </p>
           </section>
         </div>
@@ -237,9 +245,9 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
         <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Generate MCP URL</DialogTitle>
+              <DialogTitle>Create link</DialogTitle>
               <DialogDescription>
-                Create a site-scoped MCP URL for this QAY site.
+                Create a private link for this site.
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -268,7 +276,7 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
                 Cancel
               </Button>
               <Button onClick={() => void handleGenerateToken()} disabled={!newTokenName.trim() || isGenerating}>
-                {isGenerating ? 'Generating...' : 'Generate'}
+                {isGenerating ? 'Creating...' : 'Create'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -277,9 +285,9 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
         <Dialog open={showUrlDialog} onOpenChange={setShowUrlDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Your MCP URL</DialogTitle>
+              <DialogTitle>Your link</DialogTitle>
               <DialogDescription>
-                Copy this URL and paste it into your AI tool. This URL is site-scoped and only shown once.
+                Copy this link now and paste it into your tool. It is shown once.
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -294,7 +302,7 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
                 </div>
               ) : null}
               <p className="mt-3 text-xs text-muted-foreground">
-                Keep this URL private. Anyone with it can access this site&apos;s MCP surface.
+                Keep this link private.
               </p>
             </div>
             <DialogFooter>
@@ -313,8 +321,8 @@ export function QayMcpPage({ siteId, canManage }: { siteId: string; canManage: b
         <ConfirmDialog
           open={showDeleteDialog}
           onOpenChange={setShowDeleteDialog}
-          title="Delete MCP connection"
-          description={`Are you sure you want to delete "${tokenToDelete?.name}"? AI tools using this URL will no longer be able to connect.`}
+          title="Delete link"
+          description={`Are you sure you want to delete "${tokenToDelete?.name}"? Apps using this link will stop connecting.`}
           confirmLabel="Delete"
           onConfirm={handleDeleteToken}
           confirmVariant="destructive"

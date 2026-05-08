@@ -17,7 +17,7 @@ export default async function QayEditorIntegrationsPage({ searchParams }: PagePr
         <header className="pb-8 pt-8">
           <h1 className="text-xl font-semibold">Integrations</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Site-scoped integrations live here. Each QAY site keeps its own isolated connection state.
+            Manage the services connected to this site.
           </p>
         </header>
 
@@ -26,9 +26,9 @@ export default async function QayEditorIntegrationsPage({ searchParams }: PagePr
             href={`/qay/editor/integrations/mcp?site=${encodeURIComponent(siteId)}`}
             className="rounded-lg border bg-secondary/10 p-5 transition-colors hover:bg-secondary/20"
           >
-            <div className="text-base font-medium">MCP</div>
+            <div className="text-base font-medium">Connection links</div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Create site-scoped MCP URLs for Claude, Cursor, and other assistants.
+              Create private links for tools like Claude Desktop and Cursor.
             </p>
           </Link>
 
@@ -48,7 +48,7 @@ export default async function QayEditorIntegrationsPage({ searchParams }: PagePr
           >
             <div className="text-base font-medium">Webhooks</div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Send site-specific events without leaking workspace-level hooks.
+              Send events from this site to your own tools.
             </p>
           </Link>
 
@@ -58,7 +58,7 @@ export default async function QayEditorIntegrationsPage({ searchParams }: PagePr
           >
             <div className="text-base font-medium">Apps</div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Save app configuration per site instead of globally.
+              Connect apps and manage their settings for this site.
             </p>
           </Link>
         </div>

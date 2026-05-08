@@ -58,6 +58,18 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { CollectionUsageResult, CollectionFieldUsageResult } from '@/lib/collection-usage-utils';
 
+function isQaySchemaSetupError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return message.includes('QAY database tables are not ready yet')
+    || message.includes('This part of QAY is still being set up.');
+}
+
+function showQaySchemaSetupToast() {
+  toast.error('Site CMS is not ready yet', {
+    description: 'Run the QAY database migrations to enable site-scoped collections and CMS content.',
+  });
+}
+
 /**
  * Helper component to render reference field values in CMS list
  */
@@ -1292,25 +1304,30 @@ const CMS = React.memo(function CMS() {
         counter++;
       }
 
-      try {
-        const newCollection = await createCollection({
-          name: collectionName,
-          sorting: null,
-          order: collections.length,
+        try {
+          const newCollection = await createCollection({
+            name: collectionName,
+            sorting: null,
+            order: collections.length,
         });
 
         if (liveCollectionUpdates) {
           liveCollectionUpdates.broadcastCollectionCreate(newCollection);
         }
 
-        navigateToCollection(newCollection.id);
-        collectionRename.startRename(newCollection.id, newCollection.name);
-      } catch (error) {
-        console.error('Failed to create collection:', error);
-        toast.error('Failed to create collection');
-      }
-    });
-  };
+          navigateToCollection(newCollection.id);
+          collectionRename.startRename(newCollection.id, newCollection.name);
+        } catch (error) {
+          if (isQaySchemaSetupError(error)) {
+            showQaySchemaSetupToast();
+            return;
+          }
+
+          console.error('Failed to create collection:', error);
+          toast.error('Failed to create collection');
+        }
+      });
+    };
 
   const handleCreateSampleCollection = (sampleId: string) => {
     // Defer state changes so the dropdown menu can finish its close animation
@@ -1350,16 +1367,21 @@ const CMS = React.memo(function CMS() {
         if (liveCollectionUpdates) {
           liveCollectionUpdates.broadcastCollectionCreate(collection);
         }
-      } catch (error) {
-        console.error('Failed to create sample collection:', error);
-        useCollectionsStore.setState(state => ({
-          collections: state.collections.filter(c => c.id !== tempId),
-        }));
-        toast.error('Failed to create sample collection');
-      } finally {
-        setLoadingSampleCollectionId(null);
-      }
-    });
+        } catch (error) {
+          if (isQaySchemaSetupError(error)) {
+            showQaySchemaSetupToast();
+          } else {
+            console.error('Failed to create sample collection:', error);
+            toast.error('Failed to create sample collection');
+          }
+
+          useCollectionsStore.setState(state => ({
+            collections: state.collections.filter(c => c.id !== tempId),
+          }));
+        } finally {
+          setLoadingSampleCollectionId(null);
+        }
+      });
   };
 
   const handleCollectionDoubleClick = (collection: { id: string; name: string }) => {

@@ -29,7 +29,11 @@ function applyTheme(theme: Theme) {
 }
 
 export function QayThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [theme, setTheme] = useState<Theme>('dark');
+
+  useEffect(() => {
+    setTheme(getInitialTheme());
+  }, []);
 
   useEffect(() => {
     applyTheme(theme);

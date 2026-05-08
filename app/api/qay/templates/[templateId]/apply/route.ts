@@ -70,6 +70,26 @@ async function tagImportedTemplateData(siteId: string) {
       }
     }
 
+    if (
+      await knex.schema.hasTable('collections') &&
+      await knex.schema.hasTable('qay_site_collections')
+    ) {
+      const collections = await knex('collections')
+        .whereNull('deleted_at')
+        .where('is_published', false)
+        .select('id');
+
+      if (collections.length > 0) {
+        await knex('qay_site_collections')
+          .insert(collections.map((collection) => ({
+            site_id: siteId,
+            collection_id: collection.id,
+          })))
+          .onConflict('collection_id')
+          .ignore();
+      }
+    }
+
     if (await knex.schema.hasTable('fonts')) {
       await knex('fonts')
         .where('url', 'like', '{{ASSET_URL:%')

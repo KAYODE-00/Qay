@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
+import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
 
 function slugify(value: string) {
   return value
@@ -29,12 +29,14 @@ export async function GET() {
 
     if (error && isMissingQaySchemaError(error)) {
       if (!allowRuntimeQaySchemaChanges()) {
-        return NextResponse.json({ error: qaySchemaSetupMessage() }, { status: 503 });
+        console.error('QAY sites unavailable:', qaySchemaSetupMessage());
+        return NextResponse.json({ error: qaySchemaPublicMessage() }, { status: 503 });
       }
 
       const migration = await runQayCoreMigration();
       if (!migration.success) {
-        return NextResponse.json({ error: qaySchemaSetupMessage(migration.error) }, { status: 503 });
+        console.error('QAY sites migration failed:', qaySchemaSetupMessage(migration.error));
+        return NextResponse.json({ error: qaySchemaPublicMessage() }, { status: 503 });
       }
 
       const retry = await supabase
@@ -98,12 +100,14 @@ export async function POST(request: Request) {
 
     if (error && isMissingQaySchemaError(error)) {
       if (!allowRuntimeQaySchemaChanges()) {
-        return NextResponse.json({ error: qaySchemaSetupMessage() }, { status: 503 });
+        console.error('QAY site creation unavailable:', qaySchemaSetupMessage());
+        return NextResponse.json({ error: qaySchemaPublicMessage() }, { status: 503 });
       }
 
       const migration = await runQayCoreMigration();
       if (!migration.success) {
-        return NextResponse.json({ error: qaySchemaSetupMessage(migration.error) }, { status: 503 });
+        console.error('QAY site creation migration failed:', qaySchemaSetupMessage(migration.error));
+        return NextResponse.json({ error: qaySchemaPublicMessage() }, { status: 503 });
       }
 
       const retry = await insertSite();

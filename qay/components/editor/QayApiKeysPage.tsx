@@ -71,7 +71,7 @@ export function QayApiKeysPage({ siteId, canManage }: { siteId: string; canManag
           <div>
             <h1 className="text-base font-medium">Site API keys</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              These keys belong only to this site and should never bleed across other QAY projects.
+              These keys work only for this site.
             </p>
           </div>
           {canManage && (

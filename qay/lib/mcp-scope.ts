@@ -1,7 +1,7 @@
 import { buildPublicAppUrl } from './public-app-url';
 import { getQayAdmin } from './supabase-admin';
 import { createToken, deleteToken } from '@/lib/repositories/mcpTokenRepository';
-import { isMissingQaySchemaError, qaySchemaSetupMessage } from './schema';
+import { isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage } from './schema';
 
 export type QayMcpTokenRecord = {
   id: string;
@@ -15,41 +15,73 @@ export type QayMcpTokenRecord = {
   site_id: string;
 };
 
-export async function listQaySiteMcpTokens(siteId: string): Promise<QayMcpTokenRecord[]> {
+type SiteTokenLinkRow = {
+  site_id: string;
+  token_id: string;
+};
+
+async function listSiteTokenLinks(siteId: string): Promise<SiteTokenLinkRow[]> {
   const supabase = getQayAdmin() as any;
   const { data, error } = await supabase
     .from('qay_site_mcp_tokens')
-    .select(`
-      site_id,
-      mcp_tokens (
-        id,
-        name,
-        token_prefix,
-        is_active,
-        last_used_at,
-        created_at,
-        updated_at
-      )
-    `)
+    .select('site_id, token_id')
     .eq('site_id', siteId);
 
   if (error) {
     if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
-      throw new Error(qaySchemaSetupMessage(error.message));
+      console.error('QAY MCP setup issue:', qaySchemaSetupMessage(error.message));
+      throw new Error(qaySchemaPublicMessage());
     }
     throw new Error(`Failed to list site MCP tokens: ${error.message}`);
   }
 
+  return (data ?? []) as SiteTokenLinkRow[];
+}
+
+async function getSiteTokenLink(siteId: string, tokenId: string): Promise<SiteTokenLinkRow | null> {
+  const supabase = getQayAdmin() as any;
+  const { data, error } = await supabase
+    .from('qay_site_mcp_tokens')
+    .select('site_id, token_id')
+    .eq('site_id', siteId)
+    .eq('token_id', tokenId)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
+      console.error('QAY MCP fetch issue:', qaySchemaSetupMessage(error.message));
+      throw new Error(qaySchemaPublicMessage());
+    }
+    throw new Error(`Failed to fetch site MCP token: ${error.message}`);
+  }
+
+  return (data as SiteTokenLinkRow | null) ?? null;
+}
+
+export async function listQaySiteMcpTokens(siteId: string): Promise<QayMcpTokenRecord[]> {
+  const supabase = getQayAdmin() as any;
+  const links = await listSiteTokenLinks(siteId);
+  if (links.length === 0) {
+    return [];
+  }
+
+  const tokenIds = links.map((link) => link.token_id);
+  const { data, error } = await supabase
+    .from('mcp_tokens')
+    .select('id, name, token_prefix, is_active, last_used_at, created_at, updated_at')
+    .in('id', tokenIds);
+
+  if (error) {
+    throw new Error(`Failed to fetch site MCP tokens: ${error.message}`);
+  }
+
+  const siteIdByTokenId = new Map(links.map((link) => [link.token_id, link.site_id]));
+
   return (data ?? [])
-    .map((row: any) => {
-      const token = Array.isArray(row.mcp_tokens) ? row.mcp_tokens[0] : row.mcp_tokens;
-      if (!token) return null;
-      return {
-        ...token,
-        site_id: row.site_id,
-      } as QayMcpTokenRecord;
-    })
-    .filter(Boolean)
+    .map((token: any) => ({
+      ...token,
+      site_id: siteIdByTokenId.get(token.id) ?? siteId,
+    }))
     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as QayMcpTokenRecord[];
 }
 
@@ -68,7 +100,8 @@ export async function createQaySiteMcpToken(siteId: string, userId: string, name
   if (error) {
     if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
       await deleteToken(token.id).catch(() => {});
-      throw new Error(qaySchemaSetupMessage(error.message));
+      console.error('QAY MCP attach issue:', qaySchemaSetupMessage(error.message));
+      throw new Error(qaySchemaPublicMessage());
     }
     await deleteToken(token.id).catch(() => {});
     throw new Error(`Failed to attach MCP token to site: ${error.message}`);
@@ -83,28 +116,18 @@ export async function createQaySiteMcpToken(siteId: string, userId: string, name
 
 export async function getQaySiteMcpTokenById(siteId: string, tokenId: string): Promise<QayMcpTokenRecord | null> {
   const supabase = getQayAdmin() as any;
+  const link = await getSiteTokenLink(siteId, tokenId);
+  if (!link) {
+    return null;
+  }
+
   const { data, error } = await supabase
-    .from('qay_site_mcp_tokens')
-    .select(`
-      site_id,
-      mcp_tokens (
-        id,
-        name,
-        token_prefix,
-        is_active,
-        last_used_at,
-        created_at,
-        updated_at
-      )
-    `)
-    .eq('site_id', siteId)
-    .eq('token_id', tokenId)
+    .from('mcp_tokens')
+    .select('id, name, token_prefix, is_active, last_used_at, created_at, updated_at')
+    .eq('id', tokenId)
     .maybeSingle();
 
   if (error) {
-    if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
-      throw new Error(qaySchemaSetupMessage(error.message));
-    }
     throw new Error(`Failed to fetch site MCP token: ${error.message}`);
   }
 
@@ -112,12 +135,9 @@ export async function getQaySiteMcpTokenById(siteId: string, tokenId: string): P
     return null;
   }
 
-  const token = Array.isArray((data as any).mcp_tokens) ? (data as any).mcp_tokens[0] : (data as any).mcp_tokens;
-  if (!token) return null;
-
   return {
-    ...token,
-    site_id: (data as any).site_id,
+    ...(data as any),
+    site_id: link.site_id,
   };
 }
 
@@ -133,28 +153,13 @@ export async function deleteQaySiteMcpToken(siteId: string, tokenId: string): Pr
 export async function validateQayMcpToken(token: string): Promise<(QayMcpTokenRecord & { site_id: string }) | null> {
   const supabase = getQayAdmin() as any;
   const { data, error } = await supabase
-    .from('qay_site_mcp_tokens')
-    .select(`
-      site_id,
-      mcp_tokens!inner (
-        id,
-        name,
-        token_prefix,
-        token,
-        is_active,
-        last_used_at,
-        created_at,
-        updated_at
-      )
-    `)
-    .eq('mcp_tokens.token', token)
-    .eq('mcp_tokens.is_active', true)
+    .from('mcp_tokens')
+    .select('id, name, token, token_prefix, is_active, last_used_at, created_at, updated_at')
+    .eq('token', token)
+    .eq('is_active', true)
     .maybeSingle();
 
   if (error) {
-    if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
-      throw new Error(qaySchemaSetupMessage(error.message));
-    }
     throw new Error(`Failed to validate site MCP token: ${error.message}`);
   }
 
@@ -162,18 +167,37 @@ export async function validateQayMcpToken(token: string): Promise<(QayMcpTokenRe
     return null;
   }
 
-  const tokenRecord = Array.isArray((data as any).mcp_tokens) ? (data as any).mcp_tokens[0] : (data as any).mcp_tokens;
-  if (!tokenRecord) {
+  const link = await getSiteTokenLinkForTokenId((data as any).id);
+  if (!link) {
     return null;
   }
 
   await supabase
     .from('mcp_tokens')
     .update({ last_used_at: new Date().toISOString() })
-    .eq('id', tokenRecord.id);
+    .eq('id', (data as any).id);
 
   return {
-    ...tokenRecord,
-    site_id: (data as any).site_id,
+    ...(data as any),
+    site_id: link.site_id,
   };
+}
+
+async function getSiteTokenLinkForTokenId(tokenId: string): Promise<SiteTokenLinkRow | null> {
+  const supabase = getQayAdmin() as any;
+  const { data, error } = await supabase
+    .from('qay_site_mcp_tokens')
+    .select('site_id, token_id')
+    .eq('token_id', tokenId)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingQaySchemaError(error) || String(error.message || '').includes('qay_site_mcp_tokens')) {
+      console.error('QAY MCP validate issue:', qaySchemaSetupMessage(error.message));
+      throw new Error(qaySchemaPublicMessage());
+    }
+    throw new Error(`Failed to validate site MCP token: ${error.message}`);
+  }
+
+  return (data as SiteTokenLinkRow | null) ?? null;
 }
