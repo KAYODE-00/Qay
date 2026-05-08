@@ -13,7 +13,33 @@ import { buildQayIndexSlug } from '@/qay/lib/index-slug';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-function stripQayUnsafeTemplateStatements(sql: string): string {
+type ImportedPageRecord = {
+  id: string;
+  name: string | null;
+  slug: string;
+  is_index: boolean;
+  is_published: boolean;
+  page_folder_id: string | null;
+  error_page: number | null;
+  created_at: string | null;
+};
+
+type DuplicatePageSlotRecord = ImportedPageRecord & {
+  deleted_at: string | null;
+  qay_site_id: string | null;
+};
+
+type ImportedRowIds = {
+  pages: string[];
+  pageFolders: string[];
+  layerStyles: string[];
+  assets: string[];
+  assetFolders: string[];
+  collections: string[];
+  fonts: string[];
+};
+
+function stripQayUnsafeTemplateStatements(sql: string) {
   return sql
     .split('\n')
     .filter((line) => {
@@ -28,6 +54,16 @@ function stripQayUnsafeTemplateStatements(sql: string): string {
       );
     })
     .join('\n');
+}
+
+function slugifyTemplatePage(value: string | null | undefined) {
+  const slug = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || 'page';
 }
 
 async function restorePageSiteUniqueIndex(knex: Awaited<ReturnType<typeof getKnexClient>>) {
@@ -67,36 +103,48 @@ async function restoreLayerStyleNameConstraint(knex: Awaited<ReturnType<typeof g
   `);
 }
 
-type ImportedPageRecord = {
-  id: string;
-  name: string | null;
-  slug: string;
-  is_index: boolean;
-  is_published: boolean;
-  page_folder_id: string | null;
-  error_page: number | null;
-  created_at: string | null;
-};
+async function loadExistingIds(knex: Awaited<ReturnType<typeof getKnexClient>>, table: string) {
+  if (!(await knex.schema.hasTable(table))) return new Set<string>();
+  const query = knex(table).select('id');
+  if (await knex.schema.hasColumn(table, 'deleted_at')) {
+    query.whereNull('deleted_at');
+  }
+  const rows = await query;
+  return new Set(rows.map((row: { id: string }) => row.id));
+}
 
-type DuplicatePageSlotRecord = ImportedPageRecord & {
-  deleted_at: string | null;
-  qay_site_id: string | null;
-};
+async function collectImportedRowIds(
+  knex: Awaited<ReturnType<typeof getKnexClient>>,
+  before: Record<string, Set<string>>
+): Promise<ImportedRowIds> {
+  const findNewIds = async (table: string) => {
+    if (!(await knex.schema.hasTable(table))) return [];
+    const query = knex(table).select('id');
+    if (await knex.schema.hasColumn(table, 'deleted_at')) {
+      query.whereNull('deleted_at');
+    }
+    const rows = await query;
+    const previous = before[table] || new Set<string>();
+    return rows
+      .map((row: { id: string }) => row.id)
+      .filter((id: string) => !previous.has(id));
+  };
 
-function slugifyTemplatePage(value: string | null | undefined) {
-  const slug = String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  return slug || 'page';
+  return {
+    pages: await findNewIds('pages'),
+    pageFolders: await findNewIds('page_folders'),
+    layerStyles: await findNewIds('layer_styles'),
+    assets: await findNewIds('assets'),
+    assetFolders: await findNewIds('asset_folders'),
+    collections: await findNewIds('collections'),
+    fonts: await findNewIds('fonts'),
+  };
 }
 
 async function normalizeImportedPageSlugs(
   knex: Awaited<ReturnType<typeof getKnexClient>>,
   siteId: string,
-  importedAfterIso: string
+  importedPageIds: Set<string>
 ) {
   if (!(await knex.schema.hasTable('pages'))) return;
 
@@ -120,7 +168,7 @@ async function normalizeImportedPageSlugs(
   let homepageClaimed = false;
 
   for (const page of pages) {
-    const isImported = !!page.created_at && page.created_at >= importedAfterIso;
+    const isImported = importedPageIds.has(page.id);
     let nextIsIndex = page.is_index;
     let nextSlug = page.slug || '';
 
@@ -155,7 +203,7 @@ async function normalizeImportedPageSlugs(
 
     seen.add(candidateKey);
 
-    if (nextSlug !== page.slug || nextIsIndex !== page.is_index) {
+    if (candidateSlug !== page.slug || nextIsIndex !== page.is_index) {
       await knex('pages')
         .where('id', page.id)
         .where('is_published', page.is_published)
@@ -170,14 +218,17 @@ async function normalizeImportedPageSlugs(
 
 async function resolveDuplicatePageSlots(
   knex: Awaited<ReturnType<typeof getKnexClient>>,
-  siteId: string,
-  importedAfterIso: string
+  importedPageIds: Set<string>,
+  siteId?: string
 ) {
   if (!(await knex.schema.hasTable('pages'))) return;
 
-  const pages = await knex('pages')
-    .whereNull('deleted_at')
-    .whereRaw("coalesce(settings->>'qay_site_id', '') = ?", [siteId])
+  const query = knex('pages').whereNull('deleted_at');
+  if (siteId) {
+    query.whereRaw("coalesce(settings->>'qay_site_id', '') = ?", [siteId]);
+  }
+
+  const pages = await query
     .select<DuplicatePageSlotRecord[]>(
       'id',
       'name',
@@ -202,7 +253,6 @@ async function resolveDuplicatePageSlots(
       page.error_page ?? 0,
       page.qay_site_id ?? '__ycode_global__',
     ].join('\t');
-
     const current = groups.get(key) || [];
     current.push(page);
     groups.set(key, current);
@@ -212,8 +262,8 @@ async function resolveDuplicatePageSlots(
     if (entries.length < 2) continue;
 
     const sorted = [...entries].sort((a, b) => {
-      const aImported = !!a.created_at && a.created_at >= importedAfterIso;
-      const bImported = !!b.created_at && b.created_at >= importedAfterIso;
+      const aImported = importedPageIds.has(a.id);
+      const bImported = importedPageIds.has(b.id);
       if (aImported !== bImported) {
         return aImported ? 1 : -1;
       }
@@ -224,110 +274,11 @@ async function resolveDuplicatePageSlots(
     const duplicates = sorted.slice(1);
 
     for (const duplicate of duplicates) {
-      const isImported = !!duplicate.created_at && duplicate.created_at >= importedAfterIso;
+      const isImported = importedPageIds.has(duplicate.id);
       if (!isImported) {
         continue;
       }
 
-      if (duplicate.error_page !== null) {
-        await knex('pages')
-          .where('id', duplicate.id)
-          .where('is_published', duplicate.is_published)
-          .update({
-            deleted_at: knex.fn.now(),
-            updated_at: knex.fn.now(),
-          });
-        continue;
-      }
-
-      const nextIsIndex = false;
-      let baseSlug = slugifyTemplatePage(duplicate.name || duplicate.slug);
-      if (keeper.slug === baseSlug) {
-        baseSlug = `${baseSlug}-2`;
-      }
-
-      let candidate = baseSlug;
-      let counter = 3;
-      while (
-        pages.some(
-          (page) =>
-            page.id !== duplicate.id &&
-            page.deleted_at === null &&
-            page.slug === candidate &&
-            page.is_published === duplicate.is_published &&
-            (page.page_folder_id ?? null) === (duplicate.page_folder_id ?? null) &&
-            (page.error_page ?? null) === (duplicate.error_page ?? null) &&
-            page.qay_site_id === siteId
-        )
-      ) {
-        candidate = `${baseSlug}-${counter++}`;
-      }
-
-      await knex('pages')
-        .where('id', duplicate.id)
-        .where('is_published', duplicate.is_published)
-        .update({
-          slug: candidate,
-          is_index: nextIsIndex,
-          updated_at: knex.fn.now(),
-        });
-    }
-  }
-}
-
-async function resolveAllDuplicatePageSlots(
-  knex: Awaited<ReturnType<typeof getKnexClient>>,
-  importedAfterIso: string
-) {
-  if (!(await knex.schema.hasTable('pages'))) return;
-
-  const pages = await knex('pages')
-    .whereNull('deleted_at')
-    .select<DuplicatePageSlotRecord[]>(
-      'id',
-      'name',
-      'slug',
-      'is_index',
-      'is_published',
-      'page_folder_id',
-      'error_page',
-      'created_at',
-      'deleted_at',
-      knex.raw("settings->>'qay_site_id' as qay_site_id")
-    )
-    .orderBy('created_at', 'asc')
-    .orderBy('id', 'asc');
-
-  const groups = new Map<string, DuplicatePageSlotRecord[]>();
-  for (const page of pages) {
-    const key = [
-      page.slug,
-      page.is_published ? 'published' : 'draft',
-      page.page_folder_id ?? 'root',
-      page.error_page ?? 0,
-      page.qay_site_id ?? '__ycode_global__',
-    ].join('\t');
-    const current = groups.get(key) || [];
-    current.push(page);
-    groups.set(key, current);
-  }
-
-  for (const entries of groups.values()) {
-    if (entries.length < 2) continue;
-
-    const sorted = [...entries].sort((a, b) => {
-      const aImported = !!a.created_at && a.created_at >= importedAfterIso;
-      const bImported = !!b.created_at && b.created_at >= importedAfterIso;
-      if (aImported !== bImported) {
-        return aImported ? 1 : -1;
-      }
-      return `${a.created_at ?? ''}:${a.id}`.localeCompare(`${b.created_at ?? ''}:${b.id}`);
-    });
-
-    const keeper = sorted[0];
-    const duplicates = sorted.slice(1);
-
-    for (const duplicate of duplicates) {
       if (duplicate.error_page !== null) {
         await knex('pages')
           .where('id', duplicate.id)
@@ -369,27 +320,26 @@ async function resolveAllDuplicatePageSlots(
           is_index: false,
           updated_at: knex.fn.now(),
         });
+
       duplicate.slug = candidate;
       duplicate.is_index = false;
     }
   }
 }
 
-async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
+async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowIds) {
   const knex = await getKnexClient();
   const siteSettings = JSON.stringify({ qay_site_id: siteId });
-  const importedAfterIso = importedAfter.toISOString();
   const styleSuffix = ` (${siteId.slice(0, 6)})`;
+  const importedPageIds = new Set(importedIds.pages);
 
   try {
-    const pagesHasCreatedAt =
-      await knex.schema.hasTable('pages') && await knex.schema.hasColumn('pages', 'created_at');
-    if (pagesHasCreatedAt) {
+    if (await knex.schema.hasTable('pages') && importedIds.pages.length > 0) {
       await knex.raw('DROP INDEX IF EXISTS pages_slug_is_published_folder_unique');
 
       await knex('pages')
         .whereNull('deleted_at')
-        .where('created_at', '>=', importedAfterIso)
+        .whereIn('id', importedIds.pages)
         .update({
           settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
           slug: knex.raw(
@@ -398,29 +348,25 @@ async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
           ),
         });
 
-      await normalizeImportedPageSlugs(knex, siteId, importedAfterIso);
-      await resolveDuplicatePageSlots(knex, siteId, importedAfterIso);
-      await resolveAllDuplicatePageSlots(knex, importedAfterIso);
+      await normalizeImportedPageSlugs(knex, siteId, importedPageIds);
+      await resolveDuplicatePageSlots(knex, importedPageIds, siteId);
+      await resolveDuplicatePageSlots(knex, importedPageIds);
       await restorePageSiteUniqueIndex(knex);
     }
 
-    const pageFoldersHasCreatedAt =
-      await knex.schema.hasTable('page_folders') && await knex.schema.hasColumn('page_folders', 'created_at');
-    if (pageFoldersHasCreatedAt) {
+    if (await knex.schema.hasTable('page_folders') && importedIds.pageFolders.length > 0) {
       await knex('page_folders')
         .whereNull('deleted_at')
-        .where('created_at', '>=', importedAfterIso)
+        .whereIn('id', importedIds.pageFolders)
         .update({
           settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
         });
     }
 
-    const layerStylesHasCreatedAt =
-      await knex.schema.hasTable('layer_styles') && await knex.schema.hasColumn('layer_styles', 'created_at');
-    if (layerStylesHasCreatedAt) {
+    if (await knex.schema.hasTable('layer_styles') && importedIds.layerStyles.length > 0) {
       await knex('layer_styles')
         .whereNull('deleted_at')
-        .where('created_at', '>=', importedAfterIso)
+        .whereIn('id', importedIds.layerStyles)
         .update({
           name: knex.raw("name || ?", [styleSuffix]),
         });
@@ -428,17 +374,13 @@ async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
 
     if (
       await knex.schema.hasTable('assets') &&
-      await knex.schema.hasTable('qay_site_assets')
+      await knex.schema.hasTable('qay_site_assets') &&
+      importedIds.assets.length > 0
     ) {
-      let assetsQuery = knex('assets')
+      const assets = await knex('assets')
         .whereNull('deleted_at')
-        .where('source', 'like', 'template:%');
-
-      if (await knex.schema.hasColumn('assets', 'created_at')) {
-        assetsQuery = assetsQuery.where('created_at', '>=', importedAfterIso);
-      }
-
-      const assets = await assetsQuery.select('id');
+        .whereIn('id', importedIds.assets)
+        .select('id');
 
       if (assets.length > 0) {
         await knex('qay_site_assets')
@@ -450,15 +392,13 @@ async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
 
     if (
       await knex.schema.hasTable('asset_folders') &&
-      await knex.schema.hasTable('qay_site_asset_folders')
+      await knex.schema.hasTable('qay_site_asset_folders') &&
+      importedIds.assetFolders.length > 0
     ) {
-      let foldersQuery = knex('asset_folders').whereNull('deleted_at');
-
-      if (await knex.schema.hasColumn('asset_folders', 'created_at')) {
-        foldersQuery = foldersQuery.where('created_at', '>=', importedAfterIso);
-      }
-
-      const folders = await foldersQuery.select('id');
+      const folders = await knex('asset_folders')
+        .whereNull('deleted_at')
+        .whereIn('id', importedIds.assetFolders)
+        .select('id');
 
       if (folders.length > 0) {
         await knex('qay_site_asset_folders')
@@ -470,17 +410,14 @@ async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
 
     if (
       await knex.schema.hasTable('collections') &&
-      await knex.schema.hasTable('qay_site_collections')
+      await knex.schema.hasTable('qay_site_collections') &&
+      importedIds.collections.length > 0
     ) {
-      let collectionsQuery = knex('collections')
+      const collections = await knex('collections')
         .whereNull('deleted_at')
-        .where('is_published', false);
-
-      if (await knex.schema.hasColumn('collections', 'created_at')) {
-        collectionsQuery = collectionsQuery.where('created_at', '>=', importedAfterIso);
-      }
-
-      const collections = await collectionsQuery.select('id');
+        .where('is_published', false)
+        .whereIn('id', importedIds.collections)
+        .select('id');
 
       if (collections.length > 0) {
         await knex('qay_site_collections')
@@ -493,8 +430,9 @@ async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
       }
     }
 
-    if (await knex.schema.hasTable('fonts')) {
+    if (await knex.schema.hasTable('fonts') && importedIds.fonts.length > 0) {
       await knex('fonts')
+        .whereIn('id', importedIds.fonts)
         .where('url', 'like', '{{ASSET_URL:%')
         .update({
           url: null,
@@ -542,10 +480,19 @@ export async function POST(
   }
 
   await ensureQayPageSiteUniqueness();
-  const importedAt = new Date();
   const knex = await getKnexClient();
 
   try {
+    const existingIds = {
+      pages: await loadExistingIds(knex, 'pages'),
+      page_folders: await loadExistingIds(knex, 'page_folders'),
+      layer_styles: await loadExistingIds(knex, 'layer_styles'),
+      assets: await loadExistingIds(knex, 'assets'),
+      asset_folders: await loadExistingIds(knex, 'asset_folders'),
+      collections: await loadExistingIds(knex, 'collections'),
+      fonts: await loadExistingIds(knex, 'fonts'),
+    };
+
     const { template, sql } = await fetchProcessedTemplateApplyPayload(templateId);
     const importSql = stripQayUnsafeTemplateStatements(sql.insert);
 
@@ -555,8 +502,9 @@ export async function POST(
       await trx.raw(importSql);
     });
 
-    await tagImportedTemplateData(siteId, importedAt);
-    await copyTemplateAssetsToUserStorage(knex, importedAt);
+    const importedIds = await collectImportedRowIds(knex, existingIds);
+    await tagImportedTemplateData(siteId, importedIds);
+    await copyTemplateAssetsToUserStorage(knex);
     await runPendingMigrationsForTemplate(knex, template.lastMigration);
 
     await supabase
