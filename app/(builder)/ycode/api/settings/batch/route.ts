@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setSettings } from '@/lib/repositories/settingsRepository';
 import { clearAllCache } from '@/lib/services/cacheService';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
+import { isQaySiteScopedSettingKey, setQaySiteSettings } from '@/qay/lib/site-settings';
 
 /**
  * PUT /ycode/api/settings/batch
@@ -13,6 +15,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { settings } = body;
+    const siteId = getQaySiteIdFromRequest(request);
 
     if (!settings || typeof settings !== 'object') {
       return NextResponse.json(
@@ -21,7 +24,26 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const count = await setSettings(settings);
+    let count = 0;
+
+    if (siteId) {
+      const scopedEntries = Object.fromEntries(
+        Object.entries(settings).filter(([key]) => isQaySiteScopedSettingKey(key))
+      );
+      const globalEntries = Object.fromEntries(
+        Object.entries(settings).filter(([key]) => !isQaySiteScopedSettingKey(key))
+      );
+
+      if (Object.keys(scopedEntries).length > 0) {
+        count += await setQaySiteSettings(siteId, scopedEntries);
+      }
+
+      if (Object.keys(globalEntries).length > 0) {
+        count += await setSettings(globalEntries);
+      }
+    } else {
+      count = await setSettings(settings);
+    }
 
     await clearAllCache();
 

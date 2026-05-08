@@ -16,6 +16,7 @@ import { filterCollectionsForQaySite } from '@/qay/lib/collection-access';
 import { filterAssetsForQaySite, filterAssetFoldersForQaySite } from '@/qay/lib/media-isolation';
 import { normalizeQayPageForResponse } from '@/qay/lib/index-slug';
 import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
+import { overlaySettingsForQaySite } from '@/qay/lib/site-settings';
 
 /**
  * GET /ycode/api/editor/init
@@ -90,7 +91,10 @@ export async function GET(request: NextRequest) {
       : collections;
 
     // Inject app-sourced tokens into settings so they're available via settingsByKey
-    const enrichedSettings = [...settings];
+    const scopedSettings = qaySiteId
+      ? await overlaySettingsForQaySite(qaySiteId, settings)
+      : settings;
+    const enrichedSettings = [...scopedSettings];
     const injectedTokens: [string, string, string | null][] = [
       ['app:mapbox:access_token', 'mapbox_access_token', resolvedMapboxToken],
       ['app:google-maps-embed:api_key', 'google_maps_embed_api_key', resolvedGoogleMapsEmbedKey],

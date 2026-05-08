@@ -11,6 +11,7 @@ const MISSING_SCHEMA_PATTERNS = [
   'qay_site_api_keys',
   'qay_site_webhooks',
   'qay_site_app_settings',
+  'qay_site_settings',
   'schema cache',
   'relation "public.qay_sites" does not exist',
   'relation "qay_sites" does not exist',
@@ -64,7 +65,7 @@ export function qaySchemaSetupMessage(error?: string) {
   return [
     'QAY database tables are not ready yet.',
     'Run the QAY core migration after Ycode setup: qay/database/migrations/001_qay_core.sql.',
-    'Then run any follow-up QAY migrations such as qay/database/migrations/002_qay_mcp_tokens.sql and qay/database/migrations/003_qay_site_collections.sql.',
+    'Then run any follow-up QAY migrations such as qay/database/migrations/002_qay_mcp_tokens.sql, qay/database/migrations/003_qay_site_collections.sql, qay/database/migrations/004_qay_site_integrations.sql, and qay/database/migrations/005_qay_site_settings.sql.',
     error ? `Details: ${error}` : null,
   ].filter(Boolean).join(' ');
 }
