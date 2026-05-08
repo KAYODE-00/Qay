@@ -33,16 +33,7 @@ export function readQayEditorSiteIdFromBrowser(): string | null {
     // Storage can be unavailable in restricted browser contexts.
   }
 
-  const cookie = document.cookie
-    .split('; ')
-    .find((entry) => entry.startsWith(`${QAY_EDITOR_SITE_COOKIE}=`));
-
-  const fromCookie = cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null;
-  if (fromCookie) {
-    persistQayEditorSiteId(fromCookie);
-  }
-
-  return fromCookie;
+  return null;
 }
 
 export function appendQayEditorSiteParam(endpoint: string): string {
