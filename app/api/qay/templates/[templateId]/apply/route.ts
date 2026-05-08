@@ -78,6 +78,11 @@ type ImportedPageRecord = {
   created_at: string | null;
 };
 
+type DuplicatePageSlotRecord = ImportedPageRecord & {
+  deleted_at: string | null;
+  qay_site_id: string | null;
+};
+
 function slugifyTemplatePage(value: string | null | undefined) {
   const slug = String(value || '')
     .trim()
@@ -163,6 +168,113 @@ async function normalizeImportedPageSlugs(
   }
 }
 
+async function resolveDuplicatePageSlots(
+  knex: Awaited<ReturnType<typeof getKnexClient>>,
+  siteId: string,
+  importedAfterIso: string
+) {
+  if (!(await knex.schema.hasTable('pages'))) return;
+
+  const pages = await knex('pages')
+    .whereNull('deleted_at')
+    .whereRaw("coalesce(settings->>'qay_site_id', '') = ?", [siteId])
+    .select<DuplicatePageSlotRecord[]>(
+      'id',
+      'name',
+      'slug',
+      'is_index',
+      'is_published',
+      'page_folder_id',
+      'error_page',
+      'created_at',
+      'deleted_at',
+      knex.raw("settings->>'qay_site_id' as qay_site_id")
+    )
+    .orderBy('created_at', 'asc')
+    .orderBy('id', 'asc');
+
+  const groups = new Map<string, DuplicatePageSlotRecord[]>();
+  for (const page of pages) {
+    const key = [
+      page.slug,
+      page.is_published ? 'published' : 'draft',
+      page.page_folder_id ?? 'root',
+      page.error_page ?? 0,
+      page.qay_site_id ?? '__ycode_global__',
+    ].join('\t');
+
+    const current = groups.get(key) || [];
+    current.push(page);
+    groups.set(key, current);
+  }
+
+  for (const entries of groups.values()) {
+    if (entries.length < 2) continue;
+
+    const sorted = [...entries].sort((a, b) => {
+      const aImported = !!a.created_at && a.created_at >= importedAfterIso;
+      const bImported = !!b.created_at && b.created_at >= importedAfterIso;
+      if (aImported !== bImported) {
+        return aImported ? 1 : -1;
+      }
+      return `${a.created_at ?? ''}:${a.id}`.localeCompare(`${b.created_at ?? ''}:${b.id}`);
+    });
+
+    const keeper = sorted[0];
+    const duplicates = sorted.slice(1);
+
+    for (const duplicate of duplicates) {
+      const isImported = !!duplicate.created_at && duplicate.created_at >= importedAfterIso;
+      if (!isImported) {
+        continue;
+      }
+
+      if (duplicate.error_page !== null) {
+        await knex('pages')
+          .where('id', duplicate.id)
+          .where('is_published', duplicate.is_published)
+          .update({
+            deleted_at: knex.fn.now(),
+            updated_at: knex.fn.now(),
+          });
+        continue;
+      }
+
+      const nextIsIndex = false;
+      let baseSlug = slugifyTemplatePage(duplicate.name || duplicate.slug);
+      if (keeper.slug === baseSlug) {
+        baseSlug = `${baseSlug}-2`;
+      }
+
+      let candidate = baseSlug;
+      let counter = 3;
+      while (
+        pages.some(
+          (page) =>
+            page.id !== duplicate.id &&
+            page.deleted_at === null &&
+            page.slug === candidate &&
+            page.is_published === duplicate.is_published &&
+            (page.page_folder_id ?? null) === (duplicate.page_folder_id ?? null) &&
+            (page.error_page ?? null) === (duplicate.error_page ?? null) &&
+            page.qay_site_id === siteId
+        )
+      ) {
+        candidate = `${baseSlug}-${counter++}`;
+      }
+
+      await knex('pages')
+        .where('id', duplicate.id)
+        .where('is_published', duplicate.is_published)
+        .update({
+          slug: candidate,
+          is_index: nextIsIndex,
+          updated_at: knex.fn.now(),
+        });
+    }
+  }
+}
+
 async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
   const knex = await getKnexClient();
   const siteSettings = JSON.stringify({ qay_site_id: siteId });
@@ -187,6 +299,7 @@ async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
         });
 
       await normalizeImportedPageSlugs(knex, siteId, importedAfterIso);
+      await resolveDuplicatePageSlots(knex, siteId, importedAfterIso);
       await restorePageSiteUniqueIndex(knex);
     }
 
