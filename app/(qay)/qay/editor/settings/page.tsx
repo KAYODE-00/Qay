@@ -3,5 +3,5 @@ import { redirect } from 'next/navigation';
 
 export default async function QayEditorSettingsPage() {
   const siteId = await requireQayEditorSite();
-  redirect(`/dashboard/sites/${siteId}/settings`);
+  redirect(`/dashboard/sites/${siteId}/editor`);
 }
