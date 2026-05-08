@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import {
   copyTemplateAssetsToUserStorage,
   fetchProcessedTemplateApplyPayload,
@@ -612,6 +612,31 @@ async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowI
   }
 }
 
+function finalizeTemplateApplyInBackground(siteId: string, templateId: string, templateLastMigration: string | null | undefined) {
+  after(async () => {
+    const supabase = getQayAdmin() as any;
+    const knex = await getKnexClient();
+
+    try {
+      await copyTemplateAssetsToUserStorage(knex);
+      await runPendingMigrationsForTemplate(knex, templateLastMigration);
+      const templateDetails = await getTemplate(templateId).catch(() => null);
+
+      await supabase
+        .from('qay_sites')
+        .update({
+          updated_at: new Date().toISOString(),
+          thumbnail_url: templateDetails?.preview || null,
+        })
+        .eq('id', siteId);
+    } catch (error) {
+      console.error('[QAY template apply] Background finalization failed:', error);
+    } finally {
+      await closeKnexClient();
+    }
+  });
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ templateId: string }> }
@@ -660,11 +685,7 @@ export async function POST(
       fonts: await loadExistingIds(knex, 'fonts'),
     };
 
-    const [payload, templateDetails] = await Promise.all([
-      fetchProcessedTemplateApplyPayload(templateId),
-      getTemplate(templateId).catch(() => null),
-    ]);
-    const { template, sql } = payload;
+    const { template, sql } = await fetchProcessedTemplateApplyPayload(templateId);
     const importSql = stripQayUnsafeTemplateStatements(sql.insert);
 
     await knex.transaction(async (trx) => {
@@ -675,16 +696,15 @@ export async function POST(
 
     const importedIds = await collectImportedRowIds(knex, existingIds);
     await tagImportedTemplateData(siteId, importedIds);
-    await copyTemplateAssetsToUserStorage(knex);
-    await runPendingMigrationsForTemplate(knex, template.lastMigration);
 
     await supabase
       .from('qay_sites')
       .update({
         updated_at: new Date().toISOString(),
-        thumbnail_url: templateDetails?.preview || null,
       })
       .eq('id', siteId);
+
+    finalizeTemplateApplyInBackground(siteId, templateId, template.lastMigration);
 
     return NextResponse.json({
       success: true,
