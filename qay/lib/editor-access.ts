@@ -1,13 +1,10 @@
-import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { requireQayAuth } from './auth-guard';
 import { getQayAdmin } from './supabase-admin';
-import { QAY_EDITOR_SITE_COOKIE } from './editor-site';
 
 export async function requireQayEditorSite(siteIdFromQuery?: string | null): Promise<string> {
   const user = await requireQayAuth();
-  const cookieStore = await cookies();
-  const siteId = siteIdFromQuery || cookieStore.get(QAY_EDITOR_SITE_COOKIE)?.value || null;
+  const siteId = siteIdFromQuery || null;
 
   if (!siteId) {
     redirect('/dashboard');

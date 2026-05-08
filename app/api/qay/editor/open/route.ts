@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { QAY_EDITOR_SITE_COOKIE } from '@/qay/lib/editor-site';
 import { QAY_RENDER_SITE_COOKIE } from '@/qay/lib/render-site';
 
 export const dynamic = 'force-dynamic';
@@ -90,11 +89,11 @@ export async function GET(request: NextRequest) {
     targetUrl.searchParams.set('layer', request.nextUrl.searchParams.get('layer') || 'body');
 
     const response = NextResponse.redirect(targetUrl);
-    response.cookies.set(QAY_EDITOR_SITE_COOKIE, siteId, {
+    response.cookies.set('qay_editor_site_id', '', {
       httpOnly: false,
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 30,
+      maxAge: 0,
     });
     response.cookies.set(QAY_RENDER_SITE_COOKIE, siteId, {
       httpOnly: true,
