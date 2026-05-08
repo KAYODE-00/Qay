@@ -177,12 +177,11 @@ async function tagImportedTemplateData(siteId: string, importedAfter: Date) {
 
       await knex('pages')
         .whereNull('deleted_at')
-        .whereNull('error_page')
         .where('created_at', '>=', importedAfterIso)
         .update({
           settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
           slug: knex.raw(
-            "case when is_index = true and page_folder_id is null then ? else slug end",
+            "case when error_page is null and is_index = true and page_folder_id is null then ? else slug end",
             [buildQayIndexSlug(siteId)]
           ),
         });
