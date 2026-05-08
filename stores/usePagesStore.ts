@@ -526,7 +526,7 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
       if (response.data) {
         // IMPORTANT: Only update state if layers haven't changed since we started saving
         // This prevents race conditions where new changes are overwritten by stale server data
-        const currentDraft = get().draftsByPageId[pageId];
+        const currentDraft = get().draftsByPageId[pageId] || draft;
         const currentLayersJSON = JSON.stringify(currentDraft?.layers || []);
         const savedLayersJSON = JSON.stringify(layersBeingSaved);
 
@@ -538,7 +538,7 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
               ...state.draftsByPageId,
               [pageId]: {
                 ...response.data!,
-                layers: currentDraft!.layers, // Keep existing layers reference
+                layers: currentDraft.layers, // Keep existing layers reference
               }
             },
             isLoading: false,
@@ -559,7 +559,7 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
               ...state.draftsByPageId,
               [pageId]: {
                 ...response.data!,
-                layers: currentDraft!.layers, // Keep current layers, not server's
+                layers: currentDraft.layers, // Keep current layers, not server's
               }
             },
             isLoading: false,
