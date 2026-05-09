@@ -855,7 +855,7 @@ export async function forceDeletePage(id: string): Promise<void> {
  * Get all draft pages
  * @param includeDeleted - If true, includes soft-deleted drafts
  */
-export async function getAllDraftPages(includeDeleted = false): Promise<Page[]> {
+export async function getAllDraftPages(includeDeleted = false, qaySiteId?: string | null): Promise<Page[]> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
@@ -878,7 +878,7 @@ export async function getAllDraftPages(includeDeleted = false): Promise<Page[]> 
     throw new Error(`Failed to fetch draft pages: ${error.message}`);
   }
 
-  return data || [];
+  return scopePagesToQaySite(data || [], qaySiteId);
 }
 
 /**
@@ -1066,7 +1066,7 @@ export async function duplicatePage(pageId: string): Promise<Page> {
  * Get count of unpublished pages efficiently.
  * Uses 2 bulk queries instead of N+1 per-page lookups.
  */
-export async function getUnpublishedPagesCount(): Promise<number> {
+export async function getUnpublishedPagesCount(qaySiteId?: string | null): Promise<number> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
@@ -1077,7 +1077,7 @@ export async function getUnpublishedPagesCount(): Promise<number> {
   const [draftResult, publishedResult] = await Promise.all([
     client
       .from('pages')
-      .select('id, content_hash, page_folder_id, page_layers!inner(content_hash)')
+      .select('id, content_hash, page_folder_id, settings, error_page, page_layers!inner(content_hash)')
       .eq('is_published', false)
       .eq('page_layers.is_published', false)
       .is('deleted_at', null)
@@ -1095,7 +1095,8 @@ export async function getUnpublishedPagesCount(): Promise<number> {
     throw new Error(`Failed to fetch draft pages: ${draftResult.error.message}`);
   }
 
-  if (!draftResult.data || draftResult.data.length === 0) {
+  const draftPages = scopePagesToQaySite(draftResult.data || [], qaySiteId);
+  if (draftPages.length === 0) {
     return 0;
   }
 
@@ -1115,7 +1116,7 @@ export async function getUnpublishedPagesCount(): Promise<number> {
 
   // Count pages needing publishing
   let count = 0;
-  for (const draft of draftResult.data) {
+  for (const draft of draftPages) {
     const pub = publishedMap.get(draft.id);
 
     if (!pub) {

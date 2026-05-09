@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { headers } from 'next/headers';
 import { getQayAdmin } from './supabase-admin';
 import { QAY_EDITOR_SITE_COOKIE } from './editor-site';
+import { getQayBaseHost } from './site-url';
 
 export const QAY_RENDER_SITE_COOKIE = 'qay_render_site_id';
 
@@ -15,7 +16,7 @@ function normalizeHost(value: string | null): string | null {
 function getSubdomain(host: string): string | null {
   if (host === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return null;
 
-  const configuredBaseDomain = process.env.NEXT_PUBLIC_QAY_BASE_DOMAIN || process.env.QAY_BASE_DOMAIN;
+  const configuredBaseDomain = getQayBaseHost();
   if (configuredBaseDomain) {
     const base = configuredBaseDomain.toLowerCase().replace(/^\./, '');
     if (host.endsWith(`.${base}`)) {
@@ -67,6 +68,7 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
   let query = supabase
     .from('qay_sites')
     .select('id')
+    .eq('publish_status', 'published')
     .or(`custom_domain.eq.${host}${subdomain ? `,slug.eq.${subdomain}` : ''}`)
     .limit(1);
 

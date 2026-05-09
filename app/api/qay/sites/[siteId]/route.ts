@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 
 type RouteContext = {
   params: Promise<{ siteId: string }>;
@@ -44,7 +45,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Site not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: withResolvedQayLiveUrl(data) });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -112,7 +113,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: withResolvedQayLiveUrl(data) });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {

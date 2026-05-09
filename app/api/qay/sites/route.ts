@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
+import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 
 function slugify(value: string) {
   return value
@@ -53,7 +54,7 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data: data ?? [] });
+    return NextResponse.json({ data: (data ?? []).map((site: any) => withResolvedQayLiveUrl(site)) });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to load QAY sites' },
@@ -129,7 +130,7 @@ export async function POST(request: Request) {
       .select()
       .maybeSingle();
 
-    return NextResponse.json({ data }, { status: 201 });
+    return NextResponse.json({ data: withResolvedQayLiveUrl(data) }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create QAY site' },

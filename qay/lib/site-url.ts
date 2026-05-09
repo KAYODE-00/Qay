@@ -1,0 +1,102 @@
+import type { QaySite } from '@/qay/types';
+
+function normalizeHostLike(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    return new URL(withProtocol).host.toLowerCase();
+  } catch {
+    return trimmed
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/.*$/, '')
+      .replace(/^\./, '')
+      .toLowerCase();
+  }
+}
+
+function getConfiguredOrigin(): URL | null {
+  const raw =
+    process.env.NEXT_PUBLIC_SITE_URL
+    || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null)
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+    || null;
+
+  if (!raw) return null;
+
+  try {
+    return new URL(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function getQayBaseHost(): string | null {
+  const explicit = normalizeHostLike(
+    process.env.NEXT_PUBLIC_QAY_BASE_DOMAIN || process.env.QAY_BASE_DOMAIN
+  );
+
+  if (explicit) {
+    return explicit;
+  }
+
+  return getConfiguredOrigin()?.host.toLowerCase() ?? null;
+}
+
+function getQayProtocol(): 'http' | 'https' {
+  const configuredOrigin = getConfiguredOrigin();
+  if (configuredOrigin) {
+    return configuredOrigin.protocol === 'http:' ? 'http' : 'https';
+  }
+
+  const baseHost = getQayBaseHost();
+  if (baseHost?.includes('localhost') || /^\d+\.\d+\.\d+\.\d+(?::\d+)?$/.test(baseHost || '')) {
+    return 'http';
+  }
+
+  return 'https';
+}
+
+export function getQaySiteHost(
+  site: Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified'>
+): string | null {
+  const customDomain = normalizeHostLike(site.custom_domain);
+  if (customDomain && site.domain_verified) {
+    return customDomain;
+  }
+
+  const baseHost = getQayBaseHost();
+  if (!baseHost || !site.slug?.trim()) {
+    return null;
+  }
+
+  return `${site.slug.trim().toLowerCase()}.${baseHost}`;
+}
+
+export function getQaySiteLiveUrl(
+  site: Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified' | 'publish_status'>
+): string | null {
+  if (site.publish_status !== 'published') {
+    return null;
+  }
+
+  const host = getQaySiteHost(site);
+  if (!host) {
+    return null;
+  }
+
+  return `${getQayProtocol()}://${host}`;
+}
+
+export function withResolvedQayLiveUrl<T extends Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified' | 'publish_status' | 'live_url'>>(
+  site: T
+): T {
+  return {
+    ...site,
+    live_url: getQaySiteLiveUrl(site),
+  };
+}

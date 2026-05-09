@@ -20,28 +20,41 @@ export interface PublishFoldersResult {
  */
 async function collectAncestorFolderIds(
   pageIds: string[],
-  client: any
+  client: any,
+  qaySiteId?: string | null
 ): Promise<Set<string>> {
   const folderIdsToPublish = new Set<string>();
 
   // Fetch pages to get their folder IDs
-  const { data: pagesToPublish } = await client
+  let pagesQuery = client
     .from('pages')
     .select('page_folder_id')
     .in('id', pageIds)
     .eq('is_published', false)
     .is('deleted_at', null);
 
+  if (qaySiteId) {
+    pagesQuery = pagesQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { data: pagesToPublish } = await pagesQuery;
+
   if (!pagesToPublish) {
     return folderIdsToPublish;
   }
 
   // Get all draft folders to traverse ancestors
-  const { data: allDraftFolders } = await client
+  let foldersQuery = client
     .from('page_folders')
     .select('*')
     .eq('is_published', false)
     .is('deleted_at', null);
+
+  if (qaySiteId) {
+    foldersQuery = foldersQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { data: allDraftFolders } = await foldersQuery;
 
   if (!allDraftFolders) {
     return folderIdsToPublish;
@@ -80,7 +93,8 @@ async function collectAncestorFolderIds(
  */
 export async function publishFolders(
   folderIds: string[] = [],
-  pageIds?: string[]
+  pageIds?: string[],
+  qaySiteId?: string | null
 ): Promise<PublishFoldersResult> {
   const client = await getSupabaseAdmin();
 
@@ -93,7 +107,7 @@ export async function publishFolders(
 
   // Collect ancestor folders if page IDs provided
   if (!isPublishingAll && pageIds && pageIds.length > 0) {
-    const ancestorIds = await collectAncestorFolderIds(pageIds, client);
+    const ancestorIds = await collectAncestorFolderIds(pageIds, client, qaySiteId);
     ancestorIds.forEach(id => folderIdsToPublish.add(id));
   }
 
@@ -103,10 +117,16 @@ export async function publishFolders(
   }
 
   // Get all draft folders (including soft-deleted for cleanup)
-  const { data: allDraftFolders, error: foldersError } = await client
+  let allDraftFoldersQuery = client
     .from('page_folders')
     .select('*')
     .eq('is_published', false);
+
+  if (qaySiteId) {
+    allDraftFoldersQuery = allDraftFoldersQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { data: allDraftFolders, error: foldersError } = await allDraftFoldersQuery;
 
   if (foldersError || !allDraftFolders) {
     throw new Error(`Failed to fetch folders: ${foldersError?.message}`);

@@ -1149,42 +1149,45 @@ export async function publishItem(id: string): Promise<CollectionItem> {
  * Get total count of collection items needing publishing across all collections.
  * Checks both metadata (manual_order) and value changes.
  */
-export async function getTotalPublishableItemsCount(): Promise<number> {
+export async function getTotalPublishableItemsCount(collectionIds?: string[]): Promise<number> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
     throw new Error('Supabase client not configured');
   }
 
-  const { data: collections, error: collectionsError } = await client
-    .from('collections')
-    .select('id')
-    .eq('is_published', false)
-    .is('deleted_at', null);
+  let scopedCollectionIds = collectionIds;
+  if (!scopedCollectionIds) {
+    const { data: collections, error: collectionsError } = await client
+      .from('collections')
+      .select('id')
+      .eq('is_published', false)
+      .is('deleted_at', null);
 
-  if (collectionsError) {
-    throw new Error(`Failed to fetch collections: ${collectionsError.message}`);
+    if (collectionsError) {
+      throw new Error(`Failed to fetch collections: ${collectionsError.message}`);
+    }
+
+    scopedCollectionIds = (collections ?? []).map(c => c.id);
   }
 
-  if (!collections || collections.length === 0) {
+  if (!scopedCollectionIds || scopedCollectionIds.length === 0) {
     return 0;
   }
 
-  const collectionIds = collections.map(c => c.id);
-
   const [draftResult, publishedResult] = await Promise.all([
     client
-      .from('collection_items')
-      .select('id, manual_order')
-      .in('collection_id', collectionIds)
-      .eq('is_published', false)
-      .eq('is_publishable', true)
-      .is('deleted_at', null),
+        .from('collection_items')
+        .select('id, manual_order')
+        .in('collection_id', scopedCollectionIds)
+        .eq('is_published', false)
+        .eq('is_publishable', true)
+        .is('deleted_at', null),
     client
-      .from('collection_items')
-      .select('id, manual_order')
-      .in('collection_id', collectionIds)
-      .eq('is_published', true),
+        .from('collection_items')
+        .select('id, manual_order')
+        .in('collection_id', scopedCollectionIds)
+        .eq('is_published', true),
   ]);
 
   if (draftResult.error) {

@@ -411,7 +411,7 @@ function hasCollectionChanged(draft: Collection, published: Collection): boolean
  * A collection needs publishing if no published version exists or draft data differs.
  * Uses batch query instead of N+1.
  */
-export async function getUnpublishedCollections(): Promise<Collection[]> {
+export async function getUnpublishedCollections(collectionIds?: string[]): Promise<Collection[]> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
@@ -419,7 +419,11 @@ export async function getUnpublishedCollections(): Promise<Collection[]> {
   }
 
   // Get all draft collections
-  const draftCollections = await getAllCollections({ is_published: false });
+  let draftCollections = await getAllCollections({ is_published: false });
+  if (collectionIds && collectionIds.length > 0) {
+    const allowedIds = new Set(collectionIds);
+    draftCollections = draftCollections.filter((collection) => allowedIds.has(collection.id));
+  }
 
   if (draftCollections.length === 0) {
     return [];

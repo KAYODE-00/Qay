@@ -39,6 +39,7 @@ import { BackupRestoreDialog } from '@/components/project/BackupRestoreDialog';
 import { isCloudVersion } from '@/lib/utils';
 import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 import { toCurrentEditorPath } from '@/qay/lib/editor-path';
+import { getQaySiteHost } from '@/qay/lib/site-url';
 
 interface HeaderBarProps {
   user: User | null;
@@ -174,7 +175,38 @@ export default function HeaderBar({
 
   // Get current host after mount
   useEffect(() => {
-    setBaseUrl(window.location.protocol + '//' + window.location.host);
+    const protocol = window.location.protocol;
+    const fallbackBaseUrl = `${protocol}//${window.location.host}`;
+    const siteId = readQayEditorSiteIdFromBrowser();
+
+    if (!siteId) {
+      setBaseUrl(fallbackBaseUrl);
+      return;
+    }
+
+    let isCancelled = false;
+
+    void fetch(`/api/qay/sites/${siteId}`)
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+
+        const payload = await response.json().catch(() => null);
+        const site = payload?.data;
+        const host = site ? getQaySiteHost(site) : null;
+        return host ? `${protocol}//${host}` : fallbackBaseUrl;
+      })
+      .catch(() => fallbackBaseUrl)
+      .then((resolvedBaseUrl) => {
+        if (!isCancelled && resolvedBaseUrl) {
+          setBaseUrl(resolvedBaseUrl);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   // Check for updates on mount
