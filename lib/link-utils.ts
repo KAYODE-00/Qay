@@ -271,6 +271,75 @@ export interface LinkResolutionContext {
   pageCollectionSortedItemIds?: string[];
 }
 
+function normalizeSitePath(pathname: string, isPreview: boolean, previewBasePath: string): string {
+  const normalizedPreviewBase = previewBasePath.replace(/\/$/, '') || '/ycode/preview';
+
+  if (pathname === '/ycode' || pathname === '/ycode/') {
+    return isPreview ? normalizedPreviewBase : '/';
+  }
+
+  if (pathname === '/ycode/preview' || pathname === '/ycode/preview/') {
+    return isPreview ? normalizedPreviewBase : '/';
+  }
+
+  if (pathname.startsWith('/ycode/preview/')) {
+    const suffix = pathname.slice('/ycode/preview'.length);
+    return isPreview ? `${normalizedPreviewBase}${suffix}` : suffix || '/';
+  }
+
+  if (pathname.startsWith('/qay/preview/')) {
+    const suffix = pathname.slice('/qay/preview'.length);
+    return isPreview ? `${normalizedPreviewBase}${suffix}` : suffix || '/';
+  }
+
+  if (pathname === '/qay/preview' || pathname === '/qay/preview/') {
+    return isPreview ? normalizedPreviewBase : '/';
+  }
+
+  if (pathname.startsWith('/ycode/')) {
+    const suffix = pathname.slice('/ycode'.length);
+    return suffix || '/';
+  }
+
+  return pathname;
+}
+
+export function normalizeSiteHref(
+  href: string,
+  options: {
+    isPreview?: boolean;
+    previewBasePath?: string;
+  } = {}
+): string {
+  const trimmed = href.trim();
+  if (!trimmed) return trimmed;
+
+  const isPreview = options.isPreview ?? false;
+  const previewBasePath = options.previewBasePath || '/ycode/preview';
+
+  if (
+    trimmed.startsWith('#') ||
+    trimmed.startsWith('mailto:') ||
+    trimmed.startsWith('tel:') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('javascript:')
+  ) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return normalizeSitePath(trimmed, isPreview, previewBasePath);
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    parsed.pathname = normalizeSitePath(parsed.pathname, isPreview, previewBasePath);
+    return parsed.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
 /**
  * Parse a string or object value as CollectionLinkValue
  * Returns null if the value is not a valid CollectionLinkValue
@@ -399,7 +468,9 @@ export function resolveCollectionLinkValue(
   } = context;
 
   if (linkValue.type === 'url') {
-    return linkValue.url || null;
+    return linkValue.url
+      ? normalizeSiteHref(linkValue.url, { isPreview, previewBasePath })
+      : null;
   }
 
   if (linkValue.type === 'page') {
@@ -429,7 +500,9 @@ export function resolveCollectionLinkValue(
       href = `${href}#${linkValue.page.anchor_layer_id}`;
     }
 
-    return href || null;
+    return href
+      ? normalizeSiteHref(href, { isPreview, previewBasePath })
+      : null;
   }
 
   return null;
@@ -467,7 +540,8 @@ export function generateLinkHref(
   switch (linkSettings.type) {
     case 'url': {
       const urlContent = linkSettings.url?.data?.content || '';
-      href = resolveInlineVariablesFromData(urlContent, collectionItemData, pageCollectionItemData) || '';
+      const resolvedUrl = resolveInlineVariablesFromData(urlContent, collectionItemData, pageCollectionItemData) || '';
+      href = normalizeSiteHref(resolvedUrl, { isPreview, previewBasePath });
       break;
     }
     case 'email': {
@@ -607,7 +681,9 @@ export function generateLinkHref(
     }
   }
 
-  return href || null;
+  return href
+    ? normalizeSiteHref(href, { isPreview, previewBasePath })
+    : null;
 }
 
 /** Heuristic: value looks like email when field type unknown (e.g. collection layer fields not in fieldsByFieldId) */
