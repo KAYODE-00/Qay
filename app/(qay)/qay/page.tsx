@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, Bot, Globe, LayoutGrid, Sparkles, Users, Workflow } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
+import { getMetadataBase } from '@/lib/metadata-utils';
 
 const stats = [
   { label: 'Sites built', value: '2,400+' },
@@ -30,6 +31,7 @@ const plans = [
 ];
 
 export const metadata = {
+  metadataBase: getMetadataBase(),
   title: 'QAY',
   description: 'QAY gives freelancers and agencies a professional website builder without the Webflow price tag.',
 };

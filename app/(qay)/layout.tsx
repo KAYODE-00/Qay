@@ -5,9 +5,11 @@ import '@/qay/styles/brand.css';
 import RootLayoutShell from '@/components/RootLayoutShell';
 import { QayBadgeInjector } from '@/qay/components/QayBadgeInjector';
 import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
+import { getMetadataBase } from '@/lib/metadata-utils';
 import { renderRootLayoutHeadCode } from '@/lib/parse-head-html';
 
 export const metadata: Metadata = {
+  metadataBase: getMetadataBase(),
   title: {
     default: 'QAY',
     template: '%s | QAY',
