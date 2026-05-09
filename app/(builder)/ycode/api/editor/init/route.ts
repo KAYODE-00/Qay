@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     const scopedPagesRaw = qaySiteId
       ? pages.filter((page) => {
           const pageSettings = page.settings as Record<string, unknown> | null;
-          return page.error_page !== null || pageSettings?.qay_site_id === qaySiteId;
+          return pageSettings?.qay_site_id === qaySiteId;
         })
       : pages;
     const scopedPages = Array.from(

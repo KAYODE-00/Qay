@@ -33,10 +33,6 @@ function isPageVisibleInQaySite(page: Pick<Page, 'settings' | 'error_page'> | nu
     return true;
   }
 
-  if (page.error_page !== null) {
-    return true;
-  }
-
   return getPageQaySiteId(page) === qaySiteId;
 }
 

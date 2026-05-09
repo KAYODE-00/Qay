@@ -54,10 +54,6 @@ async function pageBelongsToSite(pageId: string, siteId: string) {
     return false;
   }
 
-  if (page.error_page !== null) {
-    return true;
-  }
-
   const settings = page.settings as Record<string, unknown> | null;
   return settings?.qay_site_id === siteId;
 }
