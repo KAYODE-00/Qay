@@ -19,6 +19,35 @@ export interface QueryFilters {
   [key: string]: string | number | boolean | null;
 }
 
+function getPageQaySiteId(page: Pick<Page, 'settings'> | null | undefined): string | null {
+  const settings = page?.settings as Record<string, unknown> | null;
+  return typeof settings?.qay_site_id === 'string' ? settings.qay_site_id : null;
+}
+
+function isPageVisibleInQaySite(page: Pick<Page, 'settings' | 'error_page'> | null | undefined, qaySiteId?: string | null): boolean {
+  if (!page) {
+    return false;
+  }
+
+  if (!qaySiteId) {
+    return true;
+  }
+
+  if (page.error_page !== null) {
+    return true;
+  }
+
+  return getPageQaySiteId(page) === qaySiteId;
+}
+
+function scopePagesToQaySite<T extends Pick<Page, 'settings' | 'error_page'>>(pages: T[], qaySiteId?: string | null): T[] {
+  if (!qaySiteId) {
+    return pages;
+  }
+
+  return pages.filter((page) => isPageVisibleInQaySite(page, qaySiteId));
+}
+
 /**
  * Data required to create a new page
  */
@@ -153,7 +182,7 @@ async function ensureQayRootIndexPage(
  * const allPages = await getAllPages();
  * const publishedPages = await getAllPages({ is_published: true });
  */
-export async function getAllPages(filters?: QueryFilters): Promise<Page[]> {
+export async function getAllPages(filters?: QueryFilters, qaySiteId?: string | null): Promise<Page[]> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
@@ -180,7 +209,7 @@ export async function getAllPages(filters?: QueryFilters): Promise<Page[]> {
     throw new Error(`Failed to fetch pages: ${error.message}`);
   }
 
-  return data || [];
+  return scopePagesToQaySite(data || [], qaySiteId);
 }
 
 /**
@@ -188,7 +217,7 @@ export async function getAllPages(filters?: QueryFilters): Promise<Page[]> {
  * @param id - Page ID
  * @param isPublished - Get draft (false) or published (true) version. Defaults to false (draft).
  */
-export async function getPageById(id: string, isPublished: boolean = false): Promise<Page | null> {
+export async function getPageById(id: string, isPublished: boolean = false, qaySiteId?: string | null): Promise<Page | null> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
@@ -210,7 +239,7 @@ export async function getPageById(id: string, isPublished: boolean = false): Pro
     throw new Error(`Failed to fetch page: ${error.message}`);
   }
 
-  return data;
+  return isPageVisibleInQaySite(data, qaySiteId) ? data : null;
 }
 
 /**
@@ -218,7 +247,7 @@ export async function getPageById(id: string, isPublished: boolean = false): Pro
  * @param slug - Page slug
  * @param filters - Optional additional filters
  */
-export async function getPageBySlug(slug: string, filters?: QueryFilters): Promise<Page | null> {
+export async function getPageBySlug(slug: string, filters?: QueryFilters, qaySiteId?: string | null): Promise<Page | null> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
@@ -238,16 +267,27 @@ export async function getPageBySlug(slug: string, filters?: QueryFilters): Promi
     });
   }
 
-  const { data, error } = await query.single();
+  if (!qaySiteId) {
+    const { data, error } = await query.single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // Not found
+      }
+      throw new Error(`Failed to fetch page: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  const { data, error } = await query.order('updated_at', { ascending: false });
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // Not found
-    }
     throw new Error(`Failed to fetch page: ${error.message}`);
   }
 
-  return data;
+  const scopedPages = scopePagesToQaySite(data || [], qaySiteId);
+  return scopedPages[0] || null;
 }
 
 /**

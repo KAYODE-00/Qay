@@ -4,9 +4,23 @@ import { Suspense, useEffect, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import YCodeBuilder from '@/app/(builder)/ycode/components/YCodeBuilderMain';
 import { useEditorUrl } from '@/hooks/use-editor-url';
+import { useAssetsStore } from '@/stores/useAssetsStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useCanvasTextEditorStore } from '@/stores/useCanvasTextEditorStore';
+import { useClipboardStore } from '@/stores/useClipboardStore';
+import { useCollectionLayerStore } from '@/stores/useCollectionLayerStore';
+import { useCollectionsStore } from '@/stores/useCollectionsStore';
+import { useCollaborationPresenceStore } from '@/stores/useCollaborationPresenceStore';
+import { useColorVariablesStore } from '@/stores/useColorVariablesStore';
+import { useComponentsStore } from '@/stores/useComponentsStore';
 import { useEditorStore } from '@/stores/useEditorStore';
-import { usePagesStore } from '@/stores/usePagesStore';
+import { useFilterStore } from '@/stores/useFilterStore';
+import { useFontsStore } from '@/stores/useFontsStore';
+import { useLayerStylesStore } from '@/stores/useLayerStylesStore';
+import { useLocalisationStore } from '@/stores/useLocalisationStore';
+import { usePagesStore, resetPagesStoreTransientState } from '@/stores/usePagesStore';
+import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useVersionsStore } from '@/stores/useVersionsStore';
 
 function YCodeLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -26,6 +40,8 @@ function YCodeLayoutInner({ children }: { children: React.ReactNode }) {
     if (previousQaySiteId.current === qaySiteId) return;
 
     previousQaySiteId.current = qaySiteId;
+    resetPagesStoreTransientState();
+    Object.values(useComponentsStore.getState().saveTimeouts).forEach((timeoutId) => clearTimeout(timeoutId));
     usePagesStore.setState({
       pages: [],
       folders: [],
@@ -52,6 +68,120 @@ function YCodeLayoutInner({ children }: { children: React.ReactNode }) {
       lastDesignUrl: null,
       previewReturnUrl: null,
       previewReturnTab: null,
+    });
+    useCollectionsStore.setState({
+      collections: [],
+      fields: {},
+      items: {},
+      itemsTotalCount: {},
+      lastItemsQuery: {},
+      selectedCollectionId: null,
+      isLoading: false,
+      error: null,
+    });
+    useCollectionLayerStore.setState({
+      layerData: {},
+      loading: {},
+      error: {},
+      layerConfig: {},
+      referencedItems: {},
+      referencedLoading: {},
+      paginationMeta: {},
+      paginationLoading: {},
+      invalidationKey: 0,
+    });
+    useColorVariablesStore.setState({
+      colorVariables: [],
+      isLoading: false,
+      error: null,
+      previewOverride: null,
+    });
+    useFontsStore.getState().reset();
+    useComponentsStore.setState({
+      components: [],
+      isLoading: false,
+      error: null,
+      componentDrafts: {},
+      componentDraftDirty: {},
+      isSaving: false,
+      saveTimeouts: {},
+    });
+    useLayerStylesStore.setState({
+      styles: [],
+      isLoading: false,
+      error: null,
+    });
+    useAssetsStore.getState().reset();
+    useSettingsStore.setState({
+      settings: [],
+      settingsByKey: {},
+      isLoading: false,
+      error: null,
+    });
+    useFilterStore.getState().reset();
+    useCanvasTextEditorStore.setState({
+      isEditing: false,
+      editor: null,
+      editingLayerId: null,
+      activeMarks: {
+        bold: false,
+        italic: false,
+        underline: false,
+        strike: false,
+        subscript: false,
+        superscript: false,
+        richTextLink: false,
+        dynamicStyleKey: null,
+        headingLevel: null,
+      },
+      onFinishCallback: null,
+      onSaveCallback: null,
+    });
+    useClipboardStore.setState({
+      clipboardLayer: null,
+      clipboardMode: null,
+      sourcePageId: null,
+      copiedStyle: null,
+      copiedInteractions: null,
+    });
+    useCollaborationPresenceStore.setState({
+      users: {},
+      resourceLocks: {},
+      notifications: [],
+      selectedUsers: [],
+      isConnected: false,
+      currentUserId: null,
+      currentUserColor: '#3b82f6',
+      currentUserAvatarUrl: null,
+    });
+    useLocalisationStore.setState({
+      locales: [],
+      isLoading: {
+        load: false,
+        create: false,
+        update: false,
+        delete: false,
+        setDefault: false,
+        loadTranslations: false,
+        createTranslation: false,
+        updateTranslation: false,
+        updateTranslationValue: false,
+        updateTranslationStatus: false,
+        deleteTranslation: false,
+      },
+      error: null,
+      defaultLocale: null,
+      selectedLocaleId: null,
+      translations: {},
+    });
+    useVersionsStore.setState({
+      entityStates: {},
+      versionCache: {},
+      historySummaries: {},
+      isLoading: false,
+      error: null,
+      sessionId: null,
+      isUndoRedoInProgress: false,
     });
   }, [qaySiteId]);
 

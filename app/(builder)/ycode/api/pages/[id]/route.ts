@@ -23,7 +23,7 @@ export async function GET(
     const qaySiteId = getQaySiteIdFromRequest(request);
     const { id } = await params;
     // For GET requests, return draft version (what users edit)
-    const page = await getPageById(id, false);
+    const page = await getPageById(id, false, qaySiteId);
 
     if (!page) {
       return noCache(
@@ -68,7 +68,7 @@ export async function PUT(
 
     // Get current draft page to check its state
     // Repository update functions only update draft versions
-    const currentPage = await getPageById(id, false);
+    const currentPage = await getPageById(id, false, qaySiteId);
     if (!currentPage) {
       return noCache(
         { error: 'Page not found' },
@@ -161,7 +161,7 @@ export async function DELETE(
     const { id } = await params;
 
     if (qaySiteId) {
-      const currentPage = await getPageById(id, false);
+      const currentPage = await getPageById(id, false, qaySiteId);
       if (!(await canUsePageInQaySite(qaySiteId, currentPage))) {
         return noCache(
           { error: 'Page not found' },

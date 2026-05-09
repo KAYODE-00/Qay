@@ -59,15 +59,9 @@ export async function GET(request: NextRequest) {
       filters.depth = parseInt(depth, 10);
     }
 
-    const pages = await getAllPages(filters);
-    const scopedPagesRaw = qaySiteId
-      ? pages.filter((page) => {
-          const settings = page.settings as Record<string, unknown> | null;
-          return page.error_page !== null || settings?.qay_site_id === qaySiteId;
-        })
-      : pages;
+    const pages = await getAllPages(filters, qaySiteId);
     const scopedPages = Array.from(
-      new Map(scopedPagesRaw.map((page) => [`${page.id}:${page.error_page ?? 'page'}`, page])).values()
+      new Map(pages.map((page) => [`${page.id}:${page.error_page ?? 'page'}`, page])).values()
     ).map((page) => qaySiteId ? normalizeQayPageForResponse(page, qaySiteId) : page);
 
     return noCache({

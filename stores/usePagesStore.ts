@@ -38,6 +38,10 @@ import { appendQayEditorSiteParam, readQayEditorSiteIdFromBrowser } from '@/qay/
  */
 const inflightDraftLoads = new Map<string, Promise<void>>();
 
+export function resetPagesStoreTransientState(): void {
+  inflightDraftLoads.clear();
+}
+
 function withCurrentQaySite(endpoint: string): string {
   return appendQayEditorSiteParam(endpoint);
 }
