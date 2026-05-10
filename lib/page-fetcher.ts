@@ -414,37 +414,33 @@ async function fetchPageByPathInternal(
 
     const targetPath = pathWithoutLocale;
 
-    // If path is empty after locale detection (e.g., "/fr/" -> "fr" -> ""),
-    // try to fetch the homepage
-    if (targetPath === '' && detectedLocale) {
-      // Pass preloaded components and translations so CMS content is translated
-      const homepageData = await fetchHomepage(isPublished, paginationContext, components, tenantId, translations, qaySiteId);
-      if (homepageData) {
-        // Components and collection layers are already resolved by fetchHomepage
-        // Apply translations for the detected locale
-        let processedLayers = homepageData.pageLayers.layers || [];
-        if (translations && Object.keys(translations).length > 0) {
-          processedLayers = injectTranslatedText(processedLayers, homepageData.page.id, translations);
+      // If path is empty after locale detection or path-based site prefix stripping,
+      // resolve the homepage for the current site context.
+      if (targetPath === '') {
+        const homepageData = await fetchHomepage(isPublished, paginationContext, components, tenantId, translations, qaySiteId);
+        if (homepageData) {
+          let processedLayers = homepageData.pageLayers.layers || [];
+          if (translations && Object.keys(translations).length > 0) {
+            processedLayers = injectTranslatedText(processedLayers, homepageData.page.id, translations);
+          }
+
+          const resolved = await resolveAllAssets(processedLayers, isPublished, components);
+          processedLayers = resolved.layers;
+
+          return {
+            ...homepageData,
+            pageLayers: {
+              ...homepageData.pageLayers,
+              layers: processedLayers,
+            },
+            components: homepageData.components,
+            locale: detectedLocale,
+            availableLocales: availableLocales as Locale[] || [],
+            translations,
+          };
         }
-
-        // Resolve all AssetVariables to URLs server-side (prevents client-side API calls)
-        const resolved = await resolveAllAssets(processedLayers, isPublished, components);
-        processedLayers = resolved.layers;
-
-        return {
-          ...homepageData,
-          pageLayers: {
-            ...homepageData.pageLayers,
-            layers: processedLayers,
-          },
-          components: homepageData.components,
-          locale: detectedLocale,
-          availableLocales: availableLocales as Locale[] || [],
-          translations,
-        };
+        return null;
       }
-      return null;
-    }
 
     // First, try to find an exact match (non-dynamic page)
     // Use translated slug matching if translations are available

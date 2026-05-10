@@ -45,6 +45,12 @@ function getConfiguredOrigin(): URL | null {
   }
 }
 
+function hasExplicitQayBaseDomain(): boolean {
+  return !!normalizeHostLike(
+    process.env.NEXT_PUBLIC_QAY_BASE_DOMAIN || process.env.QAY_BASE_DOMAIN
+  );
+}
+
 export function getQayBaseHostname(): string | null {
   const explicit = normalizeHostLike(
     process.env.NEXT_PUBLIC_QAY_BASE_DOMAIN || process.env.QAY_BASE_DOMAIN
@@ -67,6 +73,38 @@ export function getQayBaseHost(): string | null {
   }
 
   return getConfiguredOrigin()?.host.toLowerCase() ?? null;
+}
+
+export function shouldUsePathBasedQayUrls(baseHost = getQayBaseHost()): boolean {
+  if (!baseHost) {
+    return false;
+  }
+
+  if (hasExplicitQayBaseDomain()) {
+    return false;
+  }
+
+  return baseHost.endsWith('.vercel.app');
+}
+
+export function getQaySiteBaseUrl(
+  site: Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified'>
+): string | null {
+  const customDomain = normalizeHostLike(site.custom_domain);
+  if (customDomain && site.domain_verified) {
+    return `${getQayProtocol()}://${customDomain}`;
+  }
+
+  const baseHost = getQayBaseHost();
+  if (!baseHost || !site.slug?.trim()) {
+    return null;
+  }
+
+  if (shouldUsePathBasedQayUrls(baseHost)) {
+    return `${getQayProtocol()}://${baseHost}/${site.slug.trim().toLowerCase()}`;
+  }
+
+  return `${getQayProtocol()}://${site.slug.trim().toLowerCase()}.${baseHost}`;
 }
 
 function getQayProtocol(): 'http' | 'https' {
@@ -100,6 +138,10 @@ export function getQaySiteHost(
     return null;
   }
 
+  if (shouldUsePathBasedQayUrls(baseHost)) {
+    return baseHost;
+  }
+
   return `${site.slug.trim().toLowerCase()}.${baseHost}`;
 }
 
@@ -110,12 +152,7 @@ export function getQaySiteLiveUrl(
     return null;
   }
 
-  const host = getQaySiteHost(site);
-  if (!host) {
-    return null;
-  }
-
-  return `${getQayProtocol()}://${host}`;
+  return getQaySiteBaseUrl(site);
 }
 
 export function withResolvedQayLiveUrl<T extends Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified' | 'publish_status' | 'live_url'>>(
