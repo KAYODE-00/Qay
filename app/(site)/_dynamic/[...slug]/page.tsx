@@ -64,7 +64,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
     : undefined;
 
   if (!data) {
-    const errorPageData = await fetchErrorPage(404, true);
+    const errorPageData = await fetchErrorPage(404, true, undefined, qaySiteId);
     if (errorPageData) {
       const { page, pageLayers, components } = errorPageData;
       const publishedCSS = await getSettingByKey('published_css');
@@ -92,7 +92,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
     const protection = getPasswordProtection(page, folders, authCookie);
 
     if (!protection.isUnlocked) {
-      const errorPageData = await fetchErrorPage(401, true);
+      const errorPageData = await fetchErrorPage(401, true, undefined, qaySiteId);
       const publishedCSS = await getSettingByKey('published_css');
 
       if (errorPageData) {

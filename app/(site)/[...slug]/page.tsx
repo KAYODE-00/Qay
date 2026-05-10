@@ -237,14 +237,15 @@ async function fetchCachedFoldersForAuth() {
   }
 }
 
-async function fetchCachedErrorPage(errorCode: 401 | 404) {
+async function fetchCachedErrorPage(errorCode: 401 | 404, qaySiteId?: string | null) {
+  const siteKey = qaySiteId || 'global';
   return unstable_cache(
     async () => {
-      const data = await fetchErrorPage(errorCode, true);
+      const data = await fetchErrorPage(errorCode, true, undefined, qaySiteId);
       return data ? slimPageData(data) : null;
     },
-    [`error-${errorCode}`],
-    { tags: ['all-pages'], revalidate: false }
+    [`error-${errorCode}-${siteKey}`],
+    { tags: ['all-pages', `site-${siteKey}`], revalidate: false }
   )();
 }
 
@@ -286,7 +287,7 @@ export default async function Page({ params }: PageProps) {
 
   // If page not found, try to show custom 404 error page
   if (!data) {
-    const errorPageData = await fetchCachedErrorPage(404);
+    const errorPageData = await fetchCachedErrorPage(404, qaySiteId);
 
     if (errorPageData) {
       const { page: errorPage, pageLayers: errorPageLayers, components: errorComponents } = errorPageData;
@@ -321,7 +322,7 @@ export default async function Page({ params }: PageProps) {
 
     // If page is protected and not unlocked, show 401 error page
     if (!protection.isUnlocked) {
-      const errorPageData = await fetchCachedErrorPage(401);
+      const errorPageData = await fetchCachedErrorPage(401, qaySiteId);
 
       if (errorPageData) {
         const { page: errorPage, pageLayers: errorPageLayers, components: errorComponents } = errorPageData;

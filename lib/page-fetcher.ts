@@ -753,7 +753,8 @@ export async function fetchPageByPathForMetadata(
 export async function fetchErrorPage(
   errorCode: number,
   isPublished: boolean,
-  tenantId?: string
+  tenantId?: string,
+  qaySiteId?: string | null,
 ): Promise<PageData | null> {
   try {
     const supabase = await getSupabaseAdmin(tenantId);
@@ -771,13 +772,18 @@ export async function fetchErrorPage(
       .is('deleted_at', null);
 
     // Get the error page
-    const { data: errorPage } = await supabase
-      .from('pages')
-      .select('*')
-      .eq('error_page', errorCode)
-      .eq('is_published', isPublished)
-      .is('deleted_at', null)
-      .single();
+      let errorPageQuery = supabase
+        .from('pages')
+        .select('*')
+        .eq('error_page', errorCode)
+        .eq('is_published', isPublished)
+        .is('deleted_at', null);
+
+      if (qaySiteId) {
+        errorPageQuery = errorPageQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+      }
+
+      const { data: errorPage } = await errorPageQuery.single();
 
     if (!errorPage) {
       return null;
