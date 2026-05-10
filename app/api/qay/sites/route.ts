@@ -3,6 +3,9 @@ import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
 import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
+import { DEFAULT_ERROR_PAGES } from '@/lib/page-utils';
+import { createPage } from '@/lib/repositories/pageRepository';
+import { upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 
 function slugify(value: string) {
   return value
@@ -11,6 +14,29 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
+}
+
+async function seedDefaultSiteErrorPages(siteId: string) {
+  for (const [index, config] of DEFAULT_ERROR_PAGES.entries()) {
+    const page = await createPage({
+      name: config.name,
+      slug: '',
+      is_published: false,
+      page_folder_id: null,
+      order: 1000 + index,
+      depth: 0,
+      is_index: false,
+      is_dynamic: false,
+      error_page: config.code,
+      settings: {
+        ...(config.settings || {}),
+        qay_site_id: siteId,
+      } as any,
+    });
+
+    const layers = JSON.parse(config.layers) as unknown[];
+    await upsertDraftLayers(page.id, layers as any[]);
+  }
 }
 
 export async function GET() {
@@ -129,6 +155,8 @@ export async function POST(request: Request) {
       .insert({ qay_site_id: data.id })
       .select()
       .maybeSingle();
+
+    await seedDefaultSiteErrorPages(data.id);
 
     return NextResponse.json({ data: withResolvedQayLiveUrl(data) }, { status: 201 });
   } catch (error) {
