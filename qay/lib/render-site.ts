@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { getQayAdmin } from './supabase-admin';
 import { QAY_EDITOR_SITE_COOKIE } from './editor-site';
 import { getQayBaseHostname, shouldUsePathBasedQayUrls } from './site-url';
+import { buildQayIndexSlug } from './index-slug';
 
 export const QAY_RENDER_SITE_COOKIE = 'qay_render_site_id';
 
@@ -54,6 +55,26 @@ function getSubdomain(hostname: string): string | null {
 type GetQayRenderSiteIdOptions = {
   preferCookie?: boolean;
 };
+
+async function siteHasPublishedHomepage(supabase: any, siteId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('pages')
+    .select('id')
+    .eq('is_published', true)
+    .eq('is_index', true)
+    .is('page_folder_id', null)
+    .is('deleted_at', null)
+    .eq('slug', buildQayIndexSlug(siteId))
+    .filter('settings->>qay_site_id', 'eq', siteId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return !!data?.id;
+}
 
 async function readQaySiteIdFromCookies() {
   const cookieStore = await cookies();
@@ -111,8 +132,7 @@ export async function resolveQayPathSiteContext(pathSegments: string[]): Promise
   const supabase = getQayAdmin() as any;
   const { data, error } = await supabase
     .from('qay_sites')
-    .select('id, slug')
-    .eq('publish_status', 'published')
+    .select('id, slug, publish_status')
     .eq('slug', siteSlug)
     .limit(1)
     .maybeSingle();
@@ -122,6 +142,10 @@ export async function resolveQayPathSiteContext(pathSegments: string[]): Promise
   }
 
   if (!data?.id) {
+    return { siteId: null, siteSlug: null, remainingSegments: pathSegments };
+  }
+
+  if (data.publish_status !== 'published' && !(await siteHasPublishedHomepage(supabase, data.id))) {
     return { siteId: null, siteSlug: null, remainingSegments: pathSegments };
   }
 
@@ -153,11 +177,10 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
   }
 
   const supabase = getQayAdmin() as any;
-  const findPublishedSite = async (column: 'custom_domain' | 'slug', value: string) => {
+  const findRenderableSite = async (column: 'custom_domain' | 'slug', value: string) => {
     const { data, error } = await supabase
       .from('qay_sites')
-      .select('id')
-      .eq('publish_status', 'published')
+      .select('id, publish_status')
       .eq(column, value)
       .limit(1)
       .maybeSingle();
@@ -166,16 +189,24 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
       throw new Error(error.message);
     }
 
-    return data?.id ?? null;
+    if (!data?.id) {
+      return null;
+    }
+
+    if (data.publish_status === 'published') {
+      return data.id;
+    }
+
+    return (await siteHasPublishedHomepage(supabase, data.id)) ? data.id : null;
   };
 
-  const byCustomDomain = await findPublishedSite('custom_domain', hostname);
+  const byCustomDomain = await findRenderableSite('custom_domain', hostname);
   if (byCustomDomain) {
     return byCustomDomain;
   }
 
   if (subdomain) {
-    const bySlug = await findPublishedSite('slug', subdomain);
+    const bySlug = await findRenderableSite('slug', subdomain);
     if (bySlug) {
       return bySlug;
     }
