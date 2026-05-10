@@ -13,6 +13,17 @@ function normalizeRawHost(value: string | null): string | null {
   return value.split(',')[0]?.trim().toLowerCase() || null;
 }
 
+function resolveRequestHost(headerStore: Awaited<ReturnType<typeof headers>>): string | null {
+  const forwardedHost = normalizeRawHost(headerStore.get('x-forwarded-host'));
+  const directHost = normalizeRawHost(headerStore.get('host'));
+
+  if (directHost?.includes('.localhost')) {
+    return directHost;
+  }
+
+  return forwardedHost || directHost;
+}
+
 function getHostname(rawHost: string): string {
   return rawHost.replace(/:\d+$/, '');
 }
@@ -55,7 +66,7 @@ async function readQaySiteIdFromCookies() {
 
 export async function getQayRenderSiteBaseUrl(): Promise<string | null> {
   const headerStore = await headers();
-  const rawHost = normalizeRawHost(headerStore.get('x-forwarded-host') || headerStore.get('host'));
+  const rawHost = resolveRequestHost(headerStore);
   if (!rawHost) {
     return null;
   }
@@ -67,7 +78,7 @@ export async function getQayRenderSiteBaseUrl(): Promise<string | null> {
 
 export async function getQayRenderHostSubdomain(): Promise<string | null> {
   const headerStore = await headers();
-  const rawHost = normalizeRawHost(headerStore.get('x-forwarded-host') || headerStore.get('host'));
+  const rawHost = resolveRequestHost(headerStore);
   if (!rawHost) {
     return null;
   }
@@ -130,7 +141,7 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
   }
 
   const headerStore = await headers();
-  const rawHost = normalizeRawHost(headerStore.get('x-forwarded-host') || headerStore.get('host'));
+  const rawHost = resolveRequestHost(headerStore);
   if (!rawHost) return null;
   const hostname = getHostname(rawHost);
   const subdomain = getSubdomain(hostname);
