@@ -86,22 +86,32 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
   }
 
   const supabase = getQayAdmin() as any;
+  const findPublishedSite = async (column: 'custom_domain' | 'slug', value: string) => {
+    const { data, error } = await supabase
+      .from('qay_sites')
+      .select('id')
+      .eq('publish_status', 'published')
+      .eq(column, value)
+      .limit(1)
+      .maybeSingle();
 
-  let query = supabase
-    .from('qay_sites')
-    .select('id')
-    .eq('publish_status', 'published')
-    .or(`custom_domain.eq.${hostname}${subdomain ? `,slug.eq.${subdomain}` : ''}`)
-    .limit(1);
+    if (error) {
+      throw new Error(error.message);
+    }
 
-  const { data, error } = await query.maybeSingle();
+    return data?.id ?? null;
+  };
 
-  if (error) {
-    throw new Error(error.message);
+  const byCustomDomain = await findPublishedSite('custom_domain', hostname);
+  if (byCustomDomain) {
+    return byCustomDomain;
   }
 
-  if (data?.id) {
-    return data.id;
+  if (subdomain) {
+    const bySlug = await findPublishedSite('slug', subdomain);
+    if (bySlug) {
+      return bySlug;
+    }
   }
 
   if (!subdomain && cookieSiteId) {
