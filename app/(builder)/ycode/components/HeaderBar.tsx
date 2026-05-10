@@ -37,8 +37,9 @@ import Icon from '@/components/ui/icon';
 import { Separator } from '@/components/ui/separator';
 import { BackupRestoreDialog } from '@/components/project/BackupRestoreDialog';
 import { isCloudVersion } from '@/lib/utils';
-import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
+import { readQayEditorSiteIdFromBrowser, readQayEditorSiteSlugFromBrowser } from '@/qay/lib/editor-site';
 import { toCurrentEditorPath } from '@/qay/lib/editor-path';
+import { getQaySiteHost } from '@/qay/lib/site-url';
 
 interface HeaderBarProps {
   user: User | null;
@@ -174,7 +175,52 @@ export default function HeaderBar({
 
   // Get current host after mount
   useEffect(() => {
-    setBaseUrl(window.location.protocol + '//' + window.location.host);
+    const protocol = window.location.protocol;
+    const fallbackBaseUrl = `${protocol}//${window.location.host}`;
+    const siteId = readQayEditorSiteIdFromBrowser();
+    const siteSlug = readQayEditorSiteSlugFromBrowser();
+
+    if (siteSlug) {
+      const directHost = getQaySiteHost({
+        slug: siteSlug,
+        custom_domain: null,
+        domain_verified: false,
+      });
+
+      if (directHost) {
+        setBaseUrl(`${protocol}//${directHost}`);
+        return;
+      }
+    }
+
+    if (!siteId) {
+      setBaseUrl(fallbackBaseUrl);
+      return;
+    }
+
+    let isCancelled = false;
+
+    void fetch(`/api/qay/sites/${siteId}`)
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+
+        const payload = await response.json().catch(() => null);
+        const site = payload?.data;
+        const host = site ? getQaySiteHost(site) : null;
+        return host ? `${protocol}//${host}` : fallbackBaseUrl;
+      })
+      .catch(() => fallbackBaseUrl)
+      .then((resolvedBaseUrl) => {
+        if (!isCancelled && resolvedBaseUrl) {
+          setBaseUrl(resolvedBaseUrl);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   // Check for updates on mount
@@ -303,6 +349,14 @@ export default function HeaderBar({
 
     return path === '/' ? '' : path;
   }, [currentPage, isSettingsRoute, storePages, folders, localizedPagePath, collectionItemSlug, selectedLocale, localeTranslations]);
+
+  const siteDisplayUrl = useMemo(() => {
+    if (!baseUrl) {
+      return '';
+    }
+
+    return `${baseUrl}${publishedUrl}`;
+  }, [baseUrl, publishedUrl]);
 
   // Apply theme to HTML element
   useEffect(() => {
@@ -580,8 +634,10 @@ export default function HeaderBar({
           <a
             href={baseUrl + publishedUrl} target="_blank"
             rel="noopener noreferrer"
+            title={siteDisplayUrl || baseUrl}
+            className="max-w-[28rem] truncate"
           >
-            {baseUrl}
+            {siteDisplayUrl || baseUrl}
           </a>
         </Button>
 

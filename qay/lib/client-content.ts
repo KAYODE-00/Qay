@@ -3,10 +3,11 @@ import { getDraftLayers, upsertDraftLayers } from '@/lib/repositories/pageLayers
 import type { Layer, Page, PageLayers } from '@/types';
 import type { QaySite } from '@/qay/types';
 import { getTiptapTextContent } from '@/lib/mcp/utils';
+import { withResolvedQayLiveUrl } from './site-url';
 
 export type ClientAccessibleSite = Pick<
   QaySite,
-  'id' | 'name' | 'slug' | 'publish_status' | 'thumbnail_url' | 'updated_at' | 'live_url'
+  'id' | 'name' | 'slug' | 'custom_domain' | 'domain_verified' | 'publish_status' | 'thumbnail_url' | 'updated_at' | 'live_url'
 > & {
   access_role: 'owner' | 'member';
 };
@@ -152,7 +153,7 @@ async function getAccessibleSite(siteId: string, userId: string): Promise<Client
 
   const { data: ownedSite, error: ownedError } = await supabase
     .from('qay_sites')
-    .select('id, name, slug, publish_status, thumbnail_url, updated_at, live_url')
+    .select('id, name, slug, custom_domain, domain_verified, publish_status, thumbnail_url, updated_at, live_url')
     .eq('id', siteId)
     .eq('owner_id', userId)
     .maybeSingle();
@@ -162,7 +163,7 @@ async function getAccessibleSite(siteId: string, userId: string): Promise<Client
   }
 
   if (ownedSite) {
-    return { ...ownedSite, access_role: 'owner' };
+    return { ...withResolvedQayLiveUrl(ownedSite), access_role: 'owner' };
   }
 
   const { data: membership, error: memberError } = await supabase
@@ -182,7 +183,7 @@ async function getAccessibleSite(siteId: string, userId: string): Promise<Client
 
   const { data: site, error: siteError } = await supabase
     .from('qay_sites')
-    .select('id, name, slug, publish_status, thumbnail_url, updated_at, live_url')
+    .select('id, name, slug, custom_domain, domain_verified, publish_status, thumbnail_url, updated_at, live_url')
     .eq('id', siteId)
     .maybeSingle();
 
@@ -190,7 +191,7 @@ async function getAccessibleSite(siteId: string, userId: string): Promise<Client
     throw new Error(siteError.message);
   }
 
-  return site ? { ...site, access_role: 'member' } : null;
+  return site ? { ...withResolvedQayLiveUrl(site), access_role: 'member' } : null;
 }
 
 export async function getClientAccessibleSites(userId: string): Promise<ClientAccessibleSite[]> {
@@ -199,7 +200,7 @@ export async function getClientAccessibleSites(userId: string): Promise<ClientAc
   const [{ data: ownedSites, error: ownedError }, { data: memberships, error: memberError }] = await Promise.all([
     supabase
       .from('qay_sites')
-      .select('id, name, slug, publish_status, thumbnail_url, updated_at, live_url')
+      .select('id, name, slug, custom_domain, domain_verified, publish_status, thumbnail_url, updated_at, live_url')
       .eq('owner_id', userId)
       .order('updated_at', { ascending: false }),
     supabase
@@ -222,7 +223,7 @@ export async function getClientAccessibleSites(userId: string): Promise<ClientAc
   if (memberSiteIds.length > 0) {
     const { data, error } = await supabase
       .from('qay_sites')
-      .select('id, name, slug, publish_status, thumbnail_url, updated_at, live_url')
+      .select('id, name, slug, custom_domain, domain_verified, publish_status, thumbnail_url, updated_at, live_url')
       .in('id', memberSiteIds)
       .order('updated_at', { ascending: false });
 
@@ -230,10 +231,16 @@ export async function getClientAccessibleSites(userId: string): Promise<ClientAc
       throw new Error(error.message);
     }
 
-    memberSites = (data ?? []).map((site: ClientAccessibleSite) => ({ ...site, access_role: 'member' }));
+    memberSites = (data ?? []).map((site: ClientAccessibleSite) => ({
+      ...withResolvedQayLiveUrl(site),
+      access_role: 'member',
+    }));
   }
 
-  const owned = (ownedSites ?? []).map((site: ClientAccessibleSite) => ({ ...site, access_role: 'owner' }));
+  const owned = (ownedSites ?? []).map((site: ClientAccessibleSite) => ({
+    ...withResolvedQayLiveUrl(site),
+    access_role: 'owner',
+  }));
   const combined = [...owned, ...memberSites];
   const deduped = new Map<string, ClientAccessibleSite>();
 

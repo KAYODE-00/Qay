@@ -54,10 +54,6 @@ async function pageBelongsToSite(pageId: string, siteId: string) {
     return false;
   }
 
-  if (page.error_page !== null) {
-    return true;
-  }
-
   const settings = page.settings as Record<string, unknown> | null;
   return settings?.qay_site_id === siteId;
 }
@@ -72,6 +68,7 @@ export async function GET(request: NextRequest) {
     }
 
     const siteId = request.nextUrl.searchParams.get('site');
+    const siteSlug = request.nextUrl.searchParams.get('siteSlug');
     const pageId = request.nextUrl.searchParams.get('page');
 
     if (!siteId || !pageId) {
@@ -84,6 +81,9 @@ export async function GET(request: NextRequest) {
 
     const targetUrl = new URL(`/qay/editor/layers/${pageId}`, request.url);
     targetUrl.searchParams.set('site', siteId);
+    if (siteSlug) {
+      targetUrl.searchParams.set('siteSlug', siteSlug);
+    }
     targetUrl.searchParams.set('view', request.nextUrl.searchParams.get('view') || 'desktop');
     targetUrl.searchParams.set('tab', request.nextUrl.searchParams.get('tab') || 'design');
     targetUrl.searchParams.set('layer', request.nextUrl.searchParams.get('layer') || 'body');

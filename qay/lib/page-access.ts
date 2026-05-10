@@ -27,10 +27,6 @@ export async function canUsePageInQaySite(siteId: string, page: Pick<Page, 'sett
     return false;
   }
 
-  if (page.error_page !== null) {
-    return true;
-  }
-
   return getPageQaySiteId(page) === siteId;
 }
 
@@ -54,10 +50,6 @@ export async function canUsePageIdInQaySite(siteId: string, pageId: string, isPu
 
   if (!data) {
     return false;
-  }
-
-  if (data.error_page !== null) {
-    return true;
   }
 
   return getPageQaySiteId(data) === siteId;

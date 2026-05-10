@@ -1,4 +1,5 @@
 import CustomCodeInjector from '@/components/CustomCodeInjector';
+import QayPreviewMode from '@/components/QayPreviewMode';
 import { getSettingsByKeys } from '@/lib/repositories/settingsRepository';
 
 export default async function QayPreviewLayout({
@@ -11,6 +12,7 @@ export default async function QayPreviewLayout({
 
   return (
     <>
+      <QayPreviewMode />
       {children}
       {globalCustomCodeBody && <CustomCodeInjector html={globalCustomCodeBody} />}
     </>

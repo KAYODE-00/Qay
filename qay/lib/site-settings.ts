@@ -16,6 +16,7 @@ const QAY_SITE_SCOPED_SETTING_KEY_LIST = [
   'timezone',
   'favicon_asset_id',
   'web_clip_asset_id',
+  'published_at',
 ] as const;
 
 export const QAY_SITE_SCOPED_SETTING_KEYS = new Set<string>(QAY_SITE_SCOPED_SETTING_KEY_LIST);

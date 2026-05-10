@@ -753,7 +753,8 @@ export async function fetchPageByPathForMetadata(
 export async function fetchErrorPage(
   errorCode: number,
   isPublished: boolean,
-  tenantId?: string
+  tenantId?: string,
+  qaySiteId?: string | null,
 ): Promise<PageData | null> {
   try {
     const supabase = await getSupabaseAdmin(tenantId);
@@ -771,13 +772,18 @@ export async function fetchErrorPage(
       .is('deleted_at', null);
 
     // Get the error page
-    const { data: errorPage } = await supabase
-      .from('pages')
-      .select('*')
-      .eq('error_page', errorCode)
-      .eq('is_published', isPublished)
-      .is('deleted_at', null)
-      .single();
+      let errorPageQuery = supabase
+        .from('pages')
+        .select('*')
+        .eq('error_page', errorCode)
+        .eq('is_published', isPublished)
+        .is('deleted_at', null);
+
+      if (qaySiteId) {
+        errorPageQuery = errorPageQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+      }
+
+      const { data: errorPage } = await errorPageQuery.single();
 
     if (!errorPage) {
       return null;
@@ -4062,6 +4068,7 @@ interface PageLinkContext {
   pageCollectionItemId?: string;
   pageCollectionSortedItemIds?: string[];
   isPreview?: boolean;
+  previewBasePath?: string;
 }
 
 /** Build an `assetMap`-backed `getAsset` callback compatible with `generateLinkHref`. */
@@ -4563,60 +4570,23 @@ function layerToHtml(
 
   // For buttons/divs rendered as <a>, resolve link href and add attributes directly
   if ((isButtonWithLink || isDivWithLink) && buttonLinkSettings) {
-    let btnLinkHref = '';
-
-    switch (buttonLinkSettings.type) {
-      case 'url':
-        btnLinkHref = buttonLinkSettings.url?.data?.content || '';
-        break;
-      case 'email':
-        btnLinkHref = buttonLinkSettings.email?.data?.content ? `mailto:${buttonLinkSettings.email.data.content}` : '';
-        break;
-      case 'phone':
-        btnLinkHref = buttonLinkSettings.phone?.data?.content ? `tel:${buttonLinkSettings.phone.data.content}` : '';
-        break;
-      case 'page':
-        if (buttonLinkSettings.page?.id && pages && folders) {
-          const linkedPage = pages.find(p => p.id === buttonLinkSettings.page?.id);
-          if (linkedPage) {
-            btnLinkHref = buildLocalizedSlugPath(linkedPage, folders, 'page', locale, translations);
-          }
-        }
-        break;
-      case 'field': {
-        const fieldId = buttonLinkSettings.field?.data?.field_id;
-        const collLayerId = buttonLinkSettings.field?.data?.collection_layer_id;
-        let rawValue: string | undefined;
-        if (collLayerId && effectiveLayerDataMap?.[collLayerId]) {
-          rawValue = fieldId ? effectiveLayerDataMap[collLayerId][fieldId] : undefined;
-        } else {
-          rawValue = fieldId ? effectiveCollectionItemData?.[fieldId] : undefined;
-        }
-        if (fieldId && rawValue) {
-          const fieldType = buttonLinkSettings.field?.data?.field_type;
-          btnLinkHref = resolveFieldLinkValue({
-            fieldId,
-            rawValue,
-            fieldType,
-            context: {
-              pages: pages || [],
-              folders: folders || [],
-              collectionItemSlugs,
-              locale,
-              translations,
-              isPreview: false,
-            },
-            assetMap,
-          });
-        }
-        break;
-      }
-    }
-
-    if (buttonLinkSettings.anchor_layer_id) {
-      const anchorValue = anchorMap?.[buttonLinkSettings.anchor_layer_id] || buttonLinkSettings.anchor_layer_id;
-      btnLinkHref = btnLinkHref ? `${btnLinkHref}#${anchorValue}` : `#${anchorValue}`;
-    }
+    const btnLinkHref = generateLinkHref(buttonLinkSettings, {
+      pages,
+      folders,
+      collectionItemSlugs,
+      collectionItemId: effectiveCollectionItemId,
+      pageCollectionItemId: pageLinkContext?.pageCollectionItemId,
+      collectionItemData: effectiveCollectionItemData,
+      pageCollectionItemData,
+      isPreview: pageLinkContext?.isPreview,
+      previewBasePath: pageLinkContext?.previewBasePath,
+      locale,
+      translations,
+      getAsset: makeAssetMapResolver(assetMap),
+      anchorMap,
+      layerDataMap: effectiveLayerDataMap,
+      pageCollectionSortedItemIds: pageLinkContext?.pageCollectionSortedItemIds,
+    }) || '';
 
     if (btnLinkHref) {
       attrs.push(`href="${escapeHtml(btnLinkHref)}"`);

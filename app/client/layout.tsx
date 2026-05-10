@@ -3,9 +3,11 @@ import '@/app/globals.css';
 import '@/qay/styles/brand.css';
 import RootLayoutShell from '@/components/RootLayoutShell';
 import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
+import { getMetadataBase } from '@/lib/metadata-utils';
 import { renderRootLayoutHeadCode } from '@/lib/parse-head-html';
 
 export const metadata: Metadata = {
+  metadataBase: getMetadataBase(),
   title: {
     default: 'Client Dashboard',
     template: '%s | QAY',

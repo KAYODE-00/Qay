@@ -21,6 +21,7 @@ import {
 } from '@/lib/sitemap-utils';
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import type { SitemapSettings, Translation, CollectionItem } from '@/types';
+import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
 
 export async function GET() {
   try {
@@ -56,14 +57,22 @@ export async function GET() {
     }
 
     // Auto-generate sitemap
-    const baseUrl = getSiteBaseUrl({ globalCanonicalUrl }) || '';
+    const qaySiteId = await getQayRenderSiteId();
+    const baseUrl = await getQayRenderSiteBaseUrl() || getSiteBaseUrl({ globalCanonicalUrl }) || '';
 
     // Fetch published pages and folders
     const [pages, folders, locales] = await Promise.all([
-      getAllPages({ is_published: true }),
+      getAllPages({ is_published: true }, qaySiteId),
       getAllPublishedPageFolders(),
       getAllLocales(true), // Get published locales
     ]);
+
+    const scopedFolders = qaySiteId
+      ? folders.filter((folder) => {
+          const settings = folder.settings as Record<string, unknown> | null;
+          return settings?.qay_site_id === qaySiteId;
+        })
+      : folders;
 
     // Filter out error pages (401, 404, 500) and soft-deleted pages
     const validPages = pages.filter(
@@ -135,7 +144,7 @@ export async function GET() {
     // Generate sitemap URLs
     const sitemapUrls = generateSitemapUrls(
       validPages,
-      folders,
+      scopedFolders,
       baseUrl,
       settings,
       locales,

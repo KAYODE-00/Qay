@@ -10,7 +10,7 @@ import PasswordForm from '@/components/PasswordForm';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
-import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Page, PageFolder, Translation, Redirect as RedirectType } from '@/types';
 
@@ -237,14 +237,15 @@ async function fetchCachedFoldersForAuth() {
   }
 }
 
-async function fetchCachedErrorPage(errorCode: 401 | 404) {
+async function fetchCachedErrorPage(errorCode: 401 | 404, qaySiteId?: string | null) {
+  const siteKey = qaySiteId || 'global';
   return unstable_cache(
     async () => {
-      const data = await fetchErrorPage(errorCode, true);
+      const data = await fetchErrorPage(errorCode, true, undefined, qaySiteId);
       return data ? slimPageData(data) : null;
     },
-    [`error-${errorCode}`],
-    { tags: ['all-pages'], revalidate: false }
+    [`error-${errorCode}-${siteKey}`],
+    { tags: ['all-pages', `site-${siteKey}`], revalidate: false }
   )();
 }
 
@@ -286,7 +287,7 @@ export default async function Page({ params }: PageProps) {
 
   // If page not found, try to show custom 404 error page
   if (!data) {
-    const errorPageData = await fetchCachedErrorPage(404);
+    const errorPageData = await fetchCachedErrorPage(404, qaySiteId);
 
     if (errorPageData) {
       const { page: errorPage, pageLayers: errorPageLayers, components: errorComponents } = errorPageData;
@@ -321,7 +322,7 @@ export default async function Page({ params }: PageProps) {
 
     // If page is protected and not unlocked, show 401 error page
     if (!protection.isUnlocked) {
-      const errorPageData = await fetchCachedErrorPage(401);
+      const errorPageData = await fetchCachedErrorPage(401, qaySiteId);
 
       if (errorPageData) {
         const { page: errorPage, pageLayers: errorPageLayers, components: errorComponents } = errorPageData;
@@ -389,6 +390,9 @@ export default async function Page({ params }: PageProps) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string | string[] }> }): Promise<Metadata> {
   const { slug } = await params;
   const qaySiteId = await getQayRenderSiteId();
+  const siteBaseUrl = qaySiteId
+    ? await getQayRenderSiteBaseUrl()
+    : null;
 
   // Handle catch-all slug (join array into path)
   const slugPath = Array.isArray(slug) ? slug.join('/') : slug;
@@ -430,7 +434,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         pagePath: '/' + slugPath,
         globalSeoSettings: globalSettings,
       }),
-      baseUrl: getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
+      baseUrl: siteBaseUrl || getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
     }),
     [`data-for-route-/${qaySiteId || 'global'}/${slugPath}-meta`],
     { tags: ['all-pages', `site-${qaySiteId || 'global'}`, `route-/${slugPath}`], revalidate: false }

@@ -38,6 +38,10 @@ import { appendQayEditorSiteParam, readQayEditorSiteIdFromBrowser } from '@/qay/
  */
 const inflightDraftLoads = new Map<string, Promise<void>>();
 
+export function resetPagesStoreTransientState(): void {
+  inflightDraftLoads.clear();
+}
+
 function withCurrentQaySite(endpoint: string): string {
   return appendQayEditorSiteParam(endpoint);
 }
@@ -50,7 +54,7 @@ function getRecordQaySiteId(record: { settings?: unknown } | null | undefined): 
 function filterPagesForCurrentQaySite(pages: Page[]): Page[] {
   const siteId = readQayEditorSiteIdFromBrowser();
   const scopedPages = siteId
-    ? pages.filter((page) => page.error_page !== null || getRecordQaySiteId(page) === siteId)
+    ? pages.filter((page) => getRecordQaySiteId(page) === siteId)
     : pages;
 
   return Array.from(new Map(scopedPages.map((page) => [page.id, page])).values());

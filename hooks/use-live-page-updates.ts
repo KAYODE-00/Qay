@@ -7,6 +7,7 @@ import { useCollaborationPresenceStore } from '../stores/useCollaborationPresenc
 import { createClient } from '@/lib/supabase-browser';
 import { debounce } from '../lib/collaboration-utils';
 import type { Page } from '../types';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 
 interface PageUpdate {
   page_id: string;
@@ -38,6 +39,7 @@ export function useLivePageUpdates(): UseLivePageUpdatesReturn {
   const isReceivingUpdates = useRef(false);
   const lastUpdateTime = useRef<number | null>(null);
   const updateQueue = useRef<PageUpdate[]>([]);
+  const currentQaySiteIdRef = useRef<string | null>(null);
 
   // Debounced broadcast function for page updates
   const debouncedBroadcast = useRef(
@@ -71,10 +73,13 @@ export function useLivePageUpdates(): UseLivePageUpdatesReturn {
       return;
     }
 
+    currentQaySiteIdRef.current = readQayEditorSiteIdFromBrowser();
+
     const initializeChannel = async () => {
       try {
         const supabase = await createClient();
-        const channel = supabase.channel('pages:updates');
+        const siteChannelKey = currentQaySiteIdRef.current || 'global';
+        const channel = supabase.channel(`pages:updates:${siteChannelKey}`);
 
         // Listen for page updates
         channel.on('broadcast', { event: 'page_update' }, (payload) => {
@@ -137,9 +142,17 @@ export function useLivePageUpdates(): UseLivePageUpdatesReturn {
   const handleIncomingPageCreate = useCallback((page: Page) => {
     // Get fresh current user ID from store
     const freshCurrentUserId = useCollaborationPresenceStore.getState().currentUserId;
+    const currentQaySiteId = currentQaySiteIdRef.current;
 
     if (!freshCurrentUserId) {
       return;
+    }
+
+    if (currentQaySiteId) {
+      const settings = page.settings as Record<string, unknown> | null;
+      if (settings?.qay_site_id !== currentQaySiteId) {
+        return;
+      }
     }
 
     // Add the new page to the store

@@ -15,6 +15,11 @@ import { publishAssets, getUnpublishedAssets, hardDeleteSoftDeletedAssets } from
 import { publishAssetFolders, getUnpublishedAssetFolders, hardDeleteSoftDeletedAssetFolders } from '@/lib/repositories/assetFolderRepository';
 import { publishFonts } from '@/lib/repositories/fontRepository';
 import type { Setting, PublishStats, PublishTableStats } from '@/types';
+import { getQaySiteIdFromCollectionRequest, listQaySiteCollectionIds } from '@/qay/lib/collection-access';
+import { getSiteAssetFolderIds, getSiteAssetIds } from '@/qay/lib/media-isolation';
+import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { setQaySiteSettings } from '@/qay/lib/site-settings';
+import { getQaySiteLiveUrl } from '@/qay/lib/site-url';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -98,6 +103,7 @@ export async function POST(request: NextRequest) {
   const stats = createEmptyStats();
 
   try {
+    const qaySiteId = getQaySiteIdFromCollectionRequest(request);
     const body: PublishRequest = await request.json().catch(() => ({}));
 
     const {
@@ -137,13 +143,31 @@ export async function POST(request: NextRequest) {
 
     // Determine if we're publishing all or specific items
     const isPublishingAll = publishAll && !folderIds && !pageIds && !collectionIds && !collectionItemIds && !componentIds && !layerStyleIds;
+    const siteDraftPages = qaySiteId ? await getAllDraftPages(false, qaySiteId) : null;
+    const sitePageIds = siteDraftPages?.map((page) => page.id) ?? [];
+    const sitePageIdSet = new Set(sitePageIds);
+    const effectivePageIds = qaySiteId
+      ? (pageIds?.filter((pageId) => sitePageIdSet.has(pageId)) ?? (isPublishingAll ? sitePageIds : []))
+      : (pageIds ?? []);
+
+    const siteCollectionIds = qaySiteId ? await listQaySiteCollectionIds(qaySiteId) : [];
+    const siteCollectionIdSet = new Set(siteCollectionIds);
+    const effectiveCollectionIds = qaySiteId
+      ? (collectionIds?.filter((collectionId) => siteCollectionIdSet.has(collectionId)) ?? (isPublishingAll ? siteCollectionIds : []))
+      : (collectionIds ?? []);
+
+    const siteAssetIds = qaySiteId ? Array.from(await getSiteAssetIds(qaySiteId)) : [];
+    const siteAssetIdSet = new Set(siteAssetIds);
+    const siteAssetFolderIds = qaySiteId ? Array.from(await getSiteAssetFolderIds(qaySiteId)) : [];
+    const siteAssetFolderIdSet = new Set(siteAssetFolderIds);
 
     // Publish folders first (pages depend on them)
     {
       const stepStart = performance.now();
       const foldersResult = await publishFolders(
-        isPublishingAll ? [] : (folderIds || []),
-        pageIds
+        isPublishingAll && !qaySiteId ? [] : (folderIds || []),
+        effectivePageIds,
+        qaySiteId
       );
       result.changes.folders = foldersResult.count;
       stats.tables.page_folders.durationMs = Math.round(performance.now() - stepStart);
@@ -152,15 +176,15 @@ export async function POST(request: NextRequest) {
 
     // Publish pages
     {
-      if (pageIds && pageIds.length > 0) {
-        const pagesResult = await publishPages(pageIds);
+      if (effectivePageIds.length > 0) {
+        const pagesResult = await publishPages(effectivePageIds);
         result.changes.pages = pagesResult.count;
         stats.tables.pages.added = pagesResult.count;
         stats.tables.pages.durationMs = pagesResult.timing.pagesDurationMs;
         stats.tables.page_layers.added = pagesResult.timing.layersCount;
         stats.tables.page_layers.durationMs = pagesResult.timing.layersDurationMs;
       } else if (isPublishingAll) {
-        const unpublishedPages = await getAllDraftPages();
+        const unpublishedPages = qaySiteId ? (siteDraftPages ?? []) : await getAllDraftPages();
         if (unpublishedPages.length > 0) {
           const allPageIds = unpublishedPages.map(p => p.id);
           const pagesResult = await publishPages(allPageIds);
@@ -184,11 +208,11 @@ export async function POST(request: NextRequest) {
       let itemsMs = 0;
       let valuesMs = 0;
 
-      if ((collectionIds && collectionIds.length > 0) || (collectionItemIds && collectionItemIds.length > 0)) {
+      if (effectiveCollectionIds.length > 0 || (collectionItemIds && collectionItemIds.length > 0)) {
         const collectionPublishes: Array<{ collectionId: string; itemIds: string[] }> = [];
 
-        if (collectionIds && collectionIds.length > 0) {
-          for (const collectionId of collectionIds) {
+        if (effectiveCollectionIds.length > 0) {
+          for (const collectionId of effectiveCollectionIds) {
             const { items } = await getItemsByCollectionId(collectionId, false);
             collectionPublishes.push({
               collectionId,
@@ -200,6 +224,9 @@ export async function POST(request: NextRequest) {
         if (collectionItemIds && collectionItemIds.length > 0) {
           const itemsByCollection = await groupItemsByCollection(collectionItemIds);
           itemsByCollection.forEach((itemIds, collectionId) => {
+            if (qaySiteId && !siteCollectionIdSet.has(collectionId)) {
+              return;
+            }
             const existing = collectionPublishes.find(cp => cp.collectionId === collectionId);
             if (existing) {
               const combined = new Set([...existing.itemIds, ...itemIds]);
@@ -231,7 +258,9 @@ export async function POST(request: NextRequest) {
           result.changes.collectionItems = totalItems;
         }
       } else if (isPublishingAll) {
-        const allCollections = await getAllCollections({ is_published: false });
+        const allCollections = qaySiteId
+          ? (await getAllCollections({ is_published: false })).filter((collection) => siteCollectionIdSet.has(collection.id))
+          : await getAllCollections({ is_published: false });
 
         for (const collection of allCollections) {
           const { items } = await getItemsByCollectionId(collection.id, false);
@@ -266,11 +295,11 @@ export async function POST(request: NextRequest) {
     // Publish components
     {
       const stepStart = performance.now();
-      if (componentIds && componentIds.length > 0) {
+      if (!qaySiteId && componentIds && componentIds.length > 0) {
         const componentsResult = await publishComponents(componentIds);
         result.changes.components = componentsResult.count;
         stats.tables.components.added = componentsResult.count;
-      } else if (isPublishingAll) {
+      } else if (!qaySiteId && isPublishingAll) {
         const unpublishedComponents = await getUnpublishedComponents();
         if (unpublishedComponents.length > 0) {
           const allComponentIds = unpublishedComponents.map((c: any) => c.id);
@@ -285,11 +314,11 @@ export async function POST(request: NextRequest) {
     // Publish layer styles
     {
       const stepStart = performance.now();
-      if (layerStyleIds && layerStyleIds.length > 0) {
+      if (!qaySiteId && layerStyleIds && layerStyleIds.length > 0) {
         const stylesResult = await publishLayerStyles(layerStyleIds);
         result.changes.layerStyles = stylesResult.count;
         stats.tables.layer_styles.added = stylesResult.count;
-      } else if (isPublishingAll) {
+      } else if (!qaySiteId && isPublishingAll) {
         const unpublishedStyles = await getUnpublishedLayerStyles();
         if (unpublishedStyles.length > 0) {
           const allStyleIds = unpublishedStyles.map((s: any) => s.id);
@@ -311,16 +340,18 @@ export async function POST(request: NextRequest) {
         // Non-fatal
       }
 
-      try {
-        await hardDeleteSoftDeletedComponents();
-      } catch {
-        // Non-fatal
-      }
+      if (!qaySiteId) {
+        try {
+          await hardDeleteSoftDeletedComponents();
+        } catch {
+          // Non-fatal
+        }
 
-      try {
-        await hardDeleteSoftDeletedLayerStyles();
-      } catch {
-        // Non-fatal
+        try {
+          await hardDeleteSoftDeletedLayerStyles();
+        } catch {
+          // Non-fatal
+        }
       }
 
       try {
@@ -333,15 +364,19 @@ export async function POST(request: NextRequest) {
       {
         const stepStart = performance.now();
         try {
-          const deleteFoldersResult = await hardDeleteSoftDeletedAssetFolders();
-          result.changes.assetFoldersDeleted = deleteFoldersResult.count;
-          stats.tables.asset_folders.deleted = deleteFoldersResult.count;
+          if (!qaySiteId) {
+            const deleteFoldersResult = await hardDeleteSoftDeletedAssetFolders();
+            result.changes.assetFoldersDeleted = deleteFoldersResult.count;
+            stats.tables.asset_folders.deleted = deleteFoldersResult.count;
+          }
         } catch {
           // Silently handle - non-fatal
         }
 
         try {
-          const unpublishedFolders = await getUnpublishedAssetFolders();
+          const unpublishedFolders = qaySiteId
+            ? (await getUnpublishedAssetFolders()).filter((folder: any) => siteAssetFolderIdSet.has(folder.id))
+            : await getUnpublishedAssetFolders();
           if (unpublishedFolders.length > 0) {
             const allFolderIds = unpublishedFolders.map((f: any) => f.id);
             const foldersResult = await publishAssetFolders(allFolderIds);
@@ -358,15 +393,19 @@ export async function POST(request: NextRequest) {
       {
         const stepStart = performance.now();
         try {
-          const deleteResult = await hardDeleteSoftDeletedAssets();
-          result.changes.assetsDeleted = deleteResult.count;
-          stats.tables.assets.deleted = deleteResult.count;
+          if (!qaySiteId) {
+            const deleteResult = await hardDeleteSoftDeletedAssets();
+            result.changes.assetsDeleted = deleteResult.count;
+            stats.tables.assets.deleted = deleteResult.count;
+          }
         } catch {
           // Silently handle - non-fatal
         }
 
         try {
-          const unpublishedAssets = await getUnpublishedAssets();
+          const unpublishedAssets = qaySiteId
+            ? (await getUnpublishedAssets()).filter((asset: any) => siteAssetIdSet.has(asset.id))
+            : await getUnpublishedAssets();
           if (unpublishedAssets.length > 0) {
             const allAssetIds = unpublishedAssets.map((a: any) => a.id);
             const assetsResult = await publishAssets(allAssetIds);
@@ -389,7 +428,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Locales and translations
-      if (publishLocales) {
+      if (!qaySiteId && publishLocales) {
         try {
           const localisationResult = await publishLocalisation();
           result.changes.locales = localisationResult.locales;
@@ -423,11 +462,41 @@ export async function POST(request: NextRequest) {
       // Silently handle - non-fatal
     }
 
-    // Save published timestamp to settings
-    try {
-      result.published_at_setting = await savePublishedAt(publishedAt);
-    } catch {
-      // Silently handle - non-fatal
+    if (qaySiteId) {
+      try {
+        await setQaySiteSettings(qaySiteId, { published_at: publishedAt });
+        result.published_at_setting = {
+          key: 'published_at',
+          value: publishedAt,
+        } as Setting;
+
+        const supabase = getQayAdmin() as any;
+        const { data: site } = await supabase
+          .from('qay_sites')
+          .select('id, slug, custom_domain, domain_verified, publish_status')
+          .eq('id', qaySiteId)
+          .maybeSingle();
+
+        if (site) {
+          await supabase
+            .from('qay_sites')
+            .update({
+              publish_status: 'published',
+              live_url: getQaySiteLiveUrl({ ...site, publish_status: 'published' }),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', qaySiteId);
+        }
+      } catch {
+        // Non-fatal
+      }
+    } else {
+      // Save published timestamp to settings
+      try {
+        result.published_at_setting = await savePublishedAt(publishedAt);
+      } catch {
+        // Silently handle - non-fatal
+      }
     }
 
     // Calculate total duration

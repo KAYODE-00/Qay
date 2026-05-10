@@ -71,7 +71,7 @@ export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
     const protection = getPasswordProtection(data.page, folders, authCookie);
 
     if (!protection.isUnlocked) {
-      const errorPageData = await fetchErrorPage(401, true);
+      const errorPageData = await fetchErrorPage(401, true, undefined, qaySiteId);
       const publishedCSS = await getSettingByKey('published_css');
 
       if (errorPageData) {

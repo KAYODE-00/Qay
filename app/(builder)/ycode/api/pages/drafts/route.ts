@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         pages
           .filter((page) => {
             const settings = page.settings as Record<string, unknown> | null;
-            return page.error_page !== null || settings?.qay_site_id === qaySiteId;
+            return settings?.qay_site_id === qaySiteId;
           })
           .map((page) => page.id)
       );

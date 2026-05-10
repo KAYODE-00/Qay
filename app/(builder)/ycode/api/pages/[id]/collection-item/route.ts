@@ -26,7 +26,7 @@ export async function GET(
     }
 
     // Get the page
-    const page = await getPageById(pageId);
+    const page = await getPageById(pageId, false, qaySiteId);
 
     if (!page) {
       return NextResponse.json(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPageBySlug } from '@/lib/repositories/pageRepository';
 import { getPublishedLayers } from '@/lib/repositories/pageLayersRepository';
 import { noCache } from '@/lib/api-response';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 /**
  * GET /ycode/api/pages/slug/[slug]
@@ -14,7 +15,8 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const page = await getPageBySlug(slug);
+    const qaySiteId = getQaySiteIdFromRequest(request);
+    const page = await getPageBySlug(slug, undefined, qaySiteId);
 
     if (!page) {
       return noCache(
