@@ -389,6 +389,9 @@ export default async function Page({ params }: PageProps) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string | string[] }> }): Promise<Metadata> {
   const { slug } = await params;
   const qaySiteId = await getQayRenderSiteId();
+  const siteBaseUrl = qaySiteId
+    ? await getQayRenderSiteBaseUrl()
+    : null;
 
   // Handle catch-all slug (join array into path)
   const slugPath = Array.isArray(slug) ? slug.join('/') : slug;
@@ -430,7 +433,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         pagePath: '/' + slugPath,
         globalSeoSettings: globalSettings,
       }),
-      baseUrl: qaySiteId ? await getQayRenderSiteBaseUrl() : getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
+      baseUrl: siteBaseUrl || getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
     }),
     [`data-for-route-/${qaySiteId || 'global'}/${slugPath}-meta`],
     { tags: ['all-pages', `site-${qaySiteId || 'global'}`, `route-/${slugPath}`], revalidate: false }

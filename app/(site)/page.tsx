@@ -279,6 +279,9 @@ export default async function Home({
 // Generate metadata
 export async function generateMetadata(): Promise<Metadata> {
   const qaySiteId = await getQayRenderSiteId();
+  const siteBaseUrl = qaySiteId
+    ? await getQayRenderSiteBaseUrl()
+    : null;
   // Fetch page and global settings in parallel
   const [data, globalSettings] = await Promise.all([
     fetchPublishedHomepage(qaySiteId),
@@ -316,7 +319,7 @@ export async function generateMetadata(): Promise<Metadata> {
         pagePath: '/',
         globalSeoSettings: globalSettings,
       }),
-      baseUrl: qaySiteId ? await getQayRenderSiteBaseUrl() : getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
+      baseUrl: siteBaseUrl || getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
     }),
     [`data-for-route-/-meta-${qaySiteId || 'global'}`],
     { tags: ['all-pages', `site-${qaySiteId || 'global'}`, 'route-/'], revalidate: false }

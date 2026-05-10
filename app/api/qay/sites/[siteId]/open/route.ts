@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canAccessQaySite } from '@/qay/lib/site-access';
 import { QAY_RENDER_SITE_COOKIE } from '@/qay/lib/render-site';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { getQaySiteLiveUrl } from '@/qay/lib/site-url';
+import { getQaySiteHost, getQaySiteLiveUrl } from '@/qay/lib/site-url';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -24,9 +24,22 @@ export async function GET(
     .eq('id', siteId)
     .maybeSingle();
 
-  const liveUrl = site ? getQaySiteLiveUrl(site) : null;
-  if (liveUrl) {
-    return NextResponse.redirect(new URL(liveUrl));
+  const protocol = request.nextUrl.protocol || 'http:';
+  const siteHost = site ? getQaySiteHost(site) : null;
+  const targetSiteUrl = siteHost ? `${protocol}//${siteHost}` : null;
+  const redirectTarget = site?.publish_status === 'published'
+    ? (getQaySiteLiveUrl(site) || targetSiteUrl)
+    : targetSiteUrl;
+
+  if (redirectTarget) {
+    const response = NextResponse.redirect(new URL(redirectTarget));
+    response.cookies.set(QAY_RENDER_SITE_COOKIE, siteId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    return response;
   }
 
   const response = NextResponse.redirect(new URL('/', request.url));

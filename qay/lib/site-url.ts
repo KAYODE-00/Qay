@@ -35,6 +35,18 @@ function getConfiguredOrigin(): URL | null {
   }
 }
 
+export function getQayBaseHostname(): string | null {
+  const explicit = normalizeHostLike(
+    process.env.NEXT_PUBLIC_QAY_BASE_DOMAIN || process.env.QAY_BASE_DOMAIN
+  );
+
+  if (explicit) {
+    return explicit.split(':')[0]?.toLowerCase() ?? null;
+  }
+
+  return getConfiguredOrigin()?.hostname.toLowerCase() ?? null;
+}
+
 export function getQayBaseHost(): string | null {
   const explicit = normalizeHostLike(
     process.env.NEXT_PUBLIC_QAY_BASE_DOMAIN || process.env.QAY_BASE_DOMAIN
