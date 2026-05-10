@@ -20,6 +20,11 @@ function getHostname(rawHost: string): string {
 function getSubdomain(hostname: string): string | null {
   if (hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) return null;
 
+  if (hostname.endsWith('.localhost')) {
+    const localSubdomain = hostname.slice(0, -'.localhost'.length);
+    return localSubdomain || null;
+  }
+
   const configuredBaseDomain = getQayBaseHostname();
   if (configuredBaseDomain) {
     const base = configuredBaseDomain.toLowerCase().replace(/^\./, '');
@@ -72,14 +77,14 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
   const rawHost = normalizeRawHost(headerStore.get('x-forwarded-host') || headerStore.get('host'));
   if (!rawHost) return null;
   const hostname = getHostname(rawHost);
+  const subdomain = getSubdomain(hostname);
 
-  if (hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+  if ((hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) && !subdomain) {
     if (cookieSiteId) {
       return cookieSiteId;
     }
   }
 
-  const subdomain = getSubdomain(hostname);
   const supabase = getQayAdmin() as any;
 
   let query = supabase
@@ -95,5 +100,13 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
     throw new Error(error.message);
   }
 
-  return data?.id ?? cookieSiteId ?? null;
+  if (data?.id) {
+    return data.id;
+  }
+
+  if (!subdomain && cookieSiteId) {
+    return cookieSiteId;
+  }
+
+  return null;
 }
