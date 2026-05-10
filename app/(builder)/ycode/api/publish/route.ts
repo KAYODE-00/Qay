@@ -18,6 +18,7 @@ import type { Setting, PublishStats, PublishTableStats } from '@/types';
 import { getQaySiteIdFromCollectionRequest, listQaySiteCollectionIds } from '@/qay/lib/collection-access';
 import { getSiteAssetFolderIds, getSiteAssetIds } from '@/qay/lib/media-isolation';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { setQaySiteSettings } from '@/qay/lib/site-settings';
 import { getQaySiteLiveUrl } from '@/qay/lib/site-url';
 
 // Disable caching for this route
@@ -461,15 +462,14 @@ export async function POST(request: NextRequest) {
       // Silently handle - non-fatal
     }
 
-    // Save published timestamp to settings
-    try {
-      result.published_at_setting = await savePublishedAt(publishedAt);
-    } catch {
-      // Silently handle - non-fatal
-    }
-
     if (qaySiteId) {
       try {
+        await setQaySiteSettings(qaySiteId, { published_at: publishedAt });
+        result.published_at_setting = {
+          key: 'published_at',
+          value: publishedAt,
+        } as Setting;
+
         const supabase = getQayAdmin() as any;
         const { data: site } = await supabase
           .from('qay_sites')
@@ -489,6 +489,13 @@ export async function POST(request: NextRequest) {
         }
       } catch {
         // Non-fatal
+      }
+    } else {
+      // Save published timestamp to settings
+      try {
+        result.published_at_setting = await savePublishedAt(publishedAt);
+      } catch {
+        // Silently handle - non-fatal
       }
     }
 

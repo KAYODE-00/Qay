@@ -37,7 +37,7 @@ import Icon from '@/components/ui/icon';
 import { Separator } from '@/components/ui/separator';
 import { BackupRestoreDialog } from '@/components/project/BackupRestoreDialog';
 import { isCloudVersion } from '@/lib/utils';
-import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
+import { readQayEditorSiteIdFromBrowser, readQayEditorSiteSlugFromBrowser } from '@/qay/lib/editor-site';
 import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 import { getQaySiteHost } from '@/qay/lib/site-url';
 
@@ -178,6 +178,20 @@ export default function HeaderBar({
     const protocol = window.location.protocol;
     const fallbackBaseUrl = `${protocol}//${window.location.host}`;
     const siteId = readQayEditorSiteIdFromBrowser();
+    const siteSlug = readQayEditorSiteSlugFromBrowser();
+
+    if (siteSlug) {
+      const directHost = getQaySiteHost({
+        slug: siteSlug,
+        custom_domain: null,
+        domain_verified: false,
+      });
+
+      if (directHost) {
+        setBaseUrl(`${protocol}//${directHost}`);
+        return;
+      }
+    }
 
     if (!siteId) {
       setBaseUrl(fallbackBaseUrl);

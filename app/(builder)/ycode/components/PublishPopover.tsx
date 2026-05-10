@@ -56,6 +56,7 @@ export default function PublishPopover({
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
+  const publishedHref = `${baseUrl}${publishedUrl}`;
 
   const { getSettingByKey, updateSetting } = useSettingsStore();
   const publishedAt = getSettingByKey('published_at');
@@ -98,7 +99,7 @@ export default function PublishPopover({
       toast.success('Website published successfully', {
         action: {
           label: 'Open',
-          onClick: () => window.open(baseUrl + publishedUrl, '_blank'),
+          onClick: () => window.open(publishedHref, '_blank'),
         },
       });
 
@@ -113,7 +114,7 @@ export default function PublishPopover({
     } finally {
       setIsPublishing(false);
     }
-  }, [baseUrl, publishedUrl, onPublishSuccess, setIsPublishing, updateSetting]);
+  }, [onPublishSuccess, publishedHref, setIsPublishing, updateSetting]);
 
   const handleRevertConfirm = useCallback(async () => {
     try {
@@ -148,11 +149,11 @@ export default function PublishPopover({
         <div>
           <Label>
             <a
-              href={baseUrl + publishedUrl}
+              href={publishedHref}
               target="_blank"
               rel="noopener noreferrer"
             >
-              {baseUrl}
+              {publishedHref}
             </a>
           </Label>
           <span className="text-popover-foreground text-[10px]">

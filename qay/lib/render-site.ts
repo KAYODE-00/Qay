@@ -44,6 +44,18 @@ async function readQaySiteIdFromCookies() {
   );
 }
 
+export async function getQayRenderSiteBaseUrl(): Promise<string | null> {
+  const headerStore = await headers();
+  const host = normalizeHost(headerStore.get('x-forwarded-host') || headerStore.get('host'));
+  if (!host) {
+    return null;
+  }
+
+  const forwardedProto = headerStore.get('x-forwarded-proto');
+  const protocol = forwardedProto === 'http' ? 'http' : 'https';
+  return `${protocol}://${host}`;
+}
+
 export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}): Promise<string | null> {
   const { preferCookie = false } = options;
   const cookieSiteId = await readQaySiteIdFromCookies();

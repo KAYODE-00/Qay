@@ -10,7 +10,7 @@ import PasswordForm from '@/components/PasswordForm';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
-import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Page, PageFolder, Translation, Redirect as RedirectType } from '@/types';
 
@@ -430,7 +430,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         pagePath: '/' + slugPath,
         globalSeoSettings: globalSettings,
       }),
-      baseUrl: getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
+      baseUrl: qaySiteId ? await getQayRenderSiteBaseUrl() : getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
     }),
     [`data-for-route-/${qaySiteId || 'global'}/${slugPath}-meta`],
     { tags: ['all-pages', `site-${qaySiteId || 'global'}`, `route-/${slugPath}`], revalidate: false }

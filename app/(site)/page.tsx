@@ -8,7 +8,7 @@ import { generatePageMetadata, fetchGlobalPageSettings } from '@/lib/generate-pa
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import { QayLogo } from '@/qay/components/QayLogo';
-import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Metadata } from 'next';
 
@@ -316,7 +316,7 @@ export async function generateMetadata(): Promise<Metadata> {
         pagePath: '/',
         globalSeoSettings: globalSettings,
       }),
-      baseUrl: getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
+      baseUrl: qaySiteId ? await getQayRenderSiteBaseUrl() : getSiteBaseUrl({ globalCanonicalUrl: globalSettings.globalCanonicalUrl }),
     }),
     [`data-for-route-/-meta-${qaySiteId || 'global'}`],
     { tags: ['all-pages', `site-${qaySiteId || 'global'}`, 'route-/'], revalidate: false }

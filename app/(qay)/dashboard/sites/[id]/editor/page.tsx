@@ -44,5 +44,5 @@ export default async function QaySiteEditorGatePage({ params }: PageProps) {
   await ensureQayPageSiteUniqueness();
   const pageId = await ensureQayDraftHomePage(id);
 
-  redirect(`/api/qay/editor/open?site=${id}&page=${pageId}&view=desktop&tab=design&layer=body`);
+  redirect(`/api/qay/editor/open?site=${id}&siteSlug=${ownedSite?.slug ?? ''}&page=${pageId}&view=desktop&tab=design&layer=body`);
 }
