@@ -25,7 +25,15 @@ export async function GET(
     .maybeSingle();
 
   const protocol = request.nextUrl.protocol || 'http:';
-  const siteHost = site ? getQaySiteHost(site) : null;
+  const fallbackBaseHost = request.nextUrl.host || null;
+  const siteHost = site
+    ? (
+        getQaySiteHost(site)
+        || (site.slug?.trim() && fallbackBaseHost
+          ? `${site.slug.trim().toLowerCase()}.${fallbackBaseHost}`
+          : null)
+      )
+    : null;
   const targetSiteUrl = siteHost ? `${protocol}//${siteHost}` : null;
   const redirectTarget = site?.publish_status === 'published'
     ? (getQaySiteLiveUrl(site) || targetSiteUrl)

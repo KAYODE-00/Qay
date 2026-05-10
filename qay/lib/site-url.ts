@@ -26,7 +26,17 @@ function getConfiguredOrigin(): URL | null {
     || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
     || null;
 
-  if (!raw) return null;
+  if (!raw) {
+    if (typeof window !== 'undefined') {
+      try {
+        return new URL(window.location.origin);
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
+  }
 
   try {
     return new URL(raw);
@@ -63,6 +73,10 @@ function getQayProtocol(): 'http' | 'https' {
   const configuredOrigin = getConfiguredOrigin();
   if (configuredOrigin) {
     return configuredOrigin.protocol === 'http:' ? 'http' : 'https';
+  }
+
+  if (typeof window !== 'undefined') {
+    return window.location.protocol === 'http:' ? 'http' : 'https';
   }
 
   const baseHost = getQayBaseHost();

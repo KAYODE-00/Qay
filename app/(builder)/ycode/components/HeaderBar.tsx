@@ -350,6 +350,14 @@ export default function HeaderBar({
     return path === '/' ? '' : path;
   }, [currentPage, isSettingsRoute, storePages, folders, localizedPagePath, collectionItemSlug, selectedLocale, localeTranslations]);
 
+  const siteDisplayUrl = useMemo(() => {
+    if (!baseUrl) {
+      return '';
+    }
+
+    return `${baseUrl}${publishedUrl}`;
+  }, [baseUrl, publishedUrl]);
+
   // Apply theme to HTML element
   useEffect(() => {
     const root = document.documentElement;
@@ -626,8 +634,10 @@ export default function HeaderBar({
           <a
             href={baseUrl + publishedUrl} target="_blank"
             rel="noopener noreferrer"
+            title={siteDisplayUrl || baseUrl}
+            className="max-w-[28rem] truncate"
           >
-            {baseUrl}
+            {siteDisplayUrl || baseUrl}
           </a>
         </Button>
 
