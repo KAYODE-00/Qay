@@ -65,6 +65,16 @@ export async function getQayRenderSiteBaseUrl(): Promise<string | null> {
   return `${protocol}://${rawHost}`;
 }
 
+export async function getQayRenderHostSubdomain(): Promise<string | null> {
+  const headerStore = await headers();
+  const rawHost = normalizeRawHost(headerStore.get('x-forwarded-host') || headerStore.get('host'));
+  if (!rawHost) {
+    return null;
+  }
+
+  return getSubdomain(getHostname(rawHost));
+}
+
 export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}): Promise<string | null> {
   const { preferCookie = false } = options;
   const cookieSiteId = await readQaySiteIdFromCookies();

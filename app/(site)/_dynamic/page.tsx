@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation';
 import { unstable_noStore } from 'next/cache';
 import Link from 'next/link';
 import { fetchHomepage, fetchErrorPage, PaginationContext } from '@/lib/page-fetcher';
@@ -6,7 +7,7 @@ import PasswordForm from '@/components/PasswordForm';
 import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
-import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { getQayRenderHostSubdomain, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 
 // Internal pagination path: always dynamic/no-store.
@@ -19,7 +20,11 @@ interface DynamicHomeProps {
 
 export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
   const resolvedSearchParams = await searchParams;
+  const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = await getQayRenderSiteId();
+  if (renderSubdomain && !qaySiteId) {
+    notFound();
+  }
 
   const pageNumbers: Record<string, number> = {};
   for (const [key, value] of Object.entries(resolvedSearchParams)) {

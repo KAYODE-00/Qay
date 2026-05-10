@@ -10,7 +10,7 @@ import PasswordForm from '@/components/PasswordForm';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
-import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
+import { getQayRenderHostSubdomain, getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Page, PageFolder, Translation, Redirect as RedirectType } from '@/types';
 
@@ -256,7 +256,11 @@ interface PageProps {
 export default async function Page({ params }: PageProps) {
   // Await params
   const { slug } = await params;
+  const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = await getQayRenderSiteId();
+  if (renderSubdomain && !qaySiteId) {
+    notFound();
+  }
 
   // Handle catch-all slug (join array into path)
   const slugPath = Array.isArray(slug) ? slug.join('/') : slug;
@@ -389,7 +393,14 @@ export default async function Page({ params }: PageProps) {
 // Generate metadata
 export async function generateMetadata({ params }: { params: Promise<{ slug: string | string[] }> }): Promise<Metadata> {
   const { slug } = await params;
+  const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = await getQayRenderSiteId();
+  if (renderSubdomain && !qaySiteId) {
+    return {
+      title: 'Not Found',
+      robots: { index: false, follow: false },
+    };
+  }
   const siteBaseUrl = qaySiteId
     ? await getQayRenderSiteBaseUrl()
     : null;

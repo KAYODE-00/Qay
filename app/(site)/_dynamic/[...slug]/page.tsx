@@ -6,7 +6,7 @@ import PasswordForm from '@/components/PasswordForm';
 import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
-import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { getQayRenderHostSubdomain, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Redirect as RedirectType } from '@/types';
 
@@ -22,7 +22,11 @@ interface DynamicSlugPageProps {
 export default async function DynamicSlugPage({ params, searchParams }: DynamicSlugPageProps) {
   const { slug } = await params;
   const resolvedSearchParams = await searchParams;
+  const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = await getQayRenderSiteId();
+  if (renderSubdomain && !qaySiteId) {
+    notFound();
+  }
 
   const slugPath = Array.isArray(slug) ? slug.join('/') : slug;
   const currentPath = `/${slugPath}`;

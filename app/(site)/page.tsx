@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
 import { fetchHomepage, fetchErrorPage, splitPageData, reassemblePageData, slimPageData } from '@/lib/page-fetcher';
 import type { PageData } from '@/lib/page-fetcher';
@@ -8,7 +8,7 @@ import { generatePageMetadata, fetchGlobalPageSettings } from '@/lib/generate-pa
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import { QayLogo } from '@/qay/components/QayLogo';
-import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
+import { getQayRenderHostSubdomain, getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Metadata } from 'next';
 
@@ -111,7 +111,11 @@ export default async function Home({
     redirect(`/ycode/api/auth/callback?${callbackParams.toString()}`);
   }
 
+  const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = await getQayRenderSiteId();
+  if (renderSubdomain && !qaySiteId) {
+    notFound();
+  }
   // Cache-first homepage path; pagination is served through internal dynamic routes.
   const data = await fetchPublishedHomepage(qaySiteId);
   const siteScopedCss = data
@@ -279,7 +283,14 @@ export default async function Home({
 
 // Generate metadata
 export async function generateMetadata(): Promise<Metadata> {
+  const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = await getQayRenderSiteId();
+  if (renderSubdomain && !qaySiteId) {
+    return {
+      title: 'Not Found',
+      robots: { index: false, follow: false },
+    };
+  }
   const siteBaseUrl = qaySiteId
     ? await getQayRenderSiteBaseUrl()
     : null;
