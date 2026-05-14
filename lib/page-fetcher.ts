@@ -132,11 +132,7 @@ function filterByQaySite<T extends { settings?: unknown; error_page?: number | n
   const list = records || [];
   if (!qaySiteId) return list;
 
-  return list.filter((record) => (
-    record.error_page !== undefined && record.error_page !== null
-      ? true
-      : getQaySiteIdFromSettings(record.settings) === qaySiteId
-  ));
+  return list.filter((record) => getQaySiteIdFromSettings(record.settings) === qaySiteId);
 }
 
 /**
@@ -812,11 +808,26 @@ export async function fetchErrorPage(
     }
 
     // Get all active locales from the database
-    const { data: availableLocales } = await supabase
+    let localesQuery = supabase
       .from('locales')
       .select('*')
       .eq('is_published', isPublished)
       .is('deleted_at', null);
+
+    localesQuery = qaySiteId
+      ? localesQuery.eq('qay_site_id', qaySiteId)
+      : localesQuery.is('qay_site_id', null);
+
+    let { data: availableLocales, error: localesError } = await localesQuery;
+    if (localesError && isMissingLocalisationSiteColumnError(localesError)) {
+      const fallback = await supabase
+        .from('locales')
+        .select('*')
+        .eq('is_published', isPublished)
+        .is('deleted_at', null);
+      availableLocales = fallback.data;
+      localesError = fallback.error;
+    }
 
     // Get the error page
     let errorPageQuery = supabase
@@ -828,9 +839,14 @@ export async function fetchErrorPage(
 
     if (qaySiteId) {
       errorPageQuery = errorPageQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+    } else {
+      errorPageQuery = errorPageQuery.filter('settings->>qay_site_id', 'is', null);
     }
 
-    const { data: errorPage } = await errorPageQuery.single();
+    const { data: errorPage } = await errorPageQuery
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (!errorPage) {
       return null;
