@@ -117,6 +117,7 @@ interface LayerRendererProps {
   collectionItemSlugs?: Record<string, string>; // Maps collection_item_id -> slug value for link resolution
   isPreview?: boolean; // Whether we're in preview mode (prefix links with /ycode/preview)
   previewBasePath?: string; // Preview route base path for generated internal links
+  sitePathPrefix?: string; // Published QAY path prefix, e.g. /hh on Vercel path-based sites
   translations?: Record<string, any> | null; // Translations for localized URL generation
   anchorMap?: Record<string, string>; // Pre-built map of layerId -> anchor value for O(1) lookups
   /** Pre-resolved assets (asset_id -> { url, width, height }) for SSR resolution */
@@ -175,6 +176,7 @@ const LayerRenderer: React.FC<LayerRendererProps> = ({
   folders: foldersProp,
   isPreview = false,
   previewBasePath = '/ycode/preview',
+  sitePathPrefix,
   translations,
   anchorMap: anchorMapProp,
   resolvedAssets,
@@ -322,6 +324,8 @@ const LayerRenderer: React.FC<LayerRendererProps> = ({
         folders={folders}
         collectionItemSlugs={collectionItemSlugs}
         isPreview={isPreview}
+        previewBasePath={previewBasePath}
+        sitePathPrefix={sitePathPrefix}
         translations={translations}
         anchorMap={anchorMap}
         resolvedAssets={resolvedAssets}
@@ -390,6 +394,7 @@ const LayerItem: React.FC<{
   collectionItemSlugs?: Record<string, string>; // Maps collection_item_id -> slug value for link resolution
   isPreview?: boolean; // Whether we're in preview mode
   previewBasePath?: string;
+  sitePathPrefix?: string;
   translations?: Record<string, any> | null; // Translations for localized URL generation
   anchorMap?: Record<string, string>; // Pre-built map of layerId -> anchor value
   resolvedAssets?: Record<string, { url: string; width?: number | null; height?: number | null }>;
@@ -445,6 +450,7 @@ const LayerItem: React.FC<{
   collectionItemSlugs,
   isPreview,
   previewBasePath,
+  sitePathPrefix,
   translations,
   anchorMap,
   resolvedAssets,
@@ -543,6 +549,7 @@ const LayerItem: React.FC<{
     collectionItemSlugs,
     isPreview,
     previewBasePath,
+    sitePathPrefix,
     translations,
     anchorMap,
     resolvedAssets,
@@ -552,7 +559,7 @@ const LayerItem: React.FC<{
   // selectedLayerId and hoveredLayerId kept in the object for SSR/published mode
   // but excluded from deps so changes don't cascade re-renders in edit mode.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [isEditMode, isPublished, onLayerClick, onLayerUpdate, onLayerHover, pageId, collectionLayerData, collectionLayerItemId, effectiveLayerDataMap, pageCollectionItemId, pageCollectionItemData, pageCollectionSortedItemIds, hiddenLayerInfo, editorHiddenLayerIds, editorBreakpoint, currentLocale, availableLocales, localeSelectorFormat, liveLayerUpdates, liveComponentUpdates, isInsideForm, isInsideLink, parentFormSettings, pages, folders, collectionItemSlugs, isPreview, previewBasePath, translations, anchorMap, resolvedAssets, componentsProp, serverSettings, onComponentEdit]);
+  }), [isEditMode, isPublished, onLayerClick, onLayerUpdate, onLayerHover, pageId, collectionLayerData, collectionLayerItemId, effectiveLayerDataMap, pageCollectionItemId, pageCollectionItemData, pageCollectionSortedItemIds, hiddenLayerInfo, editorHiddenLayerIds, editorBreakpoint, currentLocale, availableLocales, localeSelectorFormat, liveLayerUpdates, liveComponentUpdates, isInsideForm, isInsideLink, parentFormSettings, pages, folders, collectionItemSlugs, isPreview, previewBasePath, sitePathPrefix, translations, anchorMap, resolvedAssets, componentsProp, serverSettings, onComponentEdit]);
 
   // Callback for rendering embedded components inside rich-text content
   // Clicks on the embedded component's internal layers should select the text layer
@@ -949,6 +956,7 @@ const LayerItem: React.FC<{
         collectionItemId: collectionLayerItemId,
         pageCollectionItemId,
         isPreview,
+        sitePathPrefix,
         locale: currentLocale,
         translations,
         getAsset,
@@ -1586,6 +1594,7 @@ const LayerItem: React.FC<{
     pageCollectionItemData: pageCollectionItemData || undefined,
     isPreview,
     previewBasePath,
+    sitePathPrefix,
     locale: currentLocale,
     translations,
     getAsset,
@@ -2715,6 +2724,7 @@ const LayerItem: React.FC<{
               folders={folders}
               collectionItemSlugs={collectionItemSlugs}
               isPreview={isPreview}
+              previewBasePath={previewBasePath}
               translations={translations}
               anchorMap={anchorMap}
               resolvedAssets={resolvedAssets}
@@ -2946,6 +2956,7 @@ const LayerItem: React.FC<{
                     folders={folders}
                     collectionItemSlugs={collectionItemSlugs}
                     isPreview={isPreview}
+                    previewBasePath={previewBasePath}
                     translations={translations}
                     anchorMap={anchorMap}
                     resolvedAssets={resolvedAssets}
@@ -2967,7 +2978,9 @@ const LayerItem: React.FC<{
     if (layer.name === 'localeSelector' && !isEditMode && availableLocales && availableLocales.length > 0) {
       // Extract current page slug from URL (LocaleSelector handles this internally)
       const currentPageSlug = typeof window !== 'undefined'
-        ? window.location.pathname.slice(1).replace(/^ycode\/preview\/?/, '')
+        ? window.location.pathname
+          .slice(1)
+          .replace(/^(?:qay|ycode)\/preview\/?/, '')
         : '';
 
       // Get format setting from this layer to pass to children
@@ -3002,6 +3015,7 @@ const LayerItem: React.FC<{
               folders={folders}
               collectionItemSlugs={collectionItemSlugs}
               isPreview={isPreview}
+              previewBasePath={previewBasePath}
               translations={translations}
               anchorMap={anchorMap}
               resolvedAssets={resolvedAssets}
@@ -3092,6 +3106,7 @@ const LayerItem: React.FC<{
             folders={folders}
             collectionItemSlugs={collectionItemSlugs}
             isPreview={isPreview}
+            previewBasePath={previewBasePath}
             translations={translations}
             anchorMap={anchorMap}
             resolvedAssets={resolvedAssets}
