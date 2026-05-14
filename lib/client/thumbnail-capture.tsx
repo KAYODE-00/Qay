@@ -10,6 +10,7 @@
  */
 
 import React from 'react';
+import { flushSync } from 'react-dom';
 import { createRoot, Root } from 'react-dom/client';
 import { toBlob } from 'html-to-image';
 
@@ -74,27 +75,29 @@ async function captureLayersAsBlob(
 
     // Render layers into the iframe
     root = createRoot(mountPoint);
-    root.render(
-      <div
-        id="component-preview"
-        style={{
-          background: 'white',
-          minHeight: '400px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <LayerRenderer
-            layers={resolvedLayers}
-            isEditMode={false}
-            isPublished={false}
-            pageId="thumbnail"
-          />
+    flushSync(() => {
+      root?.render(
+        <div
+          id="component-preview"
+          style={{
+            background: 'white',
+            minHeight: '400px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <LayerRenderer
+              layers={resolvedLayers}
+              isEditMode={false}
+              isPublished={false}
+              pageId="thumbnail"
+            />
+          </div>
         </div>
-      </div>
-    );
+      );
+    });
 
     // Wait for React to render + Tailwind to process all classes
     await new Promise((resolve) => setTimeout(resolve, TAILWIND_INIT_DELAY));
@@ -126,7 +129,10 @@ async function captureLayersAsBlob(
 
     // Capture the rendered content
     const target = doc.getElementById('component-preview');
-    if (!target) throw new Error('Component preview element not found');
+    if (!target) {
+      console.warn('Component thumbnail preview did not mount; skipping thumbnail capture.');
+      return null;
+    }
 
     const blob = await toBlob(target, {
       backgroundColor: '#ffffff',
