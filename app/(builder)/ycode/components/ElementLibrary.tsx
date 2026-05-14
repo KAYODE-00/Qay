@@ -42,7 +42,7 @@ import ComponentCard from './ComponentCard';
 import SaveLayoutDialog from './SaveLayoutDialog';
 import { usePagesStore } from '@/stores/usePagesStore';
 import { useEditorStore } from '@/stores/useEditorStore';
-import { useComponentsStore } from '@/stores/useComponentsStore';
+import { triggerThumbnailGeneration, useComponentsStore } from '@/stores/useComponentsStore';
 import { useEditorActions } from '@/hooks/use-editor-url';
 import type { UseLiveLayerUpdatesReturn } from '@/hooks/use-live-layer-updates';
 
@@ -315,6 +315,26 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
   }, [components, componentSearch]);
 
   const hasComponentResults = !matchingComponentIds || matchingComponentIds.size > 0;
+  const templateThumbnailGenerationRef = useRef(new Set<string>());
+  const templatePartCategories = useMemo(() => {
+    const query = componentSearch.trim().toLowerCase();
+    const entries = Object.entries(getLayoutsByCategory())
+      .map(([category, layoutKeys]) => {
+        const filteredKeys = query
+          ? layoutKeys.filter((layoutKey) =>
+            layoutKey.toLowerCase().includes(query) || category.toLowerCase().includes(query)
+          )
+          : layoutKeys;
+
+        return [category, filteredKeys] as const;
+      })
+      .filter(([, layoutKeys]) => layoutKeys.length > 0);
+
+    return entries;
+  }, [componentSearch]);
+  const hasTemplatePartResults = templatePartCategories.length > 0;
+  const hasSavedComponentResults = components.length > 0 && hasComponentResults;
+  const hasAnyComponentResults = hasSavedComponentResults || hasTemplatePartResults;
 
   const [isEditLayoutDialogOpen, setIsEditLayoutDialogOpen] = useState(false);
   const [editingLayoutKey, setEditingLayoutKey] = useState<string>('');
@@ -334,7 +354,11 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
     }
     // Initialize with all categories collapsed except "Navigation", "Hero", "Blog header" and "Blog posts"
     const allCategories = Object.keys(getLayoutsByCategory());
-    return new Set(allCategories.filter(cat => cat !== 'Navigation' && cat !== 'Hero' && cat !== 'Blog header' && cat !== 'Blog posts'));
+    const collapsed = allCategories.filter(cat => cat !== 'Navigation' && cat !== 'Hero' && cat !== 'Blog header' && cat !== 'Blog posts');
+    return new Set([
+      ...collapsed,
+      ...collapsed.map((category) => `template:${category}`),
+    ]);
   });
 
   // Sync tab when explicitly requested (e.g., "Add layout" button)
@@ -355,6 +379,22 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
       sessionStorage.setItem('elementLibrary-activeTab', activeTab);
     }
   }, [activeTab]);
+
+  React.useEffect(() => {
+    if (activeTab !== 'components') return;
+
+    components
+      .filter((component) =>
+        !component.thumbnail_url
+        && component.layers?.length
+        && !templateThumbnailGenerationRef.current.has(component.id)
+      )
+      .slice(0, 8)
+      .forEach((component) => {
+        templateThumbnailGenerationRef.current.add(component.id);
+        triggerThumbnailGeneration(component.id, component.layers, components);
+      });
+  }, [activeTab, components]);
 
   // Persist collapsed state to sessionStorage
   React.useEffect(() => {
@@ -1536,11 +1576,11 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
             value="components" forceMount
             ref={(el) => { tabRefs.current.components = el; }} className="flex flex-col overflow-y-auto flex-1 px-4 pb-4 no-scrollbar"
           >
-            {components.length === 0 ? (
+            {components.length === 0 && !hasTemplatePartResults ? (
               <Empty>
-                <EmptyTitle>No components yet</EmptyTitle>
+                <EmptyTitle>No reusable parts yet</EmptyTitle>
                 <EmptyDescription>
-                  Right-click a layer and select &quot;Create component&quot; to make it reusable
+                  Template parts and saved components will appear here.
                 </EmptyDescription>
               </Empty>
             ) : (
@@ -1557,73 +1597,151 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
                   </div>
                 </div>
                 <div className="border-b border-border mb-4" />
-                {!hasComponentResults && (
+                {!hasAnyComponentResults && (
                   <Empty>
                     <EmptyMedia variant="icon">
                       <Icon name="component" className="size-4" />
                     </EmptyMedia>
-                    <EmptyTitle>No matching components</EmptyTitle>
+                    <EmptyTitle>No matching reusable parts</EmptyTitle>
                   </Empty>
                 )}
-                <div className={cn('grid grid-cols-1 gap-1.5 pb-5', !hasComponentResults && 'hidden')}>
-                  {components.map((component) => {
-                    const isHidden = matchingComponentIds && !matchingComponentIds.has(component.id);
+                <div className={cn('flex flex-col divide-y pb-5', !hasTemplatePartResults && 'hidden')}>
+                  {templatePartCategories.map(([category, layoutKeys]) => {
+                    const isCollapsed = collapsedCategories.has(`template:${category}`);
+
                     return (
-                      <ComponentCard
-                        key={component.id}
-                        component={component}
-                        className={cn(
-                          circularComponentIds.has(component.id) && 'opacity-40 pointer-events-none',
-                          isHidden && 'hidden',
-                        )}
-                        onClick={() => handleAddComponent(component.id)}
-                        onMouseDown={(e) => {
-                          if (e.button !== 0) return;
-                          if (circularComponentIds.has(component.id)) return;
-                          const startX = e.clientX;
-                          const startY = e.clientY;
-                          let dragging = false;
+                      <div key={category} className="flex flex-col">
+                        <header
+                          className="py-4 flex items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity"
+                          onClick={() => toggleCategory(`template:${category}`)}
+                        >
+                          <Icon
+                            name="triangle-down"
+                            className={cn(
+                              'size-3 opacity-25 transition-transform',
+                              isCollapsed && '-rotate-90'
+                            )}
+                          />
+                          <Label className="cursor-pointer">{category}</Label>
+                        </header>
+                        <div className={cn('grid grid-cols-1 gap-1.5 pb-4', isCollapsed && 'hidden')}>
+                          {layoutKeys.map((layoutKey) => {
+                            const previewImage = getLayoutPreviewImage(layoutKey);
 
-                          const handleMouseMove = (moveEvent: MouseEvent) => {
-                            const dx = moveEvent.clientX - startX;
-                            const dy = moveEvent.clientY - startY;
-                            if (!dragging && Math.sqrt(dx * dx + dy * dy) > 5) {
-                              dragging = true;
-                              handleElementDragStart(e, component.id, 'components', component.name);
-                            }
-                          };
-
-                          const handleMouseUp = () => {
-                            document.removeEventListener('mousemove', handleMouseMove);
-                            document.removeEventListener('mouseup', handleMouseUp);
-                            if (!dragging) handleAddComponent(component.id);
-                            dragging = false;
-                          };
-
-                          document.addEventListener('mousemove', handleMouseMove);
-                          document.addEventListener('mouseup', handleMouseUp);
-                        }}
-                        actions={
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                                onClick={(e) => e.stopPropagation()}
+                            return (
+                              <ElementButton
+                                key={`template-part-${layoutKey}`}
+                                elementType={layoutKey}
+                                source="layouts"
+                                name={layoutKey}
+                                icon="layout"
+                                onClick={() => handleAddLayout(layoutKey)}
+                                onDragStart={handleElementDragStart}
+                                variant="card"
                               >
-                                <Icon name="more" className="size-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={(e) => handleEditComponent(component, e)}>Edit</DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => handleDeleteClick(component, e)}>Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        }
-                      />
+                                {previewImage ? (
+                                  <img
+                                    src={previewImage}
+                                    width={640}
+                                    height={262}
+                                    alt="Template part preview"
+                                    loading="eager"
+                                    className="pointer-events-none aspect-[640/262] w-full rounded object-contain"
+                                  />
+                                ) : (
+                                  <div className="flex aspect-[640/262] w-full items-center justify-center rounded bg-muted text-xs text-muted-foreground">
+                                    Template part
+                                  </div>
+                                )}
+                                <div className="mt-1 flex w-full items-center gap-1 px-0.5">
+                                  <Icon name="layout" className="size-3 shrink-0 text-muted-foreground" />
+                                  <span className="truncate text-xs font-medium" title={layoutKey}>
+                                    {layoutKey}
+                                  </span>
+                                </div>
+                              </ElementButton>
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
+                </div>
+
+                <div className={cn('flex flex-col border-t border-border', !hasSavedComponentResults && 'hidden')}>
+                  <header
+                    className="py-4 flex items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity"
+                    onClick={() => toggleCategory('saved-components')}
+                  >
+                    <Icon
+                      name="triangle-down"
+                      className={cn(
+                        'size-3 opacity-25 transition-transform',
+                        collapsedCategories.has('saved-components') && '-rotate-90'
+                      )}
+                    />
+                    <Label className="cursor-pointer">Saved components</Label>
+                  </header>
+                  <div className={cn('grid grid-cols-1 gap-1.5 pb-5', collapsedCategories.has('saved-components') && 'hidden')}>
+                    {components.map((component) => {
+                      const isHidden = matchingComponentIds && !matchingComponentIds.has(component.id);
+                      return (
+                        <ComponentCard
+                          key={component.id}
+                          component={component}
+                          className={cn(
+                            circularComponentIds.has(component.id) && 'opacity-40 pointer-events-none',
+                            isHidden && 'hidden',
+                          )}
+                          onClick={() => handleAddComponent(component.id)}
+                          onMouseDown={(e) => {
+                            if (e.button !== 0) return;
+                            if (circularComponentIds.has(component.id)) return;
+                            const startX = e.clientX;
+                            const startY = e.clientY;
+                            let dragging = false;
+
+                            const handleMouseMove = (moveEvent: MouseEvent) => {
+                              const dx = moveEvent.clientX - startX;
+                              const dy = moveEvent.clientY - startY;
+                              if (!dragging && Math.sqrt(dx * dx + dy * dy) > 5) {
+                                dragging = true;
+                                handleElementDragStart(e, component.id, 'components', component.name);
+                              }
+                            };
+
+                            const handleMouseUp = () => {
+                              document.removeEventListener('mousemove', handleMouseMove);
+                              document.removeEventListener('mouseup', handleMouseUp);
+                              if (!dragging) handleAddComponent(component.id);
+                              dragging = false;
+                            };
+
+                            document.addEventListener('mousemove', handleMouseMove);
+                            document.addEventListener('mouseup', handleMouseUp);
+                          }}
+                          actions={
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Icon name="more" className="size-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => handleEditComponent(component, e)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => handleDeleteClick(component, e)}>Delete</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          }
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

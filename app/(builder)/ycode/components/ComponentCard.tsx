@@ -32,7 +32,7 @@ export default function ComponentCard({
       <button
         type="button"
         className={cn(
-          'flex flex-col items-start p-1.5 overflow-hidden rounded-[10px] border border-border bg-secondary text-left transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+          'flex aspect-[640/262] w-full flex-col items-start overflow-hidden rounded-[10px] border border-border bg-secondary p-1.5 text-left transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
           onMouseDown && 'cursor-grab active:cursor-grabbing select-none',
         )}
         onClick={onMouseDown ? undefined : onClick}
