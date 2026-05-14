@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useState, useMemo, type ComponentProps } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEditorUrl } from '@/hooks/use-editor-url';
 import { findHomepage } from '@/lib/page-utils';
@@ -14,9 +14,6 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 // 4. Stores
@@ -32,11 +29,9 @@ import type { User } from '@supabase/supabase-js';
 import ActiveUsersInHeader from './ActiveUsersInHeader';
 import InviteUserButton from './InviteUserButton';
 import PublishPopover from './PublishPopover';
-import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 import { Separator } from '@/components/ui/separator';
 import { BackupRestoreDialog } from '@/components/project/BackupRestoreDialog';
-import { isCloudVersion } from '@/lib/utils';
 import { readQayEditorSiteIdFromBrowser, readQayEditorSiteSlugFromBrowser } from '@/qay/lib/editor-site';
 import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 import { getQaySiteBaseUrl } from '@/qay/lib/site-url';
@@ -60,6 +55,31 @@ interface HeaderBarProps {
   onExitComponentEditMode?: () => void;
   onPublishSuccess: () => void;
   isSettingsRoute?: boolean;
+}
+
+type RailButtonProps = {
+  title: string;
+  icon: ComponentProps<typeof Icon>['name'];
+  active?: boolean;
+  onClick: () => void;
+};
+
+function RailButton({ title, icon, active, onClick }: RailButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label={title}
+      title={title}
+      onClick={onClick}
+      className={`flex size-10 items-center justify-center rounded-lg border transition ${
+        active
+          ? 'border-primary/30 bg-primary/15 text-primary shadow-sm'
+          : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent hover:text-accent-foreground'
+      }`}
+    >
+      <Icon name={icon} className="size-4" />
+    </button>
+  );
 }
 
 export default function HeaderBar({
@@ -170,7 +190,7 @@ export default function HeaderBar({
     return 'dark';
   });
   const [baseUrl, setBaseUrl] = useState<string>('');
-  const [hasUpdate, setHasUpdate] = useState(false);
+  const [currentQaySiteSlug, setCurrentQaySiteSlug] = useState<string | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
 
   // Get current host after mount
@@ -181,6 +201,7 @@ export default function HeaderBar({
     const siteSlug = readQayEditorSiteSlugFromBrowser();
 
     if (siteSlug) {
+      setCurrentQaySiteSlug(siteSlug);
       const directBaseUrl = getQaySiteBaseUrl({
         slug: siteSlug,
         custom_domain: null,
@@ -208,6 +229,9 @@ export default function HeaderBar({
 
         const payload = await response.json().catch(() => null);
         const site = payload?.data;
+        if (site?.slug && !isCancelled) {
+          setCurrentQaySiteSlug(site.slug);
+        }
         return site ? (getQaySiteBaseUrl(site) || fallbackBaseUrl) : fallbackBaseUrl;
       })
       .catch(() => fallbackBaseUrl)
@@ -220,23 +244,7 @@ export default function HeaderBar({
     return () => {
       isCancelled = true;
     };
-  }, []);
-
-  // Check for updates on mount
-  useEffect(() => {
-    const checkForUpdates = async () => {
-      try {
-        const response = await fetch('/ycode/api/updates/check');
-        if (response.ok) {
-          const data = await response.json();
-          setHasUpdate(data.available === true);
-        }
-      } catch (error) {
-        console.error('Failed to check for updates:', error);
-      }
-    };
-    checkForUpdates();
-  }, []);
+  }, [currentQaySiteId]);
 
   // Get selected locale (computed from subscribed store values)
   const selectedLocale = useMemo(() => {
@@ -349,13 +357,77 @@ export default function HeaderBar({
     return path === '/' ? '' : path;
   }, [currentPage, isSettingsRoute, storePages, folders, localizedPagePath, collectionItemSlug, selectedLocale, localeTranslations]);
 
-  const siteDisplayUrl = useMemo(() => {
-    if (!baseUrl) {
+  const publishBaseUrl = useMemo(() => {
+    if (!baseUrl || !currentQaySiteSlug) {
+      return baseUrl;
+    }
+
+    try {
+      const url = new URL(baseUrl);
+      const firstSegment = url.pathname.split('/').filter(Boolean)[0];
+      if (url.hostname.endsWith('.vercel.app') && firstSegment !== currentQaySiteSlug) {
+        return `${url.origin}/${currentQaySiteSlug}`;
+      }
+    } catch {
+      return baseUrl;
+    }
+
+    return baseUrl;
+  }, [baseUrl, currentQaySiteSlug]);
+
+  const publishDisplayUrl = useMemo(() => {
+    if (!publishBaseUrl) {
       return '';
     }
 
-    return `${baseUrl}${publishedUrl}`;
-  }, [baseUrl, publishedUrl]);
+    return `${publishBaseUrl}${publishedUrl}`;
+  }, [publishBaseUrl, publishedUrl]);
+
+  const goToDesign = () => {
+    setOptimisticNav('design');
+    setActiveSidebarTab('layers');
+    const validLastDesignUrl = getValidLastDesignUrl();
+    if (validLastDesignUrl) {
+      router.push(validLastDesignUrl);
+      return;
+    }
+
+    if (lastDesignUrl) {
+      setLastDesignUrl(null);
+    }
+
+    const targetPageId = storeCurrentPageId || findHomepage(storePages)?.id || storePages[0]?.id;
+    if (targetPageId) {
+      navigateToLayers(targetPageId);
+    }
+  };
+
+  const goToCms = () => {
+    const isDesignRoute = routeType === 'layers' || routeType === 'page' || routeType === 'component';
+    if (isDesignRoute) {
+      setLastDesignUrl(window.location.pathname + window.location.search);
+    }
+
+    setOptimisticNav('cms');
+    setActiveSidebarTab('cms');
+    const targetCollectionId = storeSelectedCollectionId || collections[0]?.id;
+    if (targetCollectionId) {
+      setSelectedCollectionId(targetCollectionId);
+      navigateToCollection(targetCollectionId);
+    } else {
+      navigateToCollections();
+    }
+  };
+
+  const goToForms = () => {
+    const isDesignRoute = routeType === 'layers' || routeType === 'page' || routeType === 'component';
+    if (isDesignRoute) {
+      setLastDesignUrl(window.location.pathname + window.location.search);
+    }
+
+    setOptimisticNav('forms');
+    router.push(withCurrentSite('/ycode/forms'));
+  };
 
   // Apply theme to HTML element
   useEffect(() => {
@@ -397,187 +469,34 @@ export default function HeaderBar({
     <header className="h-14 bg-background border-b grid grid-cols-3 items-center px-4">
       {/* Left: Logo & Navigation */}
       <div className="flex items-center gap-2">
-
-        {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="secondary" size="sm"
-              className="size-8!"
+        <Button
+          variant="secondary" size="sm"
+          className="size-8!"
+          onClick={() => router.push('/dashboard')}
+          title="Dashboard"
+          aria-label="Dashboard"
+        >
+          <div className="dark:text-white text-secondary-foreground">
+            <svg
+              className="size-3.5 fill-current" viewBox="0 0 24 24"
+              version="1.1" xmlns="http://www.w3.org/2000/svg"
             >
-              <div className="dark:text-white text-secondary-foreground">
-                <svg
-                  className="size-3.5 fill-current" viewBox="0 0 24 24"
-                  version="1.1" xmlns="http://www.w3.org/2000/svg"
-                >
-                  <g
-                    id="Symbols" stroke="none"
-                    strokeWidth="1" fill="none"
-                    fillRule="evenodd"
-                  >
-                    <g id="Sidebar" transform="translate(-30.000000, -30.000000)">
-                      <g id="Ycode">
-                        <g transform="translate(30.000000, 30.000000)">
-                          <rect
-                            id="Rectangle" x="0"
-                            y="0" width="24"
-                            height="24"
-                          />
-                          <path
-                            id="CurrentFill" d="M11.4241533,0 L11.4241533,5.85877951 L6.024,8.978 L12.6155735,12.7868008 L10.951,13.749 L23.0465401,6.75101349 L23.0465401,12.6152717 L3.39516096,23.9856666 L3.3703726,24 L3.34318129,23.9827156 L0.96,22.4713365 L0.96,16.7616508 L3.36417551,18.1393242 L7.476,15.76 L0.96,11.9090099 L0.96,6.05375516 L11.4241533,0 Z"
-                            className="fill-current"
-                          />
-                        </g>
-                      </g>
-                    </g>
-                  </g>
-                </svg>
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {isCloudVersion() && (
-              <>
-                <DropdownMenuItem asChild>
-                  <a href="https://dashboard.ycode.cloud/dashboard">
-                    Dashboard
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuItem
-              onClick={() => router.push(withCurrentSite('/ycode/settings/general'))}
-            >
-              {currentQaySiteId ? 'General settings' : 'Settings'}
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onClick={() => openFileManager()}
-            >
-              File manager
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onClick={() => router.push(withCurrentSite('/ycode/integrations/apps'))}
-            >
-              Integrations
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onClick={() => setShowTransferDialog(true)}
-            >
-              Backup &amp; Restore
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                Theme
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuRadioGroup value={theme} onValueChange={(value) => setTheme(value as 'system' | 'light' | 'dark')}>
-                  <DropdownMenuRadioItem value="system">
-                    System
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="light">
-                    Light
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="dark">
-                    Dark
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-
-            <DropdownMenuItem
-              onClick={() => setKeyboardShortcutsOpen(true)}
-            >
-              Keyboard shortcuts
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onClick={() => router.push(withCurrentSite('/ycode/profile'))}
-            >
-              My profile
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onClick={async () => {
-                await signOut();
-              }}
-            >
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <path
+                d="M11.4241533,0 L11.4241533,5.85877951 L6.024,8.978 L12.6155735,12.7868008 L10.951,13.749 L23.0465401,6.75101349 L23.0465401,12.6152717 L3.39516096,23.9856666 L3.3703726,24 L3.34318129,23.9827156 L0.96,22.4713365 L0.96,16.7616508 L3.36417551,18.1393242 L7.476,15.76 L0.96,11.9090099 L0.96,6.05375516 L11.4241533,0 Z"
+                className="fill-current"
+              />
+            </svg>
+          </div>
+        </Button>
 
         <div className="flex gap-1">
           <Button
             variant={activeNavButton === 'design' ? 'secondary' : 'ghost'}
             size="sm"
-            onClick={() => {
-              setOptimisticNav('design');
-              setActiveSidebarTab('layers');
-              const validLastDesignUrl = getValidLastDesignUrl();
-              if (validLastDesignUrl) {
-                router.push(validLastDesignUrl);
-              } else {
-                if (lastDesignUrl) {
-                  setLastDesignUrl(null);
-                }
-                const targetPageId = storeCurrentPageId || findHomepage(storePages)?.id || storePages[0]?.id;
-                if (targetPageId) {
-                  navigateToLayers(targetPageId);
-                }
-              }
-            }}
+            onClick={goToDesign}
           >
             <Icon name="cursor-default" />
             Design
-          </Button>
-          <Button
-            variant={activeNavButton === 'cms' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => {
-              // Save current design URL before navigating away
-              const isDesignRoute = routeType === 'layers' || routeType === 'page' || routeType === 'component';
-              if (isDesignRoute) {
-                setLastDesignUrl(window.location.pathname + window.location.search);
-              }
-              setOptimisticNav('cms');
-              setActiveSidebarTab('cms');
-              // Navigate to last selected or first available collection
-              const targetCollectionId = storeSelectedCollectionId || collections[0]?.id;
-              if (targetCollectionId) {
-                setSelectedCollectionId(targetCollectionId);
-                navigateToCollection(targetCollectionId);
-              } else {
-                navigateToCollections();
-              }
-            }}
-          >
-            <Icon name="database" />
-            CMS
-          </Button>
-          <Button
-            variant={activeNavButton === 'forms' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => {
-              // Save current design URL before navigating away
-              const isDesignRoute = routeType === 'layers' || routeType === 'page' || routeType === 'component';
-              if (isDesignRoute) {
-                setLastDesignUrl(window.location.pathname + window.location.search);
-              }
-              setOptimisticNav('forms');
-              router.push(withCurrentSite('/ycode/forms'));
-            }}
-          >
-            <Icon name="form" />
-            Forms
           </Button>
         </div>
       </div>
@@ -631,31 +550,15 @@ export default function HeaderBar({
           asChild
         >
           <a
-            href={baseUrl + publishedUrl} target="_blank"
+            href={publishDisplayUrl || publishBaseUrl} target="_blank"
             rel="noopener noreferrer"
-            title={siteDisplayUrl || baseUrl}
+            title={publishDisplayUrl || publishBaseUrl}
             className="max-w-[28rem] truncate"
           >
-            {siteDisplayUrl || baseUrl}
+            {publishDisplayUrl || publishBaseUrl}
           </a>
         </Button>
 
-        {hasUpdate && (
-          <>
-            <div className="h-5">
-              <Separator orientation="vertical" />
-            </div>
-
-            <Button
-              size="xs"
-              variant="default"
-              className="bg-primary/20 hover:bg-primary/30 text-blue-400 hover:text-blue-300"
-              onClick={() => router.push(withCurrentSite('/ycode/settings/updates'))}
-            >
-              Update available
-            </Button>
-          </>
-        )}
       </div>
 
       {/* Right: User & Actions */}
@@ -734,13 +637,113 @@ export default function HeaderBar({
         <PublishPopover
           isPublishing={isPublishing}
           setIsPublishing={setIsPublishing}
-          baseUrl={baseUrl}
+          baseUrl={publishBaseUrl}
           publishedUrl={publishedUrl}
           onPublishSuccess={onPublishSuccess}
         />
 
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="size-9 rounded-full px-0 text-xs font-medium"
+              aria-label="Profile"
+              title="Profile"
+            >
+              {(user?.email || 'Q').slice(0, 1).toUpperCase()}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+              Dashboard
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push(withCurrentSite('/ycode/profile'))}>
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={async () => {
+                await signOut();
+              }}
+            >
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
       </div>
     </header>
+
+    <aside className="fixed left-0 top-14 bottom-0 z-40 flex w-16 flex-col items-center border-r border-border bg-background/95 px-2 py-3 shadow-sm backdrop-blur">
+      <div className="flex flex-1 flex-col items-center gap-2">
+        <RailButton
+          title="Dashboard" icon="layout"
+          onClick={() => router.push('/dashboard')}
+        />
+        <RailButton
+          title="Design" icon="cursor-default"
+          active={activeNavButton === 'design'} onClick={goToDesign}
+        />
+        <RailButton
+          title="CMS" icon="database"
+          active={activeNavButton === 'cms'} onClick={goToCms}
+        />
+        <RailButton
+          title="Forms" icon="form"
+          active={activeNavButton === 'forms'} onClick={goToForms}
+        />
+
+        <div className="my-2 h-px w-8 bg-border" />
+
+        <RailButton
+          title="File manager" icon="folder"
+          onClick={() => openFileManager()}
+        />
+        <RailButton
+          title="Integrations" icon="zap-outline"
+          onClick={() => router.push(withCurrentSite('/ycode/integrations/apps'))}
+        />
+        <RailButton
+          title={currentQaySiteId ? 'General settings' : 'Settings'} icon="settings"
+          onClick={() => router.push(withCurrentSite('/ycode/settings/general'))}
+        />
+        <RailButton
+          title="Backup and restore" icon="undo"
+          onClick={() => setShowTransferDialog(true)}
+        />
+        <RailButton
+          title="Localization" icon="globe"
+          onClick={() => router.push(withCurrentSite('/ycode/localization'))}
+        />
+      </div>
+
+      <div className="flex flex-col items-center gap-2">
+        <RailButton
+          title="Keyboard shortcuts" icon="code"
+          onClick={() => setKeyboardShortcutsOpen(true)}
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Theme"
+              title="Theme"
+              className="flex size-10 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition hover:border-border hover:bg-accent hover:text-accent-foreground"
+            >
+              <Icon name="paintbrush" className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="end">
+            <DropdownMenuRadioGroup value={theme} onValueChange={(value) => setTheme(value as 'system' | 'light' | 'dark')}>
+              <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </aside>
 
     <BackupRestoreDialog
       open={showTransferDialog}

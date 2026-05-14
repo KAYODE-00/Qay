@@ -370,8 +370,17 @@ export async function publishPages(pageIds: string[]): Promise<PublishPagesResul
   const nonDynamicPagesToUpsert = pagesToUpsert.filter((p) => !p.is_dynamic);
 
   if (nonDynamicPagesToUpsert.length > 0) {
-    const slugKey = (p: { slug: string; page_folder_id: string | null; error_page: number | null }) =>
-      `${p.slug}\t${p.page_folder_id ?? ''}\t${p.error_page ?? 0}`;
+    const getSiteKey = (settings: unknown) => {
+      if (settings && typeof settings === 'object' && 'qay_site_id' in settings) {
+        const siteId = (settings as { qay_site_id?: unknown }).qay_site_id;
+        return typeof siteId === 'string' && siteId ? siteId : '__ycode_global__';
+      }
+
+      return '__ycode_global__';
+    };
+
+    const slugKey = (p: { slug: string; page_folder_id: string | null; error_page: number | null; settings?: unknown }) =>
+      `${p.slug}\t${p.page_folder_id ?? ''}\t${p.error_page ?? 0}\t${getSiteKey(p.settings)}`;
 
     // Map from slug key -> id that will occupy that slot after upsert
     const upsertKeyToId = new Map<string, string>();
@@ -382,7 +391,7 @@ export async function publishPages(pageIds: string[]): Promise<PublishPagesResul
     const slugsToCheck = [...new Set(nonDynamicPagesToUpsert.map((p) => p.slug))];
     const { data: conflictingPublished } = await client
       .from('pages')
-      .select('id, slug, page_folder_id, error_page')
+      .select('id, slug, page_folder_id, error_page, settings')
       .eq('is_published', true)
       .eq('is_dynamic', false)
       .is('deleted_at', null)
