@@ -1,7 +1,7 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Code2, ExternalLink, LayoutTemplate, Plus } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, User } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
 import { htmlToLayers } from '@/lib/html-layer-converter';
 import { QayLogo } from '@/qay/components/QayLogo';
@@ -26,6 +26,34 @@ type Props = {
   initialSites: QaySite[];
   userEmail: string;
 };
+
+function DashboardNavItem({
+  href,
+  label,
+  active,
+  children,
+}: {
+  href: string;
+  label: string;
+  active?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      aria-label={label}
+      title={label}
+      className={`flex size-11 items-center justify-center rounded-xl border transition ${
+        active
+          ? 'border-white/15 bg-white text-black shadow-sm'
+          : 'border-transparent text-white/55 hover:border-white/10 hover:bg-white/5 hover:text-white'
+      }`}
+    >
+      {children}
+      <span className="sr-only">{label}</span>
+    </a>
+  );
+}
 
 export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
   const [sites, setSites] = useState(initialSites);
@@ -191,9 +219,41 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white">
+      <aside className="fixed inset-y-0 left-0 z-40 flex w-20 flex-col items-center border-r border-white/10 bg-black/40 px-3 py-4 shadow-sm backdrop-blur">
+        <a
+          href="/dashboard" aria-label="Dashboard"
+          className="mb-6 flex size-11 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
+        >
+          <div className="scale-75">
+            <QayLogo />
+          </div>
+        </a>
+        <nav className="flex flex-1 flex-col items-center gap-2">
+          <DashboardNavItem href="/dashboard" label="Sites">
+            <Home className="size-5" />
+          </DashboardNavItem>
+          <DashboardNavItem
+            href="/dashboard/templates" label="Templates"
+            active
+          >
+            <LayoutTemplate className="size-5" />
+          </DashboardNavItem>
+          <DashboardNavItem href="/dashboard/profile" label="Profile">
+            <User className="size-5" />
+          </DashboardNavItem>
+        </nav>
+        <div className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs font-medium text-white/80">
+          {initials}
+        </div>
+      </aside>
+
+      <div className="pl-20">
       <header className="border-b border-white/10 bg-black/40">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <QayLogo />
+        <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-white/45">QAY Studio</p>
+            <h1 className="text-lg font-semibold tracking-normal">Templates</h1>
+          </div>
           <div className="flex items-center gap-3">
             <a
               href="/dashboard"
@@ -208,7 +268,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
         </div>
       </header>
 
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <section className="px-4 py-10 sm:px-6 lg:px-8">
         <a href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/55 hover:text-white">
           <ArrowLeft className="size-4" />
           Dashboard
@@ -393,6 +453,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
         onOpenChange={setIsImportOpen}
         onImport={handleImportHtml}
       />
+      </div>
     </main>
   );
 }

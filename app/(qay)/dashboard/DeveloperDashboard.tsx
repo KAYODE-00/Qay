@@ -1,7 +1,7 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
-import { Bell, ExternalLink, Grid2X2, LayoutTemplate, List, MoreVertical, Plus, Settings, Trash2, UserPlus } from 'lucide-react';
+import { FormEvent, useMemo, useState, type ReactNode } from 'react';
+import { Bell, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Trash2, User, UserPlus } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
 import type { QaySite } from '@/qay/types';
@@ -10,6 +10,34 @@ type DashboardProps = {
   initialSites: QaySite[];
   userEmail: string;
 };
+
+function DashboardNavItem({
+  href,
+  label,
+  active,
+  children,
+}: {
+  href: string;
+  label: string;
+  active?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      aria-label={label}
+      title={label}
+      className={`flex size-11 items-center justify-center rounded-xl border transition ${
+        active
+          ? 'border-foreground/15 bg-foreground text-background shadow-sm'
+          : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent hover:text-accent-foreground'
+      }`}
+    >
+      {children}
+      <span className="sr-only">{label}</span>
+    </a>
+  );
+}
 
 function formatRelativeDate(value: string | null) {
   if (!value) return 'Updated recently';
@@ -91,10 +119,41 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-card/80">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <QayLogo />
+      <aside className="fixed inset-y-0 left-0 z-40 flex w-20 flex-col items-center border-r border-border bg-card/90 px-3 py-4 shadow-sm backdrop-blur">
+        <a
+          href="/dashboard" aria-label="Dashboard"
+          className="mb-6 flex size-11 items-center justify-center overflow-hidden rounded-xl border border-border bg-background"
+        >
+          <div className="scale-75">
+            <QayLogo />
+          </div>
+        </a>
+        <nav className="flex flex-1 flex-col items-center gap-2">
+          <DashboardNavItem
+            href="/dashboard" label="Sites"
+            active
+          >
+            <Home className="size-5" />
+          </DashboardNavItem>
+          <DashboardNavItem href="/dashboard/templates" label="Templates">
+            <LayoutTemplate className="size-5" />
+          </DashboardNavItem>
+          <DashboardNavItem href="/dashboard/profile" label="Profile">
+            <User className="size-5" />
+          </DashboardNavItem>
+        </nav>
+        <div className="flex size-11 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground" title={userEmail}>
+          {initials}
+        </div>
+      </aside>
 
+      <div className="pl-20">
+      <header className="border-b border-border bg-card/80">
+        <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">QAY Studio</p>
+            <h1 className="text-lg font-semibold tracking-normal">Dashboard</h1>
+          </div>
           <div className="flex items-center gap-2">
             <a
               href="/dashboard/templates"
@@ -119,14 +178,19 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
             >
               <Bell className="size-4" />
             </button>
-            <div className="flex size-10 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground">
+            <a
+              href="/dashboard/profile"
+              aria-label="Profile"
+              title="Profile"
+              className="flex size-10 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+            >
               {initials}
-            </div>
+            </a>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <section className="px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-3xl font-semibold tracking-normal">My Sites</h1>
@@ -293,6 +357,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
           </form>
         </div>
       )}
+      </div>
     </main>
   );
 }

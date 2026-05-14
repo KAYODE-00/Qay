@@ -1778,7 +1778,7 @@ export default function YCodeBuilder({ children }: YCodeBuilderProps = {} as YCo
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden pl-16">
         {/* Settings Route - Render Settings Content */}
         {routeType === 'settings' ? (
           <SettingsContent>{children}</SettingsContent>
