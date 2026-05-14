@@ -19,6 +19,7 @@ import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 import { overlaySettingsForQaySite } from '@/qay/lib/site-settings';
 import { filterComponentsForQaySite } from '@/qay/lib/site-components';
 import { isMissingLocalisationSiteColumnError } from '@/qay/lib/localisation-schema';
+import { ensureQayDraftErrorPages } from '@/qay/lib/site-error-pages';
 
 /**
  * GET /ycode/api/editor/init
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (qaySiteId) {
+      await ensureQayDraftErrorPages(qaySiteId);
+
       try {
         await ensureDefaultLocaleForQaySite(qaySiteId);
       } catch (error) {
