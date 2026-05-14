@@ -9,6 +9,7 @@ import { renderCollectionItemsToHtml, loadTranslationsForLocale } from '@/lib/pa
 import { noCache } from '@/lib/api-response';
 import { isDatePreset, resolveDateFilterValue } from '@/lib/collection-field-utils';
 import type { Layer, CollectionItem, CollectionItemWithValues } from '@/types';
+import { getQaySiteIdFromCollectionRequest } from '@/qay/lib/collection-access';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -507,6 +508,7 @@ export async function POST(
 ) {
   try {
     const { id: collectionId } = await params;
+    const qaySiteId = getQaySiteIdFromCollectionRequest(request);
     const body = await request.json();
     const {
       layerTemplate,
@@ -618,7 +620,7 @@ export async function POST(
     let locale = null;
     let translations: Record<string, any> | undefined;
     if (localeCode) {
-      const localeData = await loadTranslationsForLocale(localeCode, isPublished);
+      const localeData = await loadTranslationsForLocale(localeCode, isPublished, undefined, qaySiteId);
       locale = localeData.locale;
       translations = localeData.translations;
     }

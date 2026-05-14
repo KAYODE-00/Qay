@@ -6,7 +6,7 @@ import { getAllComponents } from '@/lib/repositories/componentRepository';
 import { getAllStyles } from '@/lib/repositories/layerStyleRepository';
 import { getAllSettings } from '@/lib/repositories/settingsRepository';
 import { getAllCollections } from '@/lib/repositories/collectionRepository';
-import { getAllLocales } from '@/lib/repositories/localeRepository';
+import { ensureDefaultLocaleForQaySite, getAllLocales } from '@/lib/repositories/localeRepository';
 import { getAllAssets } from '@/lib/repositories/assetRepository';
 import { getAllAssetFolders } from '@/lib/repositories/assetFolderRepository';
 import { getAllFonts } from '@/lib/repositories/fontRepository';
@@ -45,6 +45,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (qaySiteId) {
+      await ensureDefaultLocaleForQaySite(qaySiteId);
+    }
+
     // Load all data in parallel (only drafts for editor)
     const [pages, drafts, folders, components, styles, settings, collections, locales, assets, assetFolders, fonts, resolvedMapboxToken, resolvedGoogleMapsEmbedKey] = await Promise.all([
       getAllDraftPages(),
@@ -54,7 +58,7 @@ export async function GET(request: NextRequest) {
       getAllStyles(),
       getAllSettings(),
       getAllCollections(),
-      getAllLocales(),
+      getAllLocales(false, qaySiteId),
       getAllAssets(),
       getAllAssetFolders(false),
       getAllFonts(),

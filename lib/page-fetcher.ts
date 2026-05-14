@@ -203,7 +203,8 @@ function matchDynamicPagePattern(urlPath: string, patternPath: string): string |
 export async function loadTranslationsForLocale(
   localeCode: string,
   isPublished: boolean,
-  tenantId?: string
+  tenantId?: string,
+  qaySiteId?: string | null
 ): Promise<{ locale: Locale | null; translations: Record<string, Translation> }> {
   try {
     const supabase = await getSupabaseAdmin(tenantId);
@@ -213,25 +214,36 @@ export async function loadTranslationsForLocale(
     }
 
     // Find the locale by code
-    const { data: locale } = await supabase
+    let localeQuery = supabase
       .from('locales')
       .select('*')
       .eq('code', localeCode)
       .eq('is_published', isPublished)
-      .is('deleted_at', null)
-      .single();
+      .is('deleted_at', null);
+
+    localeQuery = qaySiteId
+      ? localeQuery.eq('qay_site_id', qaySiteId)
+      : localeQuery.is('qay_site_id', null);
+
+    const { data: locale } = await localeQuery.single();
 
     if (!locale) {
       return { locale: null, translations: {} };
     }
 
     // Fetch all translations for this locale
-    const { data: translations } = await supabase
+    let translationsQuery = supabase
       .from('translations')
       .select('*')
       .eq('locale_id', locale.id)
       .eq('is_published', isPublished)
       .is('deleted_at', null);
+
+    translationsQuery = qaySiteId
+      ? translationsQuery.eq('qay_site_id', qaySiteId)
+      : translationsQuery.is('qay_site_id', null);
+
+    const { data: translations } = await translationsQuery;
 
     if (!translations) {
       return { locale, translations: {} };
@@ -379,8 +391,13 @@ async function fetchPageByPathInternal(
 
     // Fetch shared page lookup data in parallel.
     // Components/timezone are only needed when resolving layers.
+    let localesQuery = supabase.from('locales').select('*').eq('is_published', isPublished).is('deleted_at', null);
+    localesQuery = qaySiteId
+      ? localesQuery.eq('qay_site_id', qaySiteId)
+      : localesQuery.is('qay_site_id', null);
+
     const [{ data: availableLocales }, { data: pages }, { data: folders }, components, timezoneRaw] = await Promise.all([
-      supabase.from('locales').select('*').eq('is_published', isPublished).is('deleted_at', null),
+      localesQuery,
       supabase.from('pages').select('*').eq('is_published', isPublished).is('deleted_at', null),
       supabase.from('page_folders').select('*').eq('is_published', isPublished).is('deleted_at', null),
       resolveLayers ? fetchComponents(supabase, isPublished) : Promise.resolve([] as Component[]),
@@ -399,7 +416,8 @@ async function fetchPageByPathInternal(
       const { locale, translations: trans } = await loadTranslationsForLocale(
         localeDetection.localeCode,
         isPublished,
-        tenantId
+        tenantId,
+        qaySiteId
       );
       detectedLocale = locale;
       translations = trans;
@@ -414,33 +432,33 @@ async function fetchPageByPathInternal(
 
     const targetPath = pathWithoutLocale;
 
-      // If path is empty after locale detection or path-based site prefix stripping,
-      // resolve the homepage for the current site context.
-      if (targetPath === '') {
-        const homepageData = await fetchHomepage(isPublished, paginationContext, components, tenantId, translations, qaySiteId);
-        if (homepageData) {
-          let processedLayers = homepageData.pageLayers.layers || [];
-          if (translations && Object.keys(translations).length > 0) {
-            processedLayers = injectTranslatedText(processedLayers, homepageData.page.id, translations);
-          }
-
-          const resolved = await resolveAllAssets(processedLayers, isPublished, components);
-          processedLayers = resolved.layers;
-
-          return {
-            ...homepageData,
-            pageLayers: {
-              ...homepageData.pageLayers,
-              layers: processedLayers,
-            },
-            components: homepageData.components,
-            locale: detectedLocale,
-            availableLocales: availableLocales as Locale[] || [],
-            translations,
-          };
+    // If path is empty after locale detection or path-based site prefix stripping,
+    // resolve the homepage for the current site context.
+    if (targetPath === '') {
+      const homepageData = await fetchHomepage(isPublished, paginationContext, components, tenantId, translations, qaySiteId);
+      if (homepageData) {
+        let processedLayers = homepageData.pageLayers.layers || [];
+        if (translations && Object.keys(translations).length > 0) {
+          processedLayers = injectTranslatedText(processedLayers, homepageData.page.id, translations);
         }
-        return null;
+
+        const resolved = await resolveAllAssets(processedLayers, isPublished, components);
+        processedLayers = resolved.layers;
+
+        return {
+          ...homepageData,
+          pageLayers: {
+            ...homepageData.pageLayers,
+            layers: processedLayers,
+          },
+          components: homepageData.components,
+          locale: detectedLocale,
+          availableLocales: availableLocales as Locale[] || [],
+          translations,
+        };
       }
+      return null;
+    }
 
     // First, try to find an exact match (non-dynamic page)
     // Use translated slug matching if translations are available
@@ -768,18 +786,18 @@ export async function fetchErrorPage(
       .is('deleted_at', null);
 
     // Get the error page
-      let errorPageQuery = supabase
-        .from('pages')
-        .select('*')
-        .eq('error_page', errorCode)
-        .eq('is_published', isPublished)
-        .is('deleted_at', null);
+    let errorPageQuery = supabase
+      .from('pages')
+      .select('*')
+      .eq('error_page', errorCode)
+      .eq('is_published', isPublished)
+      .is('deleted_at', null);
 
-      if (qaySiteId) {
-        errorPageQuery = errorPageQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
-      }
+    if (qaySiteId) {
+      errorPageQuery = errorPageQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+    }
 
-      const { data: errorPage } = await errorPageQuery.single();
+    const { data: errorPage } = await errorPageQuery.single();
 
     if (!errorPage) {
       return null;

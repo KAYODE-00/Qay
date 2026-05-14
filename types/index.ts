@@ -1338,6 +1338,7 @@ export interface LocaleOption {
  */
 export interface Locale {
   id: string;
+  qay_site_id?: string | null;
   code: string;
   label: string;
   is_default: boolean;
@@ -1348,6 +1349,7 @@ export interface Locale {
 }
 
 export interface CreateLocaleData {
+  qay_site_id?: string | null;
   code: string;
   label: string;
   is_default?: boolean;
@@ -1364,6 +1366,7 @@ export type TranslationContentType = 'text' | 'richtext' | 'asset_id'
 
 export interface Translation {
   id: string;
+  qay_site_id?: string | null;
   locale_id: string;
   source_type: TranslationSourceType;
   source_id: string;
@@ -1378,6 +1381,7 @@ export interface Translation {
 }
 
 export interface CreateTranslationData {
+  qay_site_id?: string | null;
   locale_id: string;
   source_type: TranslationSourceType;
   source_id: string;

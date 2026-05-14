@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setDefaultLocale } from '@/lib/repositories/localeRepository';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 /**
  * POST /ycode/api/locales/[id]/default
@@ -11,7 +13,12 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const locale = await setDefaultLocale(id);
+    const qaySiteId = getQaySiteIdFromRequest(request);
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
+
+    const locale = await setDefaultLocale(id, qaySiteId);
     
     return NextResponse.json({ data: locale });
   } catch (error) {

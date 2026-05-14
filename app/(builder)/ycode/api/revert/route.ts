@@ -6,6 +6,7 @@ import { syncCSS } from '@/lib/services/settingsService';
 import { clearAllCache } from '@/lib/services/cacheService';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import type { PublishStats, PublishTableStats } from '@/types';
+import { getQaySiteIdFromCollectionRequest } from '@/qay/lib/collection-access';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -81,11 +82,16 @@ function createEmptyStats(): PublishStats {
  *
  * Order: folders → pages/layers → collections → components → layer styles → assets → locales → CSS
  */
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   const startTime = performance.now();
   const stats = createEmptyStats();
 
   try {
+    const qaySiteId = getQaySiteIdFromCollectionRequest(request);
+    const localisationScope = qaySiteId
+      ? { filters: [{ column: 'qay_site_id', value: qaySiteId }] }
+      : undefined;
+
     // Guard: only allow revert if site has been published before
     const publishedAt = await getSettingByKey('published_at');
     if (!publishedAt) {
@@ -263,8 +269,8 @@ export async function POST(_request: NextRequest) {
     {
       const stepStart = performance.now();
       try {
-        result.changes.locales = await syncTableRows('locales', direction);
-        result.cleaned.locales = (await cleanupOrphanedRows('locales', direction)).deleted;
+        result.changes.locales = await syncTableRows('locales', direction, localisationScope);
+        result.cleaned.locales = (await cleanupOrphanedRows('locales', direction, localisationScope)).deleted;
       } catch {
         // Non-fatal
       }
@@ -277,8 +283,8 @@ export async function POST(_request: NextRequest) {
     {
       const stepStart = performance.now();
       try {
-        result.changes.translations = await syncTableRows('translations', direction);
-        result.cleaned.translations = (await cleanupOrphanedRows('translations', direction)).deleted;
+        result.changes.translations = await syncTableRows('translations', direction, localisationScope);
+        result.cleaned.translations = (await cleanupOrphanedRows('translations', direction, localisationScope)).deleted;
       } catch {
         // Non-fatal
       }

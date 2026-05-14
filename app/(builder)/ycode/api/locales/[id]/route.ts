@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLocaleById, updateLocale, deleteLocale } from '@/lib/repositories/localeRepository';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 /**
  * GET /ycode/api/locales/[id]
@@ -11,7 +13,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const locale = await getLocaleById(id);
+    const qaySiteId = getQaySiteIdFromRequest(request);
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
+
+    const locale = await getLocaleById(id, false, qaySiteId);
     
     if (!locale) {
       return NextResponse.json({ error: 'Locale not found' }, { status: 404 });
@@ -38,14 +45,19 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const { code, label, is_default } = body;
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
     
     const updates: any = {};
     if (code !== undefined) updates.code = code;
     if (label !== undefined) updates.label = label;
     if (is_default !== undefined) updates.is_default = is_default;
     
-    const { locale, locales } = await updateLocale(id, updates);
+    const { locale, locales } = await updateLocale(id, updates, qaySiteId);
     
     return NextResponse.json({ data: { locale, locales } });
   } catch (error) {
@@ -67,7 +79,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await deleteLocale(id);
+    const qaySiteId = getQaySiteIdFromRequest(request);
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
+
+    await deleteLocale(id, qaySiteId);
     
     return NextResponse.json({ message: 'Locale deleted successfully' });
   } catch (error) {
