@@ -49,6 +49,23 @@ export function qaySchemaPublicMessage() {
   return 'This part of QAY is still being set up. Please try again in a moment.';
 }
 
+export async function reloadQaySchemaCache() {
+  const knex = await getKnexClient();
+
+  try {
+    await knex.raw("NOTIFY pgrst, 'reload schema'");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return { success: true as const };
+  } catch (error) {
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : 'Failed to reload QAY schema cache',
+    };
+  } finally {
+    await closeKnexClient();
+  }
+}
+
 export async function runQayCoreMigration() {
   const knex = await getKnexClient();
 

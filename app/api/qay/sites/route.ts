@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
+import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage, reloadQaySchemaCache, runQayCoreMigration } from '@/qay/lib/schema';
 import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 import { DEFAULT_ERROR_PAGES } from '@/lib/page-utils';
 import { createPage } from '@/lib/repositories/pageRepository';
 import { upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
+import { ensureQayDraftHomePage } from '@/qay/lib/site-page-repair';
 
 function slugify(value: string) {
   return value
@@ -16,8 +17,42 @@ function slugify(value: string) {
     .slice(0, 64);
 }
 
+async function recoverQaySchemaCache(
+  run: () => Promise<{ data: any; error: any }>
+): Promise<{ data: any; error: any }> {
+  const first = await run();
+  if (!first.error || !isMissingQaySchemaError(first.error)) {
+    return first;
+  }
+
+  await reloadQaySchemaCache();
+  return run();
+}
+
 async function seedDefaultSiteErrorPages(siteId: string) {
+  const supabase = getQayAdmin() as any;
+  const { data: existingPages, error: existingPagesError } = await supabase
+    .from('pages')
+    .select('error_page, settings')
+    .eq('is_published', false)
+    .is('deleted_at', null)
+    .not('error_page', 'is', null);
+
+  if (existingPagesError) {
+    throw new Error(existingPagesError.message);
+  }
+
+  const existingCodes = new Set(
+    ((existingPages || []) as Array<{ error_page: number | null; settings: Record<string, unknown> | null }>)
+      .filter((page) => page.settings?.qay_site_id === siteId && page.error_page !== null)
+      .map((page) => page.error_page as number)
+  );
+
   for (const [index, config] of DEFAULT_ERROR_PAGES.entries()) {
+    if (existingCodes.has(config.code)) {
+      continue;
+    }
+
     const page = await createPage({
       name: config.name,
       slug: '',
@@ -48,11 +83,13 @@ export async function GET() {
     }
 
     const supabase = getQayAdmin() as any;
-    let { data, error } = await supabase
+    const selectSites = () => supabase
       .from('qay_sites')
       .select('*')
       .eq('owner_id', user.id)
       .order('updated_at', { ascending: false });
+
+    let { data, error } = await recoverQaySchemaCache(selectSites);
 
     if (error && isMissingQaySchemaError(error)) {
       if (!allowRuntimeQaySchemaChanges()) {
@@ -66,12 +103,7 @@ export async function GET() {
         return NextResponse.json({ error: qaySchemaPublicMessage() }, { status: 503 });
       }
 
-      const retry = await supabase
-        .from('qay_sites')
-        .select('*')
-        .eq('owner_id', user.id)
-        .order('updated_at', { ascending: false });
-
+      const retry = await recoverQaySchemaCache(selectSites);
       data = retry.data;
       error = retry.error;
     }
@@ -123,7 +155,7 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    let { data, error } = await insertSite();
+    let { data, error } = await recoverQaySchemaCache(insertSite);
 
     if (error && isMissingQaySchemaError(error)) {
       if (!allowRuntimeQaySchemaChanges()) {
@@ -137,7 +169,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: qaySchemaPublicMessage() }, { status: 503 });
       }
 
-      const retry = await insertSite();
+      const retry = await recoverQaySchemaCache(insertSite);
       data = retry.data;
       error = retry.error;
     }
@@ -156,6 +188,7 @@ export async function POST(request: Request) {
       .select()
       .maybeSingle();
 
+    await ensureQayDraftHomePage(data.id);
     await seedDefaultSiteErrorPages(data.id);
 
     return NextResponse.json({ data: withResolvedQayLiveUrl(data) }, { status: 201 });
