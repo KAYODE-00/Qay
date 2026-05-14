@@ -79,6 +79,23 @@ async function siteHasPublishedHomepage(supabase: any, siteId: string): Promise<
   return !!data?.id;
 }
 
+async function siteHasPublishedPages(supabase: any, siteId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('pages')
+    .select('id')
+    .eq('is_published', true)
+    .is('deleted_at', null)
+    .filter('settings->>qay_site_id', 'eq', siteId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return !!data?.id;
+}
+
 async function readQaySiteIdFromCookies() {
   const cookieStore = await cookies();
   return (
@@ -148,7 +165,7 @@ export async function resolveQayPathSiteContext(pathSegments: string[]): Promise
     return { siteId: null, siteSlug: null, remainingSegments: pathSegments };
   }
 
-  if (data.publish_status !== 'published' && !(await siteHasPublishedHomepage(supabase, data.id))) {
+  if (data.publish_status !== 'published' && !(await siteHasPublishedPages(supabase, data.id))) {
     return { siteId: null, siteSlug: null, remainingSegments: pathSegments };
   }
 
@@ -200,7 +217,7 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
       return data.id;
     }
 
-    return (await siteHasPublishedHomepage(supabase, data.id)) ? data.id : null;
+    return (await siteHasPublishedPages(supabase, data.id)) ? data.id : null;
   };
 
   const byCustomDomain = await findRenderableSite('custom_domain', hostname);
