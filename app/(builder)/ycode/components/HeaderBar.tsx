@@ -471,34 +471,19 @@ export default function HeaderBar({
       <div className="flex items-center gap-2">
         <Button
           variant="secondary" size="sm"
-          className="size-8!"
+          className="size-9! overflow-hidden rounded-lg p-0"
           onClick={() => router.push('/dashboard')}
           title="Dashboard"
           aria-label="Dashboard"
         >
-          <div className="dark:text-white text-secondary-foreground">
-            <svg
-              className="size-3.5 fill-current" viewBox="0 0 24 24"
-              version="1.1" xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M11.4241533,0 L11.4241533,5.85877951 L6.024,8.978 L12.6155735,12.7868008 L10.951,13.749 L23.0465401,6.75101349 L23.0465401,12.6152717 L3.39516096,23.9856666 L3.3703726,24 L3.34318129,23.9827156 L0.96,22.4713365 L0.96,16.7616508 L3.36417551,18.1393242 L7.476,15.76 L0.96,11.9090099 L0.96,6.05375516 L11.4241533,0 Z"
-                className="fill-current"
-              />
-            </svg>
-          </div>
+          <img
+            src="/ycode-webclip.png"
+            alt=""
+            width={48}
+            height={48}
+            className="size-7 object-contain"
+          />
         </Button>
-
-        <div className="flex gap-1">
-          <Button
-            variant={activeNavButton === 'design' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={goToDesign}
-          >
-            <Icon name="cursor-default" />
-            Design
-          </Button>
-        </div>
       </div>
 
       <div className="flex gap-1.5 items-center justify-center">
