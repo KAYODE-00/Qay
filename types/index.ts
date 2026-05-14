@@ -623,6 +623,11 @@ export interface Component {
   // Auto-generated preview thumbnail URL (stored in Supabase Storage)
   thumbnail_url?: string | null;
 
+  // QAY-only site scoping metadata added by the QAY component API layer
+  qay_site_category?: string | null;
+  qay_component_source?: string | null;
+  qay_template_id?: string | null;
+
   created_at: string;
   updated_at: string;
   deleted_at?: string | null; // Soft delete timestamp

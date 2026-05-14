@@ -17,6 +17,7 @@ import { filterAssetsForQaySite, filterAssetFoldersForQaySite } from '@/qay/lib/
 import { normalizeQayPageForResponse } from '@/qay/lib/index-slug';
 import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 import { overlaySettingsForQaySite } from '@/qay/lib/site-settings';
+import { filterComponentsForQaySite } from '@/qay/lib/site-components';
 
 /**
  * GET /ycode/api/editor/init
@@ -63,9 +64,9 @@ export async function GET(request: NextRequest) {
 
     const scopedPagesRaw = qaySiteId
       ? pages.filter((page) => {
-          const pageSettings = page.settings as Record<string, unknown> | null;
-          return pageSettings?.qay_site_id === qaySiteId;
-        })
+        const pageSettings = page.settings as Record<string, unknown> | null;
+        return pageSettings?.qay_site_id === qaySiteId;
+      })
       : pages;
     const scopedPages = Array.from(
       new Map(scopedPagesRaw.map((page) => [`${page.id}:${page.error_page ?? 'page'}`, page])).values()
@@ -76,9 +77,9 @@ export async function GET(request: NextRequest) {
       : drafts;
     const scopedFolders = qaySiteId
       ? folders.filter((folder) => {
-          const folderSettings = folder.settings as Record<string, unknown> | null;
-          return folderSettings?.qay_site_id === qaySiteId;
-        })
+        const folderSettings = folder.settings as Record<string, unknown> | null;
+        return folderSettings?.qay_site_id === qaySiteId;
+      })
       : folders;
     const scopedAssets = qaySiteId
       ? await filterAssetsForQaySite(qaySiteId, assets)
@@ -89,6 +90,9 @@ export async function GET(request: NextRequest) {
     const scopedCollections = qaySiteId
       ? await filterCollectionsForQaySite(qaySiteId, collections)
       : collections;
+    const scopedComponents = qaySiteId
+      ? await filterComponentsForQaySite(qaySiteId, components)
+      : components;
 
     // Inject app-sourced tokens into settings so they're available via settingsByKey
     const scopedSettings = qaySiteId
@@ -116,7 +120,7 @@ export async function GET(request: NextRequest) {
         pages: scopedPages,
         drafts: scopedDrafts,
         folders: scopedFolders,
-        components,
+        components: scopedComponents,
         styles,
         settings: enrichedSettings,
         collections: scopedCollections,

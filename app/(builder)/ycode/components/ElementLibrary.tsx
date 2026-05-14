@@ -178,8 +178,7 @@ function hasInlinedComponents(layer: Layer): boolean {
  */
 async function restoreInlinedComponents(
   layer: Layer,
-  existingComponents: { id: string; name: string }[],
-  createdComponents: Map<string, string> // name -> componentId
+  usedComponentNames: Set<string>
 ): Promise<Layer> {
   const newLayer = { ...layer } as Layer & {
     _inlinedComponentName?: string;
@@ -188,67 +187,63 @@ async function restoreInlinedComponents(
 
   // Check if this layer has inlined component data
   if (newLayer._inlinedComponentName && newLayer.children?.length) {
-    const componentName = newLayer._inlinedComponentName;
+    const baseComponentName = newLayer._inlinedComponentName.trim() || 'Template part';
+    let componentName = baseComponentName;
+    let suffix = 2;
+    while (usedComponentNames.has(componentName)) {
+      componentName = `${baseComponentName} ${suffix++}`;
+    }
+    usedComponentNames.add(componentName);
     const componentVariables = newLayer._inlinedComponentVariables;
 
-    // Check if we already created this component in this batch
-    let componentId: string | undefined = createdComponents.get(componentName);
+    let componentId: string | undefined;
 
-    if (!componentId) {
-      // Check if a component with this name already exists
-      const existing = existingComponents.find(c => c.name === componentName);
-
-      if (existing) {
-        componentId = existing.id;
-      } else {
-        // Create new component from inlined layers (including variables)
-        try {
-          // Debug: check if layers have interactions and log layer IDs
-          const collectLayerIds = (layers: any[]): string[] => {
-            const ids: string[] = [];
-            for (const l of layers) {
-              if (l.id) ids.push(l.id);
-              if (l.children) ids.push(...collectLayerIds(l.children));
-            }
-            return ids;
-          };
-          const collectInteractionTargets = (layers: any[]): string[] => {
-            const targets: string[] = [];
-            for (const l of layers) {
-              if (l.interactions) {
-                for (const int of l.interactions) {
-                  for (const tween of int.tweens || []) {
-                    if (tween.layer_id) targets.push(tween.layer_id);
-                  }
-                }
-              }
-              if (l.children) targets.push(...collectInteractionTargets(l.children));
-            }
-            return targets;
-          };
-
-          const layerIds = collectLayerIds(newLayer.children || []);
-          const interactionTargets = collectInteractionTargets(newLayer.children || []);
-          const missingTargets = interactionTargets.filter(t => !layerIds.includes(t));
-
-          if (missingTargets.length > 0) {
-            console.warn(`[restoreInlinedComponents] ⚠️ Missing layer targets:`, missingTargets);
-          }
-
-          const result = await componentsApi.create({
-            name: componentName,
-            layers: newLayer.children,
-            variables: componentVariables,
-          });
-          const newId = result.data?.id;
-          if (newId) {
-            componentId = newId;
-            createdComponents.set(componentName, newId);
-          }
-        } catch (error) {
-          console.error(`Failed to create component "${componentName}":`, error);
+    // Always create a fresh component for inlined template parts. Reusing by name
+    // makes every "Navigation" instance point at the same editable component.
+    try {
+      // Debug: check if layers have interactions and log layer IDs
+      const collectLayerIds = (layers: any[]): string[] => {
+        const ids: string[] = [];
+        for (const l of layers) {
+          if (l.id) ids.push(l.id);
+          if (l.children) ids.push(...collectLayerIds(l.children));
         }
+        return ids;
+      };
+      const collectInteractionTargets = (layers: any[]): string[] => {
+        const targets: string[] = [];
+        for (const l of layers) {
+          if (l.interactions) {
+            for (const int of l.interactions) {
+              for (const tween of int.tweens || []) {
+                if (tween.layer_id) targets.push(tween.layer_id);
+              }
+            }
+          }
+          if (l.children) targets.push(...collectInteractionTargets(l.children));
+        }
+        return targets;
+      };
+
+      const layerIds = collectLayerIds(newLayer.children || []);
+      const interactionTargets = collectInteractionTargets(newLayer.children || []);
+      const missingTargets = interactionTargets.filter(t => !layerIds.includes(t));
+
+      if (missingTargets.length > 0) {
+        console.warn(`[restoreInlinedComponents] ⚠️ Missing layer targets:`, missingTargets);
       }
+
+      const result = await componentsApi.create({
+        name: componentName,
+        layers: newLayer.children,
+        variables: componentVariables,
+      });
+      const newId = result.data?.id;
+      if (newId) {
+        componentId = newId;
+      }
+    } catch (error) {
+      console.error(`Failed to create component "${componentName}":`, error);
     }
 
     if (componentId) {
@@ -265,7 +260,7 @@ async function restoreInlinedComponents(
   if (newLayer.children?.length && !newLayer.componentId) {
     const processedChildren: Layer[] = [];
     for (const child of newLayer.children) {
-      const processed = await restoreInlinedComponents(child, existingComponents, createdComponents);
+      const processed = await restoreInlinedComponents(child, usedComponentNames);
       processedChildren.push(processed);
     }
     newLayer.children = processedChildren;
@@ -316,25 +311,26 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
 
   const hasComponentResults = !matchingComponentIds || matchingComponentIds.size > 0;
   const templateThumbnailGenerationRef = useRef(new Set<string>());
-  const templatePartCategories = useMemo(() => {
-    const query = componentSearch.trim().toLowerCase();
-    const entries = Object.entries(getLayoutsByCategory())
-      .map(([category, layoutKeys]) => {
-        const filteredKeys = query
-          ? layoutKeys.filter((layoutKey) =>
-            layoutKey.toLowerCase().includes(query) || category.toLowerCase().includes(query)
-          )
-          : layoutKeys;
+  const componentGroups = useMemo(() => {
+    const categoryOrder = ['Navigation', 'Hero', 'Header', 'Sections', 'Features', 'Pricing', 'Testimonials', 'FAQ', 'Blog', 'Footer', 'Saved components'];
+    const groups = new Map<string, Component[]>();
 
-        return [category, filteredKeys] as const;
-      })
-      .filter(([, layoutKeys]) => layoutKeys.length > 0);
+    for (const component of components) {
+      if (matchingComponentIds && !matchingComponentIds.has(component.id)) continue;
+      const category = component.qay_site_category || 'Saved components';
+      groups.set(category, [...(groups.get(category) || []), component]);
+    }
 
-    return entries;
-  }, [componentSearch]);
-  const hasTemplatePartResults = templatePartCategories.length > 0;
-  const hasSavedComponentResults = components.length > 0 && hasComponentResults;
-  const hasAnyComponentResults = hasSavedComponentResults || hasTemplatePartResults;
+    return Array.from(groups.entries()).sort(([a], [b]) => {
+      const aIndex = categoryOrder.indexOf(a);
+      const bIndex = categoryOrder.indexOf(b);
+      if (aIndex !== -1 || bIndex !== -1) {
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      }
+      return a.localeCompare(b);
+    });
+  }, [components, matchingComponentIds]);
+  const hasAnyComponentResults = componentGroups.length > 0;
 
   const [isEditLayoutDialogOpen, setIsEditLayoutDialogOpen] = useState(false);
   const [editingLayoutKey, setEditingLayoutKey] = useState<string>('');
@@ -767,17 +763,8 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
 
       // Restore inlined components (create actual components from inlined data)
       if (hasInlinedComponents(newLayer)) {
-        const createdComponents = new Map<string, string>();
-        newLayer = await restoreInlinedComponents(
-          newLayer,
-          components.map(c => ({ id: c.id, name: c.name })),
-          createdComponents
-        );
-
-        // Refresh components store if new components were created
-        if (createdComponents.size > 0) {
-          await loadComponents();
-        }
+        newLayer = await restoreInlinedComponents(newLayer, new Set(components.map(c => c.name)));
+        await loadComponents();
       }
 
       // Check for circular reference: layout may contain component instances
@@ -955,17 +942,8 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
 
     // Restore inlined components (create actual components from inlined data)
     if (hasInlinedComponents(newLayer)) {
-      const createdComponents = new Map<string, string>();
-      newLayer = await restoreInlinedComponents(
-        newLayer,
-        components.map(c => ({ id: c.id, name: c.name })),
-        createdComponents
-      );
-
-      // Refresh components store if new components were created
-      if (createdComponents.size > 0) {
-        await loadComponents();
-      }
+      newLayer = await restoreInlinedComponents(newLayer, new Set(components.map(c => c.name)));
+      await loadComponents();
     }
 
     // Find parent layer
@@ -1576,11 +1554,11 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
             value="components" forceMount
             ref={(el) => { tabRefs.current.components = el; }} className="flex flex-col overflow-y-auto flex-1 px-4 pb-4 no-scrollbar"
           >
-            {components.length === 0 && !hasTemplatePartResults ? (
+            {components.length === 0 ? (
               <Empty>
                 <EmptyTitle>No reusable parts yet</EmptyTitle>
                 <EmptyDescription>
-                  Template parts and saved components will appear here.
+                  Template parts from this site and saved components will appear here.
                 </EmptyDescription>
               </Empty>
             ) : (
@@ -1605,15 +1583,16 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
                     <EmptyTitle>No matching reusable parts</EmptyTitle>
                   </Empty>
                 )}
-                <div className={cn('flex flex-col divide-y pb-5', !hasTemplatePartResults && 'hidden')}>
-                  {templatePartCategories.map(([category, layoutKeys]) => {
-                    const isCollapsed = collapsedCategories.has(`template:${category}`);
+                <div className={cn('flex flex-col divide-y pb-5', !hasAnyComponentResults && 'hidden')}>
+                  {componentGroups.map(([category, groupedComponents]) => {
+                    const collapseKey = `components:${category}`;
+                    const isCollapsed = collapsedCategories.has(collapseKey);
 
                     return (
                       <div key={category} className="flex flex-col">
                         <header
                           className="py-4 flex items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity"
-                          onClick={() => toggleCategory(`template:${category}`)}
+                          onClick={() => toggleCategory(collapseKey)}
                         >
                           <Icon
                             name="triangle-down"
@@ -1624,74 +1603,14 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
                           />
                           <Label className="cursor-pointer">{category}</Label>
                         </header>
-                        <div className={cn('grid grid-cols-1 gap-1.5 pb-4', isCollapsed && 'hidden')}>
-                          {layoutKeys.map((layoutKey) => {
-                            const previewImage = getLayoutPreviewImage(layoutKey);
-
+                        <div className={cn('grid grid-cols-1 gap-1.5 pb-5', isCollapsed && 'hidden')}>
+                          {groupedComponents.map((component) => {
                             return (
-                              <ElementButton
-                                key={`template-part-${layoutKey}`}
-                                elementType={layoutKey}
-                                source="layouts"
-                                name={layoutKey}
-                                icon="layout"
-                                onClick={() => handleAddLayout(layoutKey)}
-                                onDragStart={handleElementDragStart}
-                                variant="card"
-                              >
-                                {previewImage ? (
-                                  <img
-                                    src={previewImage}
-                                    width={640}
-                                    height={262}
-                                    alt="Template part preview"
-                                    loading="eager"
-                                    className="pointer-events-none aspect-[640/262] w-full rounded object-contain"
-                                  />
-                                ) : (
-                                  <div className="flex aspect-[640/262] w-full items-center justify-center rounded bg-muted text-xs text-muted-foreground">
-                                    Template part
-                                  </div>
-                                )}
-                                <div className="mt-1 flex w-full items-center gap-1 px-0.5">
-                                  <Icon name="layout" className="size-3 shrink-0 text-muted-foreground" />
-                                  <span className="truncate text-xs font-medium" title={layoutKey}>
-                                    {layoutKey}
-                                  </span>
-                                </div>
-                              </ElementButton>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className={cn('flex flex-col border-t border-border', !hasSavedComponentResults && 'hidden')}>
-                  <header
-                    className="py-4 flex items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity"
-                    onClick={() => toggleCategory('saved-components')}
-                  >
-                    <Icon
-                      name="triangle-down"
-                      className={cn(
-                        'size-3 opacity-25 transition-transform',
-                        collapsedCategories.has('saved-components') && '-rotate-90'
-                      )}
-                    />
-                    <Label className="cursor-pointer">Saved components</Label>
-                  </header>
-                  <div className={cn('grid grid-cols-1 gap-1.5 pb-5', collapsedCategories.has('saved-components') && 'hidden')}>
-                    {components.map((component) => {
-                      const isHidden = matchingComponentIds && !matchingComponentIds.has(component.id);
-                      return (
                         <ComponentCard
                           key={component.id}
                           component={component}
                           className={cn(
                             circularComponentIds.has(component.id) && 'opacity-40 pointer-events-none',
-                            isHidden && 'hidden',
                           )}
                           onClick={() => handleAddComponent(component.id)}
                           onMouseDown={(e) => {
@@ -1739,9 +1658,12 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
                             </DropdownMenu>
                           }
                         />
-                      );
-                    })}
-                  </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

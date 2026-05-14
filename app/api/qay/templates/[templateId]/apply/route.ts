@@ -10,6 +10,9 @@ import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 import { buildQayIndexSlug } from '@/qay/lib/index-slug';
+import { ensureQaySiteComponentsTable } from '@/qay/lib/site-components';
+import { generateComponentContentHash } from '@/lib/hash-utils';
+import type { Layer } from '@/types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -45,6 +48,12 @@ type ImportedRowIds = {
   assetFolders: string[];
   collections: string[];
   fonts: string[];
+};
+
+type ImportedPageLayerRecord = {
+  page_id: string;
+  layers: Layer[] | null;
+  page_name: string | null;
 };
 
 function stripQayUnsafeTemplateStatements(sql: string) {
@@ -502,7 +511,144 @@ async function resolveDuplicateLayerStyleNames(
   }
 }
 
-async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowIds) {
+function getLayerDisplayName(layer: Layer) {
+  const anyLayer = layer as any;
+  return String(anyLayer.customName || anyLayer.name || anyLayer.tag || 'Part');
+}
+
+function inferTemplatePartCategory(layer: Layer) {
+  const anyLayer = layer as any;
+  const haystack = `${anyLayer.name || ''} ${anyLayer.customName || ''} ${anyLayer.tag || ''} ${anyLayer.classes || ''}`.toLowerCase();
+
+  if (haystack.includes('nav') || haystack.includes('menu')) return 'Navigation';
+  if (haystack.includes('hero')) return 'Hero';
+  if (haystack.includes('header')) return 'Header';
+  if (haystack.includes('footer')) return 'Footer';
+  if (haystack.includes('pricing')) return 'Pricing';
+  if (haystack.includes('testimonial') || haystack.includes('review')) return 'Testimonials';
+  if (haystack.includes('faq')) return 'FAQ';
+  if (haystack.includes('blog') || haystack.includes('post')) return 'Blog';
+  if (haystack.includes('feature')) return 'Features';
+  return 'Sections';
+}
+
+function extractTemplatePageParts(layers: Layer[] | null | undefined) {
+  const layerList = Array.isArray(layers) ? layers : [];
+  if (layerList.length === 1) {
+    const root = layerList[0] as any;
+    const rootName = String(root.name || root.tag || '').toLowerCase();
+    if ((rootName === 'body' || rootName === 'div') && Array.isArray(root.children) && root.children.length > 0) {
+      return root.children as Layer[];
+    }
+  }
+  return layerList;
+}
+
+async function createTemplatePartComponents(
+  knex: Awaited<ReturnType<typeof getKnexClient>>,
+  siteId: string,
+  templateId: string,
+  importedPageIds: Set<string>
+) {
+  if (
+    importedPageIds.size === 0 ||
+    !(await knex.schema.hasTable('components')) ||
+    !(await knex.schema.hasTable('pages')) ||
+    !(await knex.schema.hasTable('page_layers'))
+  ) {
+    return;
+  }
+
+  await ensureQaySiteComponentsTable(knex);
+
+  await knex('qay_site_components')
+    .where('site_id', siteId)
+    .where('source', 'template')
+    .delete();
+
+  const pageLayers = await knex('page_layers')
+    .join('pages', function joinPages() {
+      this.on('pages.id', '=', 'page_layers.page_id')
+        .andOn('pages.is_published', '=', 'page_layers.is_published');
+    })
+    .whereIn('page_layers.page_id', Array.from(importedPageIds))
+    .where('page_layers.is_published', false)
+    .whereNull('page_layers.deleted_at')
+    .whereNull('pages.deleted_at')
+    .whereNull('pages.error_page')
+    .select<ImportedPageLayerRecord[]>(
+      'page_layers.page_id',
+      'page_layers.layers',
+      knex.raw('pages.name as page_name')
+    );
+
+  const usedNames = new Set<string>(
+    (await knex('components').where('is_published', false).whereNull('deleted_at').select('name'))
+      .map((row: { name: string }) => row.name)
+  );
+
+  const componentLinks: Array<{
+    site_id: string;
+    component_id: string;
+    source: string;
+    category: string;
+    template_id: string;
+    source_page_id: string;
+    source_layer_id: string;
+  }> = [];
+
+  for (const pageLayer of pageLayers) {
+    const parts = extractTemplatePageParts(pageLayer.layers).filter((layer) => {
+      const anyLayer = layer as any;
+      return !anyLayer.componentId && Array.isArray(anyLayer.children) && anyLayer.children.length > 0;
+    });
+
+    for (const part of parts) {
+      const category = inferTemplatePartCategory(part);
+      const baseName = `${pageLayer.page_name || 'Template'} ${getLayerDisplayName(part)}`.trim();
+      let name = baseName;
+      let suffix = 2;
+      while (usedNames.has(name)) {
+        name = `${baseName} ${suffix++}`;
+      }
+      usedNames.add(name);
+
+      const layers = JSON.parse(JSON.stringify([part]));
+      const contentHash = generateComponentContentHash({ name, layers, variables: [] });
+      const [component] = await knex('components')
+        .insert({
+          name,
+          layers,
+          variables: [],
+          content_hash: contentHash,
+          is_published: false,
+          updated_at: knex.fn.now(),
+        })
+        .returning(['id']);
+
+      if (component?.id) {
+        componentLinks.push({
+          site_id: siteId,
+          component_id: component.id,
+          source: 'template',
+          category,
+          template_id: templateId,
+          source_page_id: pageLayer.page_id,
+          source_layer_id: part.id,
+        });
+      }
+    }
+  }
+
+  if (componentLinks.length > 0) {
+    await knex('qay_site_components')
+      .insert(componentLinks)
+      .onConflict(['site_id', 'component_id'])
+      .merge();
+  }
+}
+
+async function tagImportedTemplateData(siteId: string, templateId: string, importedIds: ImportedRowIds) {
   const knex = await getKnexClient();
   const siteSettings = JSON.stringify({ qay_site_id: siteId });
   const importedPageIds = new Set(importedIds.pages);
@@ -517,7 +663,7 @@ async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowI
       .update({
         settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
         slug: knex.raw(
-          "case when error_page is null and is_index = true and page_folder_id is null then ? else slug end",
+          'case when error_page is null and is_index = true and page_folder_id is null then ? else slug end',
           [buildQayIndexSlug(siteId)]
         ),
       });
@@ -527,6 +673,7 @@ async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowI
     await resolveDuplicatePageSlots(knex, importedPageIds);
     await resolveLegacyGlobalDuplicatePageSlots(knex);
     await restorePageSiteUniqueIndex(knex);
+    await createTemplatePartComponents(knex, siteId, templateId, importedPageIds);
   }
 
   if (await knex.schema.hasTable('page_folders') && importedIds.pageFolders.length > 0) {
@@ -695,7 +842,7 @@ export async function POST(
     });
 
     const importedIds = await collectImportedRowIds(knex, existingIds);
-    await tagImportedTemplateData(siteId, importedIds);
+    await tagImportedTemplateData(siteId, templateId, importedIds);
 
     await supabase
       .from('qay_sites')
