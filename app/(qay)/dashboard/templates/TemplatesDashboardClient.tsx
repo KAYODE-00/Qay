@@ -27,14 +27,6 @@ type Props = {
   userEmail: string;
 };
 
-function makeSlug(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
 export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
   const [sites, setSites] = useState(initialSites);
   const [selectedSiteId, setSelectedSiteId] = useState(initialSites[0]?.id ?? '');
@@ -47,7 +39,6 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [siteName, setSiteName] = useState('');
-  const [siteSlug, setSiteSlug] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,7 +114,6 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
     setError(null);
     setSelectedTemplate(template);
     setSiteName(template.name);
-    setSiteSlug(`${makeSlug(template.name)}-${Date.now().toString(36).slice(-5)}`);
     setIsCreateOpen(true);
     setNotice('Create a new project from this template. It will appear in your dashboard.');
   }
@@ -137,7 +127,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
       const response = await fetch('/api/qay/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: siteName, slug: siteSlug || siteName }),
+        body: JSON.stringify({ name: siteName }),
       });
       const payload = await response.json();
 
@@ -150,7 +140,6 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
       setSelectedSiteId(site.id);
       setIsCreateOpen(false);
       setSiteName('');
-      setSiteSlug('');
 
       if (selectedTemplate) {
         await applyTemplate(selectedTemplate, site.id, `/dashboard/sites/${site.id}/editor`);
@@ -283,9 +272,10 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
         </div>
 
         {(notice || error) && (
-          <div className={`mt-5 rounded-md border px-4 py-3 text-sm ${
-            error ? 'border-red-400/30 bg-red-500/10 text-red-100' : 'border-white/10 bg-white/[0.04] text-white/70'
-          }`}
+          <div
+            className={`mt-5 rounded-md border px-4 py-3 text-sm ${
+              error ? 'border-red-400/30 bg-red-500/10 text-red-100' : 'border-white/10 bg-white/[0.04] text-white/70'
+            }`}
           >
             {error || notice}
           </div>
@@ -307,7 +297,10 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
                 <div className="relative aspect-[72/85] overflow-hidden bg-white/[0.04]">
                   {template.preview ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={template.preview} alt="" className="h-full w-full object-cover object-top" />
+                    <img
+                      src={template.preview} alt=""
+                      className="h-full w-full object-cover object-top"
+                    />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-white/20">
                       {template.name.slice(0, 1)}
@@ -377,23 +370,12 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
                 <span>Site name</span>
                 <input
                   value={siteName}
-                  onChange={(event) => {
-                    setSiteName(event.target.value);
-                    setSiteSlug((current) => current || makeSlug(event.target.value));
-                  }}
+                  onChange={(event) => setSiteName(event.target.value)}
                   required
                   className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
                 />
               </label>
-              <label className="block space-y-2 text-sm text-white/75">
-                <span>Slug</span>
-                <input
-                  value={siteSlug}
-                  onChange={(event) => setSiteSlug(makeSlug(event.target.value))}
-                  required
-                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
-                />
-              </label>
+              <p className="text-sm text-white/55">QAY will create a short site URL automatically.</p>
               <button
                 type="submit"
                 disabled={isApplying}

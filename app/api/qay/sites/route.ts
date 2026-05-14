@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage, reloadQaySchemaCache, runQayCoreMigration } from '@/qay/lib/schema';
@@ -8,13 +9,26 @@ import { createPage } from '@/lib/repositories/pageRepository';
 import { upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { ensureQayDraftHomePage } from '@/qay/lib/site-page-repair';
 
-function slugify(value: string) {
-  return value
+function slugifyBase(value: string) {
+  const base = value
     .trim()
     .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 64);
+    .slice(0, 18)
+    .replace(/-+$/g, '');
+
+  return base || 'site';
+}
+
+function randomSlugToken() {
+  return randomBytes(3).toString('hex');
+}
+
+function makeSiteSlug(name: string) {
+  return `${slugifyBase(name)}-${randomSlugToken()}`;
 }
 
 async function recoverQaySchemaCache(
@@ -131,19 +145,13 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => null);
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
-    const requestedSlug = typeof body?.slug === 'string' ? body.slug : name;
-    const slug = slugify(requestedSlug);
 
     if (!name) {
       return NextResponse.json({ error: 'Site name is required' }, { status: 400 });
     }
 
-    if (!slug) {
-      return NextResponse.json({ error: 'Site slug is required' }, { status: 400 });
-    }
-
     const supabase = getQayAdmin() as any;
-    const insertSite = () => supabase
+    const insertSite = (slug: string) => supabase
       .from('qay_sites')
       .insert({
         owner_id: user.id,
@@ -155,7 +163,27 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    let { data, error } = await recoverQaySchemaCache(insertSite);
+    const createSiteWithUniqueSlug = async () => {
+      let lastDuplicate: any = null;
+
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const result = await recoverQaySchemaCache(() => insertSite(makeSiteSlug(name)));
+
+        if (result.error?.code === '23505') {
+          lastDuplicate = result.error;
+          continue;
+        }
+
+        return result;
+      }
+
+      return {
+        data: null,
+        error: lastDuplicate ?? new Error('Unable to create a unique site URL'),
+      };
+    };
+
+    let { data, error } = await createSiteWithUniqueSlug();
 
     if (error && isMissingQaySchemaError(error)) {
       if (!allowRuntimeQaySchemaChanges()) {
@@ -169,7 +197,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: qaySchemaPublicMessage() }, { status: 503 });
       }
 
-      const retry = await recoverQaySchemaCache(insertSite);
+      const retry = await createSiteWithUniqueSlug();
       data = retry.data;
       error = retry.error;
     }
@@ -177,7 +205,7 @@ export async function POST(request: Request) {
     if (error) {
       const isDuplicate = error.code === '23505';
       return NextResponse.json(
-        { error: isDuplicate ? 'That slug or domain is already in use' : error.message },
+        { error: isDuplicate ? 'Could not create a unique site URL. Please try again.' : error.message },
         { status: isDuplicate ? 409 : 500 }
       );
     }
