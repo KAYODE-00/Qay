@@ -6,6 +6,7 @@ import { getAllPageFolders } from '@/lib/repositories/pageFolderRepository';
 import { renderCollectionItemsToHtml, loadTranslationsForLocale } from '@/lib/page-fetcher';
 import { noCache } from '@/lib/api-response';
 import type { Layer } from '@/types';
+import { getQaySiteIdFromCollectionRequest } from '@/qay/lib/collection-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,7 @@ export async function POST(
   try {
     const { id } = await params;
     const collectionId = id;
+    const qaySiteId = getQaySiteIdFromCollectionRequest(request);
 
     // Parse request body
     const body = await request.json();
@@ -108,7 +110,7 @@ export async function POST(
     let locale = null;
     let translations: Record<string, any> | undefined;
     if (localeCode) {
-      const localeData = await loadTranslationsForLocale(localeCode, published);
+      const localeData = await loadTranslationsForLocale(localeCode, published, undefined, qaySiteId);
       locale = localeData.locale;
       translations = localeData.translations;
     }

@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllLocales, createLocale } from '@/lib/repositories/localeRepository';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 /**
  * GET /ycode/api/locales
  * Get all locales
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const locales = await getAllLocales();
+    const qaySiteId = getQaySiteIdFromRequest(request);
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
+
+    const locales = await getAllLocales(false, qaySiteId);
     
     return NextResponse.json({ data: locales });
   } catch (error) {
@@ -27,6 +34,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { code, label, is_default } = body;
+    const qaySiteId = getQaySiteIdFromRequest(request);
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
     
     if (!code || !label) {
       return NextResponse.json(
@@ -35,7 +47,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { locale, locales } = await createLocale({ code, label, is_default });
+    const { locale, locales } = await createLocale({ code, label, is_default, qay_site_id: qaySiteId }, qaySiteId);
     
     return NextResponse.json({ data: { locale, locales } }, { status: 201 });
   } catch (error) {

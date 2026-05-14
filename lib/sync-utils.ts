@@ -29,7 +29,7 @@ export function getSyncFlags(direction: SyncDirection) {
 export async function syncTableRows(
   tableName: string,
   direction: SyncDirection,
-  options?: { ids?: string[]; excludeColumns?: string[] }
+  options?: { ids?: string[]; excludeColumns?: string[]; filters?: Array<{ column: string; value: unknown }> }
 ): Promise<number> {
   const client = await getSupabaseAdmin();
 
@@ -48,6 +48,12 @@ export async function syncTableRows(
 
   if (options?.ids && options.ids.length > 0) {
     query = query.in('id', options.ids);
+  }
+
+  for (const filter of options?.filters || []) {
+    query = filter.value === null
+      ? query.is(filter.column, null)
+      : query.eq(filter.column, filter.value);
   }
 
   const { data: sourceRows, error: fetchError } = await query;
@@ -106,6 +112,7 @@ export async function cleanupOrphanedRows(
     preserveFilter?: { column: string; value: unknown };
     excludeByColumn?: { column: string; ids: Set<string> };
     collectColumns?: string[];
+    filters?: Array<{ column: string; value: unknown }>;
   }
 ): Promise<CleanupResult> {
   const client = await getSupabaseAdmin();
@@ -117,12 +124,20 @@ export async function cleanupOrphanedRows(
   const { source, target } = getSyncFlags(direction);
 
   // Get all source IDs
-  const { data: sourceRows, error: sourceError } = await client
+  let sourceQuery = client
     .from(tableName)
     .select('id')
     .eq('is_published', source)
     .is('deleted_at', null)
     .limit(SUPABASE_QUERY_LIMIT);
+
+  for (const filter of options?.filters || []) {
+    sourceQuery = filter.value === null
+      ? sourceQuery.is(filter.column, null)
+      : sourceQuery.eq(filter.column, filter.value);
+  }
+
+  const { data: sourceRows, error: sourceError } = await sourceQuery;
 
   if (sourceError) {
     throw new Error(`Failed to fetch source ${tableName} IDs: ${sourceError.message}`);
@@ -131,11 +146,19 @@ export async function cleanupOrphanedRows(
   const sourceIds = new Set((sourceRows || []).map(r => r.id));
 
   // Get all target rows
-  const { data: targetRows, error: targetError } = await client
+  let targetQuery = client
     .from(tableName)
     .select('*')
     .eq('is_published', target)
     .limit(SUPABASE_QUERY_LIMIT);
+
+  for (const filter of options?.filters || []) {
+    targetQuery = filter.value === null
+      ? targetQuery.is(filter.column, null)
+      : targetQuery.eq(filter.column, filter.value);
+  }
+
+  const { data: targetRows, error: targetError } = await targetQuery;
 
   if (targetError) {
     throw new Error(`Failed to fetch target ${tableName} IDs: ${targetError.message}`);

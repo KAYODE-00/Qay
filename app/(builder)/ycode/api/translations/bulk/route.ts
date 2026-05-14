@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { upsertTranslations } from '@/lib/repositories/translationRepository';
 import type { CreateTranslationData } from '@/types';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 /**
  * POST /ycode/api/translations/bulk
@@ -10,6 +12,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { translations } = body;
+    const qaySiteId = getQaySiteIdFromRequest(request);
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
 
     if (!Array.isArray(translations)) {
       return NextResponse.json(
@@ -29,7 +36,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const result = await upsertTranslations(translations as CreateTranslationData[]);
+    const result = await upsertTranslations(translations as CreateTranslationData[], qaySiteId);
 
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (error) {

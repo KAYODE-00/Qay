@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTranslationById, updateTranslation, deleteTranslation } from '@/lib/repositories/translationRepository';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 /**
  * GET /ycode/api/translations/[id]
@@ -11,7 +13,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const translation = await getTranslationById(id, false);
+    const qaySiteId = getQaySiteIdFromRequest(request);
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
+
+    const translation = await getTranslationById(id, false, qaySiteId);
 
     if (!translation) {
       return NextResponse.json({ error: 'Translation not found' }, { status: 404 });
@@ -38,13 +45,18 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
+    const qaySiteId = getQaySiteIdFromRequest(request);
     const { content_value, is_completed } = body;
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
 
     const updates: any = {};
     if (content_value !== undefined) updates.content_value = content_value;
     if (is_completed !== undefined) updates.is_completed = is_completed;
 
-    const translation = await updateTranslation(id, updates);
+    const translation = await updateTranslation(id, updates, qaySiteId);
 
     return NextResponse.json({ data: translation });
   } catch (error) {
@@ -66,7 +78,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await deleteTranslation(id);
+    const qaySiteId = getQaySiteIdFromRequest(request);
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
+
+    await deleteTranslation(id, qaySiteId);
 
     return NextResponse.json({ message: 'Translation deleted successfully' });
   } catch (error) {

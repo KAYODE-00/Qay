@@ -64,14 +64,14 @@ export async function GET() {
     const [pages, folders, locales] = await Promise.all([
       getAllPages({ is_published: true }, qaySiteId),
       getAllPublishedPageFolders(),
-      getAllLocales(true), // Get published locales
+      getAllLocales(true, qaySiteId), // Get published locales
     ]);
 
     const scopedFolders = qaySiteId
       ? folders.filter((folder) => {
-          const settings = folder.settings as Record<string, unknown> | null;
-          return settings?.qay_site_id === qaySiteId;
-        })
+        const settings = folder.settings as Record<string, unknown> | null;
+        return settings?.qay_site_id === qaySiteId;
+      })
       : folders;
 
     // Filter out error pages (401, 404, 500) and soft-deleted pages
@@ -84,7 +84,7 @@ export async function GET() {
     if (locales.length > 1) {
       for (const locale of locales) {
         if (!locale.is_default) {
-          const translations = await getTranslationsByLocale(locale.id, true); // Get published translations
+          const translations = await getTranslationsByLocale(locale.id, true, qaySiteId); // Get published translations
           const translationsMap: Record<string, Translation> = {};
           for (const t of translations) {
             // Create key: source_type:source_id:content_key

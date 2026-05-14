@@ -479,9 +479,9 @@ export async function POST(request: NextRequest) {
       }
 
       // Locales and translations
-      if (!qaySiteId && publishLocales) {
+      if (publishLocales) {
         try {
-          const localisationResult = await publishLocalisation();
+          const localisationResult = await publishLocalisation(qaySiteId);
           result.changes.locales = localisationResult.locales;
           result.changes.translations = localisationResult.translations;
           stats.tables.locales.added = localisationResult.locales;

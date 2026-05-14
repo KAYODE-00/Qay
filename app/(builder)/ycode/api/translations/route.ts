@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTranslationsByLocale } from '@/lib/repositories/translationRepository';
 import { createTranslation } from '@/lib/repositories/translationRepository';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 /**
  * GET /ycode/api/translations
@@ -12,6 +14,11 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const localeId = searchParams.get('locale_id');
     const isPublished = searchParams.get('is_published') === 'true';
+    const qaySiteId = getQaySiteIdFromRequest(request);
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
 
     if (!localeId) {
       return NextResponse.json(
@@ -20,7 +27,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const translations = await getTranslationsByLocale(localeId, isPublished);
+    const translations = await getTranslationsByLocale(localeId, isPublished, qaySiteId);
 
     return NextResponse.json({ data: translations });
   } catch (error) {
@@ -40,6 +47,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { locale_id, source_type, source_id, content_key, content_type, content_value, is_completed } = body;
+    const qaySiteId = getQaySiteIdFromRequest(request);
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    }
 
     // Validate required fields (content_value can be empty string to indicate "use original")
     if (!locale_id || !source_type || !source_id || !content_key || !content_type || content_value === undefined || content_value === null) {
@@ -57,7 +69,8 @@ export async function POST(request: NextRequest) {
       content_type,
       content_value,
       is_completed: is_completed ?? false,
-    });
+      qay_site_id: qaySiteId,
+    }, qaySiteId);
 
     return NextResponse.json({ data: translation }, { status: 201 });
   } catch (error) {

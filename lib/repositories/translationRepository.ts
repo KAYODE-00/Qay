@@ -13,7 +13,8 @@ import type { Translation, CreateTranslationData, UpdateTranslationData } from '
  */
 export async function getTranslationsByLocale(
   localeId: string,
-  isPublished: boolean = false
+  isPublished: boolean = false,
+  qaySiteId?: string | null
 ): Promise<Translation[]> {
   const client = await getSupabaseAdmin();
 
@@ -21,13 +22,19 @@ export async function getTranslationsByLocale(
     throw new Error('Supabase not configured');
   }
 
-  const { data, error } = await client
+  let query = client
     .from('translations')
     .select('*')
     .eq('locale_id', localeId)
     .eq('is_published', isPublished)
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
+
+  query = qaySiteId
+    ? query.eq('qay_site_id', qaySiteId)
+    : query.is('qay_site_id', null);
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Failed to fetch translations: ${error.message}`);
@@ -42,7 +49,8 @@ export async function getTranslationsByLocale(
 export async function getTranslationsBySource(
   sourceType: string,
   sourceId: string,
-  isPublished: boolean = false
+  isPublished: boolean = false,
+  qaySiteId?: string | null
 ): Promise<Translation[]> {
   const client = await getSupabaseAdmin();
 
@@ -50,7 +58,7 @@ export async function getTranslationsBySource(
     throw new Error('Supabase not configured');
   }
 
-  const { data, error } = await client
+  let query = client
     .from('translations')
     .select('*')
     .eq('source_type', sourceType)
@@ -58,6 +66,12 @@ export async function getTranslationsBySource(
     .eq('is_published', isPublished)
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
+
+  query = qaySiteId
+    ? query.eq('qay_site_id', qaySiteId)
+    : query.is('qay_site_id', null);
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Failed to fetch translations: ${error.message}`);
@@ -71,7 +85,8 @@ export async function getTranslationsBySource(
  */
 export async function getTranslationById(
   id: string,
-  isPublished: boolean = false
+  isPublished: boolean = false,
+  qaySiteId?: string | null
 ): Promise<Translation | null> {
   const client = await getSupabaseAdmin();
 
@@ -79,13 +94,18 @@ export async function getTranslationById(
     throw new Error('Supabase not configured');
   }
 
-  const { data, error } = await client
+  let query = client
     .from('translations')
     .select('*')
     .eq('id', id)
     .eq('is_published', isPublished)
-    .is('deleted_at', null)
-    .single();
+    .is('deleted_at', null);
+
+  query = qaySiteId
+    ? query.eq('qay_site_id', qaySiteId)
+    : query.is('qay_site_id', null);
+
+  const { data, error } = await query.single();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -105,7 +125,8 @@ export async function getTranslationByKey(
   sourceType: string,
   sourceId: string,
   contentKey: string,
-  isPublished: boolean = false
+  isPublished: boolean = false,
+  qaySiteId?: string | null
 ): Promise<Translation | null> {
   const client = await getSupabaseAdmin();
 
@@ -113,7 +134,7 @@ export async function getTranslationByKey(
     throw new Error('Supabase not configured');
   }
 
-  const { data, error } = await client
+  let query = client
     .from('translations')
     .select('*')
     .eq('locale_id', localeId)
@@ -121,8 +142,13 @@ export async function getTranslationByKey(
     .eq('source_id', sourceId)
     .eq('content_key', contentKey)
     .eq('is_published', isPublished)
-    .is('deleted_at', null)
-    .single();
+    .is('deleted_at', null);
+
+  query = qaySiteId
+    ? query.eq('qay_site_id', qaySiteId)
+    : query.is('qay_site_id', null);
+
+  const { data, error } = await query.single();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -139,7 +165,8 @@ export async function getTranslationByKey(
  * Uses upsert to handle existing translations
  */
 export async function createTranslation(
-  translationData: CreateTranslationData
+  translationData: CreateTranslationData,
+  qaySiteId?: string | null
 ): Promise<Translation> {
   const client = await getSupabaseAdmin();
 
@@ -152,6 +179,7 @@ export async function createTranslation(
     .upsert(
       {
         locale_id: translationData.locale_id,
+        qay_site_id: qaySiteId ?? translationData.qay_site_id ?? null,
         source_type: translationData.source_type,
         source_id: translationData.source_id,
         content_key: translationData.content_key,
@@ -180,7 +208,8 @@ export async function createTranslation(
  */
 export async function updateTranslation(
   id: string,
-  updates: UpdateTranslationData
+  updates: UpdateTranslationData,
+  qaySiteId?: string | null
 ): Promise<Translation> {
   const client = await getSupabaseAdmin();
 
@@ -188,7 +217,7 @@ export async function updateTranslation(
     throw new Error('Supabase not configured');
   }
 
-  const { data, error } = await client
+  let query = client
     .from('translations')
     .update({
       ...updates,
@@ -196,9 +225,13 @@ export async function updateTranslation(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('is_published', false)
-    .select()
-    .single();
+    .eq('is_published', false);
+
+  query = qaySiteId
+    ? query.eq('qay_site_id', qaySiteId)
+    : query.is('qay_site_id', null);
+
+  const { data, error } = await query.select().single();
 
   if (error) {
     throw new Error(`Failed to update translation: ${error.message}`);
@@ -210,18 +243,24 @@ export async function updateTranslation(
 /**
  * Delete a translation (soft delete - sets deleted_at timestamp)
  */
-export async function deleteTranslation(id: string): Promise<void> {
+export async function deleteTranslation(id: string, qaySiteId?: string | null): Promise<void> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
     throw new Error('Supabase not configured');
   }
 
-  const { error } = await client
+  let query = client
     .from('translations')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .eq('is_published', false);
+
+  query = qaySiteId
+    ? query.eq('qay_site_id', qaySiteId)
+    : query.is('qay_site_id', null);
+
+  const { error } = await query;
 
   if (error) {
     throw new Error(`Failed to delete translation: ${error.message}`);
@@ -239,7 +278,8 @@ export async function deleteTranslation(id: string): Promise<void> {
 export async function deleteTranslationsInBulk(
   sourceType: string,
   sourceIds: string | string[],
-  contentKeys?: string[]
+  contentKeys?: string[],
+  qaySiteId?: string | null
 ): Promise<void> {
   const client = await getSupabaseAdmin();
 
@@ -273,6 +313,10 @@ export async function deleteTranslationsInBulk(
     query = query.in('content_key', contentKeys);
   }
 
+  query = qaySiteId
+    ? query.eq('qay_site_id', qaySiteId)
+    : query.is('qay_site_id', null);
+
   const { error } = await query;
 
   if (error) {
@@ -286,7 +330,8 @@ export async function deleteTranslationsInBulk(
 export async function markTranslationsIncomplete(
   sourceType: string,
   sourceId: string,
-  contentKeys: string[]
+  contentKeys: string[],
+  qaySiteId?: string | null
 ): Promise<void> {
   const client = await getSupabaseAdmin();
 
@@ -298,7 +343,7 @@ export async function markTranslationsIncomplete(
     return; // Nothing to update
   }
 
-  const { error } = await client
+  let query = client
     .from('translations')
     .update({
       is_completed: false,
@@ -310,6 +355,12 @@ export async function markTranslationsIncomplete(
     .eq('is_published', false)
     .is('deleted_at', null);
 
+  query = qaySiteId
+    ? query.eq('qay_site_id', qaySiteId)
+    : query.is('qay_site_id', null);
+
+  const { error } = await query;
+
   if (error) {
     throw new Error(`Failed to mark translations as incomplete: ${error.message}`);
   }
@@ -320,7 +371,8 @@ export async function markTranslationsIncomplete(
  * Uses batch upsert for efficiency
  */
 export async function upsertTranslations(
-  translations: CreateTranslationData[]
+  translations: CreateTranslationData[],
+  qaySiteId?: string | null
 ): Promise<Translation[]> {
   const client = await getSupabaseAdmin();
 
@@ -330,6 +382,7 @@ export async function upsertTranslations(
 
   const translationsToUpsert = translations.map((t) => ({
     locale_id: t.locale_id,
+    qay_site_id: qaySiteId ?? t.qay_site_id ?? null,
     source_type: t.source_type,
     source_id: t.source_id,
     content_key: t.content_key,
