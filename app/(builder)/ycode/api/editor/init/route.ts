@@ -18,6 +18,7 @@ import { normalizeQayPageForResponse } from '@/qay/lib/index-slug';
 import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 import { overlaySettingsForQaySite } from '@/qay/lib/site-settings';
 import { filterComponentsForQaySite } from '@/qay/lib/site-components';
+import { isMissingLocalisationSiteColumnError } from '@/qay/lib/localisation-schema';
 
 /**
  * GET /ycode/api/editor/init
@@ -46,7 +47,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (qaySiteId) {
-      await ensureDefaultLocaleForQaySite(qaySiteId);
+      try {
+        await ensureDefaultLocaleForQaySite(qaySiteId);
+      } catch (error) {
+        if (!isMissingLocalisationSiteColumnError(error)) {
+          throw error;
+        }
+        console.warn('[editor/init] QAY localisation isolation migration is not applied yet; loading editor without site-scoped locales.');
+      }
     }
 
     // Load all data in parallel (only drafts for editor)

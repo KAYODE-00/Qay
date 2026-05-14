@@ -43,6 +43,7 @@ import { isVirtualAssetField, findDisplayField } from '@/lib/collection-field-ut
 import type { FieldVariable, AssetVariable, DynamicTextVariable, LinkSettings } from '@/types';
 import type { DesignColorVariable } from '@/types';
 import { buildQayIndexSlug, getQaySiteIdFromSettings } from '@/qay/lib/index-slug';
+import { isMissingLocalisationSiteColumnError } from '@/qay/lib/localisation-schema';
 
 // Cached map provider tokens for synchronous use inside layerToHtml.
 // Set by ensureMapTokens() before HTML generation begins.
@@ -225,9 +226,21 @@ export async function loadTranslationsForLocale(
       ? localeQuery.eq('qay_site_id', qaySiteId)
       : localeQuery.is('qay_site_id', null);
 
-    const { data: locale } = await localeQuery.single();
+    let { data: locale, error: localeError } = await localeQuery.single();
 
-    if (!locale) {
+    if (localeError && isMissingLocalisationSiteColumnError(localeError)) {
+      const fallback = await supabase
+        .from('locales')
+        .select('*')
+        .eq('code', localeCode)
+        .eq('is_published', isPublished)
+        .is('deleted_at', null)
+        .single();
+      locale = fallback.data;
+      localeError = fallback.error;
+    }
+
+    if (localeError || !locale) {
       return { locale: null, translations: {} };
     }
 
@@ -243,9 +256,20 @@ export async function loadTranslationsForLocale(
       ? translationsQuery.eq('qay_site_id', qaySiteId)
       : translationsQuery.is('qay_site_id', null);
 
-    const { data: translations } = await translationsQuery;
+    let { data: translations, error: translationsError } = await translationsQuery;
 
-    if (!translations) {
+    if (translationsError && isMissingLocalisationSiteColumnError(translationsError)) {
+      const fallback = await supabase
+        .from('translations')
+        .select('*')
+        .eq('locale_id', locale.id)
+        .eq('is_published', isPublished)
+        .is('deleted_at', null);
+      translations = fallback.data;
+      translationsError = fallback.error;
+    }
+
+    if (translationsError || !translations) {
       return { locale, translations: {} };
     }
 
@@ -396,13 +420,22 @@ async function fetchPageByPathInternal(
       ? localesQuery.eq('qay_site_id', qaySiteId)
       : localesQuery.is('qay_site_id', null);
 
-    const [{ data: availableLocales }, { data: pages }, { data: folders }, components, timezoneRaw] = await Promise.all([
+    const [localesResult, { data: pages }, { data: folders }, components, timezoneRaw] = await Promise.all([
       localesQuery,
       supabase.from('pages').select('*').eq('is_published', isPublished).is('deleted_at', null),
       supabase.from('page_folders').select('*').eq('is_published', isPublished).is('deleted_at', null),
       resolveLayers ? fetchComponents(supabase, isPublished) : Promise.resolve([] as Component[]),
       resolveLayers ? getSettingByKey('timezone') : Promise.resolve('UTC'),
     ]);
+    let availableLocales = localesResult.data;
+    if (localesResult.error && isMissingLocalisationSiteColumnError(localesResult.error)) {
+      const fallback = await supabase
+        .from('locales')
+        .select('*')
+        .eq('is_published', isPublished)
+        .is('deleted_at', null);
+      availableLocales = fallback.data;
+    }
     const timezone = (timezoneRaw as string | null) || 'UTC';
 
     const validLocaleCodes = availableLocales?.map(l => l.code) || [];

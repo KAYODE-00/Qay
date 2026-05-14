@@ -7,6 +7,28 @@
 
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import type { Locale, CreateLocaleData, UpdateLocaleData } from '@/types';
+import { isMissingLocalisationSiteColumnError } from '@/qay/lib/localisation-schema';
+
+async function getAllLocalesWithoutSiteFilter(isPublished: boolean): Promise<Locale[]> {
+  const client = await getSupabaseAdmin();
+  if (!client) {
+    throw new Error('Failed to initialize Supabase client');
+  }
+
+  const { data, error } = await client
+    .from('locales')
+    .select('*')
+    .eq('is_published', isPublished)
+    .is('deleted_at', null)
+    .order('is_default', { ascending: false })
+    .order('label', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to fetch locales: ${error.message}`);
+  }
+
+  return data || [];
+}
 
 /**
  * Get all locales (draft by default)
@@ -32,6 +54,9 @@ export async function getAllLocales(isPublished: boolean = false, qaySiteId?: st
   const { data, error } = await query;
 
   if (error) {
+    if (isMissingLocalisationSiteColumnError(error)) {
+      return getAllLocalesWithoutSiteFilter(isPublished);
+    }
     throw new Error(`Failed to fetch locales: ${error.message}`);
   }
 
