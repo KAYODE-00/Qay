@@ -471,7 +471,7 @@ export default function HeaderBar({
       <div className="flex items-center gap-2">
         <Button
           variant="secondary" size="sm"
-          className="size-9! overflow-hidden rounded-lg p-0"
+          className="size-10! overflow-hidden rounded-lg p-0"
           onClick={() => router.push('/dashboard')}
           title="Dashboard"
           aria-label="Dashboard"
@@ -481,7 +481,7 @@ export default function HeaderBar({
             alt=""
             width={48}
             height={48}
-            className="size-7 object-contain"
+            className="size-9 object-contain"
           />
         </Button>
       </div>
