@@ -246,6 +246,8 @@ export default async function PageRenderer({
   passwordProtection,
 }: PageRendererProps) {
   const usePublishedData = page.is_published && !isPreview;
+  const pageSettings = page.settings as Record<string, unknown> | null | undefined;
+  const qaySiteId = typeof pageSettings?.qay_site_id === 'string' ? pageSettings.qay_site_id : undefined;
   // Check if this is a 401 error page that needs password form
   const is401Page = page.error_page === 401;
   // Layers are always pre-resolved by the caller (page-fetcher).
@@ -545,6 +547,7 @@ export default async function PageRenderer({
           collectionItemSlugs={collectionItemSlugs}
           isPreview={isPreview}
           previewBasePath={previewBasePath}
+          qaySiteId={qaySiteId}
           sitePathPrefix={sitePathPrefix}
           translations={translations}
           resolvedAssets={resolvedAssets}

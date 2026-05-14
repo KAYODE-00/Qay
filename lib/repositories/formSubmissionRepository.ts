@@ -19,7 +19,8 @@ import type {
  */
 export async function getAllFormSubmissions(
   formId?: string,
-  status?: FormSubmissionStatus
+  status?: FormSubmissionStatus,
+  qaySiteId?: string | null
 ): Promise<FormSubmission[]> {
   const client = await getSupabaseAdmin();
 
@@ -40,6 +41,10 @@ export async function getAllFormSubmissions(
     query = query.eq('status', status);
   }
 
+  if (qaySiteId) {
+    query = query.filter('metadata->>qay_site_id', 'eq', qaySiteId);
+  }
+
   const { data, error } = await query;
 
   if (error) {
@@ -52,18 +57,23 @@ export async function getAllFormSubmissions(
 /**
  * Get form submission by ID
  */
-export async function getFormSubmissionById(id: string): Promise<FormSubmission | null> {
+export async function getFormSubmissionById(id: string, qaySiteId?: string | null): Promise<FormSubmission | null> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
     throw new Error('Supabase client not configured');
   }
 
-  const { data, error } = await client
+  let query = client
     .from('form_submissions')
     .select('*')
-    .eq('id', id)
-    .single();
+    .eq('id', id);
+
+  if (qaySiteId) {
+    query = query.filter('metadata->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { data, error } = await query.single();
 
   if (error && error.code !== 'PGRST116') {
     throw new Error(`Failed to fetch form submission: ${error.message}`);
@@ -75,7 +85,7 @@ export async function getFormSubmissionById(id: string): Promise<FormSubmission 
 /**
  * Get all unique forms with submission counts
  */
-export async function getFormSummaries(): Promise<FormSummary[]> {
+export async function getFormSummaries(qaySiteId?: string | null): Promise<FormSummary[]> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
@@ -83,10 +93,16 @@ export async function getFormSummaries(): Promise<FormSummary[]> {
   }
 
   // Get all submissions grouped by form_id
-  const { data, error } = await client
+  let query = client
     .from('form_submissions')
     .select('form_id, status, created_at')
     .order('created_at', { ascending: false });
+
+  if (qaySiteId) {
+    query = query.filter('metadata->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Failed to fetch form summaries: ${error.message}`);
@@ -156,7 +172,8 @@ export async function createFormSubmission(
  */
 export async function updateFormSubmission(
   id: string,
-  submissionData: UpdateFormSubmissionData
+  submissionData: UpdateFormSubmissionData,
+  qaySiteId?: string | null
 ): Promise<FormSubmission> {
   const client = await getSupabaseAdmin();
 
@@ -164,12 +181,16 @@ export async function updateFormSubmission(
     throw new Error('Supabase client not configured');
   }
 
-  const { data, error } = await client
+  let query = client
     .from('form_submissions')
     .update(submissionData)
-    .eq('id', id)
-    .select()
-    .single();
+    .eq('id', id);
+
+  if (qaySiteId) {
+    query = query.filter('metadata->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { data, error } = await query.select().single();
 
   if (error) {
     throw new Error(`Failed to update form submission: ${error.message}`);
@@ -181,17 +202,23 @@ export async function updateFormSubmission(
 /**
  * Delete a form submission
  */
-export async function deleteFormSubmission(id: string): Promise<void> {
+export async function deleteFormSubmission(id: string, qaySiteId?: string | null): Promise<void> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
     throw new Error('Supabase client not configured');
   }
 
-  const { error } = await client
+  let query = client
     .from('form_submissions')
     .delete()
     .eq('id', id);
+
+  if (qaySiteId) {
+    query = query.filter('metadata->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     throw new Error(`Failed to delete form submission: ${error.message}`);
@@ -201,7 +228,7 @@ export async function deleteFormSubmission(id: string): Promise<void> {
 /**
  * Bulk delete form submissions by IDs
  */
-export async function bulkDeleteFormSubmissions(ids: string[]): Promise<void> {
+export async function bulkDeleteFormSubmissions(ids: string[], qaySiteId?: string | null): Promise<void> {
   if (ids.length === 0) return;
 
   const client = await getSupabaseAdmin();
@@ -210,10 +237,16 @@ export async function bulkDeleteFormSubmissions(ids: string[]): Promise<void> {
     throw new Error('Supabase client not configured');
   }
 
-  const { error } = await client
+  let query = client
     .from('form_submissions')
     .delete()
     .in('id', ids);
+
+  if (qaySiteId) {
+    query = query.filter('metadata->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     throw new Error(`Failed to bulk delete form submissions: ${error.message}`);
@@ -223,17 +256,23 @@ export async function bulkDeleteFormSubmissions(ids: string[]): Promise<void> {
 /**
  * Delete all submissions for a form
  */
-export async function deleteFormSubmissionsByFormId(formId: string): Promise<void> {
+export async function deleteFormSubmissionsByFormId(formId: string, qaySiteId?: string | null): Promise<void> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
     throw new Error('Supabase client not configured');
   }
 
-  const { error } = await client
+  let query = client
     .from('form_submissions')
     .delete()
     .eq('form_id', formId);
+
+  if (qaySiteId) {
+    query = query.filter('metadata->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     throw new Error(`Failed to delete form submissions: ${error.message}`);
@@ -243,18 +282,24 @@ export async function deleteFormSubmissionsByFormId(formId: string): Promise<voi
 /**
  * Mark all submissions for a form as read
  */
-export async function markAllAsRead(formId: string): Promise<void> {
+export async function markAllAsRead(formId: string, qaySiteId?: string | null): Promise<void> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
     throw new Error('Supabase client not configured');
   }
 
-  const { error } = await client
+  let query = client
     .from('form_submissions')
     .update({ status: 'read' })
     .eq('form_id', formId)
     .eq('status', 'new');
+
+  if (qaySiteId) {
+    query = query.filter('metadata->>qay_site_id', 'eq', qaySiteId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     throw new Error(`Failed to mark submissions as read: ${error.message}`);

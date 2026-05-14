@@ -38,25 +38,42 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 import type { FormSubmission, FormSummary, FormSubmissionStatus } from '@/types';
 
 // API functions
-async function fetchFormSummaries(): Promise<FormSummary[]> {
-  const response = await fetch('/ycode/api/form-submissions?summary=true');
+function formSubmissionsUrl(params: Record<string, string | boolean | undefined>, siteId?: string | null) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined) searchParams.set(key, String(value));
+  });
+  if (siteId) searchParams.set('site', siteId);
+  return `/ycode/api/form-submissions?${searchParams.toString()}`;
+}
+
+function formSubmissionUrl(id: string, siteId?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (siteId) searchParams.set('site', siteId);
+  const query = searchParams.toString();
+  return `/ycode/api/form-submissions/${id}${query ? `?${query}` : ''}`;
+}
+
+async function fetchFormSummaries(siteId?: string | null): Promise<FormSummary[]> {
+  const response = await fetch(formSubmissionsUrl({ summary: true }, siteId));
   const data = await response.json();
   if (data.error) throw new Error(data.error);
   return data.data || [];
 }
 
-async function fetchFormSubmissions(formId: string): Promise<FormSubmission[]> {
-  const response = await fetch(`/ycode/api/form-submissions?form_id=${encodeURIComponent(formId)}`);
+async function fetchFormSubmissions(formId: string, siteId?: string | null): Promise<FormSubmission[]> {
+  const response = await fetch(formSubmissionsUrl({ form_id: formId }, siteId));
   const data = await response.json();
   if (data.error) throw new Error(data.error);
   return data.data || [];
 }
 
-async function updateSubmissionStatus(id: string, status: FormSubmissionStatus): Promise<void> {
-  const response = await fetch(`/ycode/api/form-submissions/${id}`, {
+async function updateSubmissionStatus(id: string, status: FormSubmissionStatus, siteId?: string | null): Promise<void> {
+  const response = await fetch(formSubmissionUrl(id, siteId), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
@@ -65,8 +82,8 @@ async function updateSubmissionStatus(id: string, status: FormSubmissionStatus):
   if (data.error) throw new Error(data.error);
 }
 
-async function deleteSubmission(id: string): Promise<void> {
-  const response = await fetch(`/ycode/api/form-submissions/${id}`, {
+async function deleteSubmission(id: string, siteId?: string | null): Promise<void> {
+  const response = await fetch(formSubmissionUrl(id, siteId), {
     method: 'DELETE',
   });
   const data = await response.json();
@@ -80,8 +97,8 @@ type SortConfig = {
 } | null;
 
 // API function to delete all submissions for a form
-async function deleteForm(formId: string): Promise<void> {
-  const response = await fetch(`/ycode/api/form-submissions?form_id=${encodeURIComponent(formId)}`, {
+async function deleteForm(formId: string, siteId?: string | null): Promise<void> {
+  const response = await fetch(formSubmissionsUrl({ form_id: formId }, siteId), {
     method: 'DELETE',
   });
   const data = await response.json();
@@ -89,6 +106,7 @@ async function deleteForm(formId: string): Promise<void> {
 }
 
 export default function FormsPage() {
+  const [qaySiteId, setQaySiteId] = useState<string | null | undefined>(undefined);
   const [summaries, setSummaries] = useState<FormSummary[]>([]);
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
@@ -106,12 +124,17 @@ export default function FormsPage() {
   const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
+  useEffect(() => {
+    setQaySiteId(readQayEditorSiteIdFromBrowser());
+  }, []);
+
   // Load form summaries on mount
   useEffect(() => {
     const loadSummaries = async () => {
+      if (qaySiteId === undefined) return;
       try {
         setIsLoading(true);
-        const data = await fetchFormSummaries();
+        const data = await fetchFormSummaries(qaySiteId);
         setSummaries(data);
 
         // Auto-select first form if available
@@ -127,7 +150,7 @@ export default function FormsPage() {
 
     loadSummaries();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedFormId intentionally excluded to avoid re-fetch on form switch
-  }, []);
+  }, [qaySiteId]);
 
   // Load submissions when form is selected
   useEffect(() => {
@@ -139,7 +162,7 @@ export default function FormsPage() {
     const loadSubmissions = async () => {
       try {
         setIsLoadingSubmissions(true);
-        const data = await fetchFormSubmissions(selectedFormId);
+        const data = await fetchFormSubmissions(selectedFormId, qaySiteId);
         setSubmissions(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load submissions');
@@ -149,7 +172,7 @@ export default function FormsPage() {
     };
 
     loadSubmissions();
-  }, [selectedFormId]);
+  }, [selectedFormId, qaySiteId]);
 
   // Filter and sort submissions
   const filteredSubmissions = useMemo(() => {
@@ -224,7 +247,7 @@ export default function FormsPage() {
       const currentSubmission = submissions.find((sub) => sub.id === submissionId);
       const oldStatus = currentSubmission?.status;
 
-      await updateSubmissionStatus(submissionId, status);
+      await updateSubmissionStatus(submissionId, status, qaySiteId);
       setSubmissions((prev) =>
         prev.map((sub) => (sub.id === submissionId ? { ...sub, status } : sub))
       );
@@ -262,7 +285,7 @@ export default function FormsPage() {
       const deletedSubmission = submissions.find((sub) => sub.id === submissionToDelete);
       const wasNew = deletedSubmission?.status === 'new';
 
-      await deleteSubmission(submissionToDelete);
+      await deleteSubmission(submissionToDelete, qaySiteId);
       setSubmissions((prev) => prev.filter((sub) => sub.id !== submissionToDelete));
       if (selectedSubmission?.id === submissionToDelete) {
         setSelectedSubmission(null);
@@ -317,7 +340,7 @@ export default function FormsPage() {
 
     try {
       const ids = Array.from(selectedSubmissionIds);
-      const response = await fetch('/ycode/api/form-submissions', {
+      const response = await fetch(formSubmissionsUrl({}, qaySiteId), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
@@ -382,7 +405,7 @@ export default function FormsPage() {
     if (!formToDelete) return;
 
     try {
-      await deleteForm(formToDelete);
+      await deleteForm(formToDelete, qaySiteId);
       // Remove from summaries
       setSummaries((prev) => prev.filter((s) => s.form_id !== formToDelete));
       // Clear submissions if this was the selected form
@@ -402,12 +425,12 @@ export default function FormsPage() {
   const handleRefresh = async () => {
     try {
       setIsLoading(true);
-      const data = await fetchFormSummaries();
+      const data = await fetchFormSummaries(qaySiteId);
       setSummaries(data);
 
       // Reload submissions if a form is selected
       if (selectedFormId) {
-        const submissionsData = await fetchFormSubmissions(selectedFormId);
+        const submissionsData = await fetchFormSubmissions(selectedFormId, qaySiteId);
         setSubmissions(submissionsData);
       }
     } catch (err) {

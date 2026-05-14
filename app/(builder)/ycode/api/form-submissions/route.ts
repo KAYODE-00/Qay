@@ -10,6 +10,8 @@ import { dispatchFormSubmittedEvent } from '@/lib/services/webhookService';
 import { sendFormSubmissionEmail, extractReplyToEmail } from '@/lib/services/emailService';
 import { processAppIntegrations } from '@/lib/apps/integration-service';
 import { noCache } from '@/lib/api-response';
+import { canAccessQaySite } from '@/qay/lib/site-access';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -30,13 +32,18 @@ export async function GET(request: NextRequest) {
     const formId = searchParams.get('form_id') || undefined;
     const status = searchParams.get('status') as 'new' | 'read' | 'archived' | 'spam' | undefined;
     const summary = searchParams.get('summary') === 'true';
+    const qaySiteId = getQaySiteIdFromRequest(request);
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return noCache({ error: 'Site not found' }, 404);
+    }
 
     if (summary) {
-      const summaries = await getFormSummaries();
+      const summaries = await getFormSummaries(qaySiteId);
       return noCache({ data: summaries });
     }
 
-    const submissions = await getAllFormSubmissions(formId, status);
+    const submissions = await getAllFormSubmissions(formId, status, qaySiteId);
     return noCache({ data: submissions });
   } catch (error) {
     console.error('Error fetching form submissions:', error);
@@ -76,7 +83,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract metadata from request if not provided
-    const metadata = body.metadata || {
+    const bodyMetadata = body.metadata && typeof body.metadata === 'object' ? body.metadata : {};
+    const metadata = {
+      ...bodyMetadata,
       user_agent: request.headers.get('user-agent') || undefined,
       referrer: request.headers.get('referer') || undefined,
       // Note: IP is typically handled by the proxy/edge, not available directly
@@ -147,10 +156,15 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const formId = searchParams.get('form_id');
+    const qaySiteId = getQaySiteIdFromRequest(request);
+
+    if (qaySiteId && !(await canAccessQaySite(qaySiteId))) {
+      return noCache({ error: 'Site not found' }, 404);
+    }
 
     // If form_id is provided, delete all submissions for that form
     if (formId) {
-      await deleteFormSubmissionsByFormId(formId);
+      await deleteFormSubmissionsByFormId(formId, qaySiteId);
       return noCache({ message: 'All submissions for form deleted successfully' });
     }
 
@@ -159,7 +173,7 @@ export async function DELETE(request: NextRequest) {
     const ids = body.ids;
 
     if (Array.isArray(ids) && ids.length > 0) {
-      await bulkDeleteFormSubmissions(ids);
+      await bulkDeleteFormSubmissions(ids, qaySiteId);
       return noCache({ message: `${ids.length} submissions deleted successfully` });
     }
 
