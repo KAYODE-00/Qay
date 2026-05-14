@@ -4,6 +4,16 @@ import fs from 'fs/promises';
 import path from 'path';
 import { closeKnexClient, getKnexClient } from '@/lib/knex-client';
 
+const QAY_MIGRATION_FILES = [
+  '001_qay_core.sql',
+  '002_qay_mcp_tokens.sql',
+  '002_qay_media_isolation.sql',
+  '003_qay_pages_site_unique.sql',
+  '003_qay_site_collections.sql',
+  '004_qay_site_integrations.sql',
+  '005_qay_site_settings.sql',
+];
+
 const MISSING_SCHEMA_PATTERNS = [
   'qay_sites',
   'qay_site_mcp_tokens',
@@ -43,10 +53,13 @@ export async function runQayCoreMigration() {
   const knex = await getKnexClient();
 
   try {
-    const migrationPath = path.join(process.cwd(), 'qay', 'database', 'migrations', '001_qay_core.sql');
-    const sql = await fs.readFile(migrationPath, 'utf8');
+    const migrationsDir = path.join(process.cwd(), 'qay', 'database', 'migrations');
+    for (const fileName of QAY_MIGRATION_FILES) {
+      const migrationPath = path.join(migrationsDir, fileName);
+      const sql = await fs.readFile(migrationPath, 'utf8');
+      await knex.raw(sql);
+    }
 
-    await knex.raw(sql);
     await knex.raw("NOTIFY pgrst, 'reload schema'");
     await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -64,8 +77,7 @@ export async function runQayCoreMigration() {
 export function qaySchemaSetupMessage(error?: string) {
   return [
     'QAY database tables are not ready yet.',
-    'Run the QAY core migration after Ycode setup: qay/database/migrations/001_qay_core.sql.',
-    'Then run any follow-up QAY migrations such as qay/database/migrations/002_qay_mcp_tokens.sql, qay/database/migrations/003_qay_site_collections.sql, qay/database/migrations/004_qay_site_integrations.sql, and qay/database/migrations/005_qay_site_settings.sql.',
+    'Run the QAY migrations after Ycode setup: qay/database/migrations/001_qay_core.sql through qay/database/migrations/005_qay_site_settings.sql.',
     error ? `Details: ${error}` : null,
   ].filter(Boolean).join(' ');
 }
