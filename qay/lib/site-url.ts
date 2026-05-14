@@ -80,11 +80,13 @@ export function shouldUsePathBasedQayUrls(baseHost = getQayBaseHost()): boolean 
     return false;
   }
 
-  if (hasExplicitQayBaseDomain()) {
-    return false;
+  // Vercel preview/production hosts cannot serve arbitrary user subdomains
+  // without domain configuration, so keep QAY sites under /:siteSlug there.
+  if (baseHost.endsWith('.vercel.app')) {
+    return true;
   }
 
-  return baseHost.endsWith('.vercel.app');
+  return false;
 }
 
 export function getQaySiteBaseUrl(
