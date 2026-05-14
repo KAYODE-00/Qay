@@ -255,6 +255,7 @@ export interface LinkResolutionContext {
   pageCollectionItemData?: Record<string, string>;
   isPreview?: boolean;
   previewBasePath?: string;
+  sitePathPrefix?: string;
   locale?: Locale | null;
   translations?: Record<string, any> | null;
   getAsset?: (id: string) => { public_url?: string | null; content?: string | null } | null;
@@ -271,8 +272,11 @@ export interface LinkResolutionContext {
   pageCollectionSortedItemIds?: string[];
 }
 
-function normalizeSitePath(pathname: string, isPreview: boolean, previewBasePath: string): string {
+function normalizeSitePath(pathname: string, isPreview: boolean, previewBasePath: string, sitePathPrefix?: string): string {
   const normalizedPreviewBase = previewBasePath.replace(/\/$/, '') || '/ycode/preview';
+  const normalizedSitePrefix = sitePathPrefix
+    ? `/${sitePathPrefix.replace(/^\/+|\/+$/g, '')}`.replace(/\/$/, '')
+    : '';
 
   if (pathname === '/ycode' || pathname === '/ycode/') {
     return isPreview ? normalizedPreviewBase : '/';
@@ -298,7 +302,17 @@ function normalizeSitePath(pathname: string, isPreview: boolean, previewBasePath
 
   if (pathname.startsWith('/ycode/')) {
     const suffix = pathname.slice('/ycode'.length);
-    return suffix || '/';
+    pathname = suffix || '/';
+  }
+
+  if (!isPreview && normalizedSitePrefix && pathname.startsWith('/')) {
+    if (pathname === normalizedSitePrefix || pathname.startsWith(`${normalizedSitePrefix}/`)) {
+      return pathname;
+    }
+
+    return pathname === '/'
+      ? normalizedSitePrefix
+      : `${normalizedSitePrefix}${pathname}`;
   }
 
   return pathname;
@@ -309,6 +323,7 @@ export function normalizeSiteHref(
   options: {
     isPreview?: boolean;
     previewBasePath?: string;
+    sitePathPrefix?: string;
   } = {}
 ): string {
   const trimmed = href.trim();
@@ -316,6 +331,7 @@ export function normalizeSiteHref(
 
   const isPreview = options.isPreview ?? false;
   const previewBasePath = options.previewBasePath || '/ycode/preview';
+  const sitePathPrefix = options.sitePathPrefix;
 
   if (
     trimmed.startsWith('#') ||
@@ -328,7 +344,7 @@ export function normalizeSiteHref(
   }
 
   if (trimmed.startsWith('/')) {
-    return normalizeSitePath(trimmed, isPreview, previewBasePath);
+    return normalizeSitePath(trimmed, isPreview, previewBasePath, sitePathPrefix);
   }
 
   try {
@@ -463,13 +479,14 @@ export function resolveCollectionLinkValue(
     collectionItemSlugs,
     isPreview,
     previewBasePath = '/ycode/preview',
+    sitePathPrefix,
     locale,
     translations,
   } = context;
 
   if (linkValue.type === 'url') {
     return linkValue.url
-      ? normalizeSiteHref(linkValue.url, { isPreview, previewBasePath })
+      ? normalizeSiteHref(linkValue.url, { isPreview, previewBasePath, sitePathPrefix })
       : null;
   }
 
@@ -501,7 +518,7 @@ export function resolveCollectionLinkValue(
     }
 
     return href
-      ? normalizeSiteHref(href, { isPreview, previewBasePath })
+      ? normalizeSiteHref(href, { isPreview, previewBasePath, sitePathPrefix })
       : null;
   }
 
@@ -528,6 +545,7 @@ export function generateLinkHref(
     pageCollectionItemData,
     isPreview,
     previewBasePath = '/ycode/preview',
+    sitePathPrefix,
     locale,
     translations,
     getAsset,
@@ -541,7 +559,7 @@ export function generateLinkHref(
     case 'url': {
       const urlContent = linkSettings.url?.data?.content || '';
       const resolvedUrl = resolveInlineVariablesFromData(urlContent, collectionItemData, pageCollectionItemData) || '';
-      href = normalizeSiteHref(resolvedUrl, { isPreview, previewBasePath });
+      href = normalizeSiteHref(resolvedUrl, { isPreview, previewBasePath, sitePathPrefix });
       break;
     }
     case 'email': {
@@ -682,7 +700,7 @@ export function generateLinkHref(
   }
 
   return href
-    ? normalizeSiteHref(href, { isPreview, previewBasePath })
+    ? normalizeSiteHref(href, { isPreview, previewBasePath, sitePathPrefix })
     : null;
 }
 

@@ -26,6 +26,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
   const pathSiteContext = await resolveQayPathSiteContext(slugSegments);
   const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = pathSiteContext.siteId || await getQayRenderSiteId();
+  const sitePathPrefix = pathSiteContext.siteSlug ? `/${pathSiteContext.siteSlug}` : undefined;
   if (renderSubdomain && !qaySiteId) {
     notFound();
   }
@@ -81,6 +82,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
             layers={pageLayers.layers || []}
             components={components}
             generatedCss={siteScopedCss || publishedCSS}
+            sitePathPrefix={sitePathPrefix}
           />
       );
     }
@@ -110,6 +112,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
             layers={errorPageLayers.layers || []}
             components={errorComponents}
             generatedCss={siteScopedCss || publishedCSS}
+            sitePathPrefix={sitePathPrefix}
             passwordProtection={{
               pageId: protection.protectedBy === 'page' ? protection.protectedById : undefined,
               folderId: protection.protectedBy === 'folder' ? protection.protectedById : undefined,
@@ -147,6 +150,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
       components={components}
       generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
       colorVariablesCss={globalSettings.colorVariablesCss || undefined}
+      sitePathPrefix={sitePathPrefix}
       collectionItem={collectionItem}
       collectionFields={collectionFields}
       pageCollectionSortedItemIds={pageCollectionSortedItemIds}

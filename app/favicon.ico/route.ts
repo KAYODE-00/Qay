@@ -1,9 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 export const dynamic = 'force-static';
 
-export async function GET(request: NextRequest) {
-  return NextResponse.redirect(new URL('/icon.svg', request.url), {
-    status: 308,
+export async function GET() {
+  const icon = await readFile(path.join(process.cwd(), 'public', 'ycode-webclip.png'));
+
+  return new Response(icon, {
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    },
   });
 }

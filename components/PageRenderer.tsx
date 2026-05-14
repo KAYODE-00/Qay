@@ -193,6 +193,7 @@ interface PageRendererProps {
   availableLocales?: Locale[];
   isPreview?: boolean;
   previewBasePath?: string;
+  sitePathPrefix?: string;
   translations?: Record<string, any> | null;
   gaMeasurementId?: string | null;
   globalCustomCodeHead?: string | null;
@@ -236,6 +237,7 @@ export default async function PageRenderer({
   availableLocales = [],
   isPreview = false,
   previewBasePath = '/ycode/preview',
+  sitePathPrefix,
   translations,
   gaMeasurementId,
   globalCustomCodeHead,
@@ -543,6 +545,7 @@ export default async function PageRenderer({
           collectionItemSlugs={collectionItemSlugs}
           isPreview={isPreview}
           previewBasePath={previewBasePath}
+          sitePathPrefix={sitePathPrefix}
           translations={translations}
           resolvedAssets={resolvedAssets}
           components={components}

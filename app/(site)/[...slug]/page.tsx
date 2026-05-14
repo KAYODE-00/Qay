@@ -260,6 +260,7 @@ export default async function Page({ params }: PageProps) {
   const pathSiteContext = await resolveQayPathSiteContext(slugSegments);
   const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = pathSiteContext.siteId || await getQayRenderSiteId();
+  const sitePathPrefix = pathSiteContext.siteSlug ? `/${pathSiteContext.siteSlug}` : undefined;
   if (renderSubdomain && !qaySiteId) {
     notFound();
   }
@@ -304,6 +305,7 @@ export default async function Page({ params }: PageProps) {
             layers={errorPageLayers.layers || []}
             components={errorComponents}
             generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
+            sitePathPrefix={sitePathPrefix}
             globalCustomCodeHead={globalSettings.globalCustomCodeHead}
             globalCustomCodeBody={globalSettings.globalCustomCodeBody}
           />
@@ -339,6 +341,7 @@ export default async function Page({ params }: PageProps) {
             layers={errorPageLayers.layers || []}
             components={errorComponents}
             generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
+            sitePathPrefix={sitePathPrefix}
             globalCustomCodeHead={globalSettings.globalCustomCodeHead}
             globalCustomCodeBody={globalSettings.globalCustomCodeBody}
             passwordProtection={{
@@ -377,6 +380,7 @@ export default async function Page({ params }: PageProps) {
       components={components}
       generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
       colorVariablesCss={globalSettings.colorVariablesCss || undefined}
+      sitePathPrefix={sitePathPrefix}
       collectionItem={collectionItem}
       collectionFields={collectionFields}
       pageCollectionSortedItemIds={pageCollectionSortedItemIds}
