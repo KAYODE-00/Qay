@@ -39,7 +39,7 @@ import { BackupRestoreDialog } from '@/components/project/BackupRestoreDialog';
 import { isCloudVersion } from '@/lib/utils';
 import { readQayEditorSiteIdFromBrowser, readQayEditorSiteSlugFromBrowser } from '@/qay/lib/editor-site';
 import { toCurrentEditorPath } from '@/qay/lib/editor-path';
-import { getQaySiteHost } from '@/qay/lib/site-url';
+import { getQaySiteBaseUrl } from '@/qay/lib/site-url';
 
 interface HeaderBarProps {
   user: User | null;
@@ -181,14 +181,14 @@ export default function HeaderBar({
     const siteSlug = readQayEditorSiteSlugFromBrowser();
 
     if (siteSlug) {
-      const directHost = getQaySiteHost({
+      const directBaseUrl = getQaySiteBaseUrl({
         slug: siteSlug,
         custom_domain: null,
         domain_verified: false,
       });
 
-      if (directHost) {
-        setBaseUrl(`${protocol}//${directHost}`);
+      if (directBaseUrl) {
+        setBaseUrl(directBaseUrl);
         return;
       }
     }
@@ -208,8 +208,7 @@ export default function HeaderBar({
 
         const payload = await response.json().catch(() => null);
         const site = payload?.data;
-        const host = site ? getQaySiteHost(site) : null;
-        return host ? `${protocol}//${host}` : fallbackBaseUrl;
+        return site ? (getQaySiteBaseUrl(site) || fallbackBaseUrl) : fallbackBaseUrl;
       })
       .catch(() => fallbackBaseUrl)
       .then((resolvedBaseUrl) => {

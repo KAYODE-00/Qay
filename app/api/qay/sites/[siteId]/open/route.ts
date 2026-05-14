@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canAccessQaySite } from '@/qay/lib/site-access';
 import { QAY_RENDER_SITE_COOKIE } from '@/qay/lib/render-site';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { getQaySiteHost, getQaySiteLiveUrl } from '@/qay/lib/site-url';
+import { getQaySiteBaseUrl, getQaySiteHost, getQaySiteLiveUrl } from '@/qay/lib/site-url';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -34,7 +34,7 @@ export async function GET(
           : null)
       )
     : null;
-  const targetSiteUrl = siteHost ? `${protocol}//${siteHost}` : null;
+  const targetSiteUrl = site ? (getQaySiteBaseUrl(site) || (siteHost ? `${protocol}//${siteHost}` : null)) : null;
   const redirectTarget = site?.publish_status === 'published'
     ? (getQaySiteLiveUrl(site) || targetSiteUrl)
     : targetSiteUrl;
