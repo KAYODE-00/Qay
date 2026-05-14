@@ -135,6 +135,15 @@ function filterByQaySite<T extends { settings?: unknown; error_page?: number | n
   return list.filter((record) => getQaySiteIdFromSettings(record.settings) === qaySiteId);
 }
 
+function pickSafeDefaultLocales(locales: Locale[] | null | undefined): Locale[] {
+  const list = locales || [];
+  const fallback = list.find((locale) => locale.is_default)
+    || list.find((locale) => locale.code === 'en')
+    || list[0];
+
+  return fallback ? [fallback] : [];
+}
+
 /**
  * Order collection items the same way next/previous navigation should walk
  * them. When no setting is configured, falls back to the auto-generated
@@ -225,6 +234,10 @@ export async function loadTranslationsForLocale(
     let { data: locale, error: localeError } = await localeQuery.single();
 
     if (localeError && isMissingLocalisationSiteColumnError(localeError)) {
+      if (qaySiteId) {
+        return { locale: null, translations: {} };
+      }
+
       const fallback = await supabase
         .from('locales')
         .select('*')
@@ -255,6 +268,10 @@ export async function loadTranslationsForLocale(
     let { data: translations, error: translationsError } = await translationsQuery;
 
     if (translationsError && isMissingLocalisationSiteColumnError(translationsError)) {
+      if (qaySiteId) {
+        return { locale, translations: {} };
+      }
+
       const fallback = await supabase
         .from('translations')
         .select('*')
@@ -430,7 +447,7 @@ async function fetchPageByPathInternal(
         .select('*')
         .eq('is_published', isPublished)
         .is('deleted_at', null);
-      availableLocales = fallback.data;
+      availableLocales = qaySiteId ? pickSafeDefaultLocales(fallback.data as Locale[] | null) : fallback.data;
     }
     const timezone = (timezoneRaw as string | null) || 'UTC';
 
@@ -825,7 +842,7 @@ export async function fetchErrorPage(
         .select('*')
         .eq('is_published', isPublished)
         .is('deleted_at', null);
-      availableLocales = fallback.data;
+      availableLocales = qaySiteId ? pickSafeDefaultLocales(fallback.data as Locale[] | null) : fallback.data;
       localesError = fallback.error;
     }
 
@@ -939,16 +956,35 @@ export const fetchHomepage = cache(async function fetchHomepage(
         .filter('settings->>qay_site_id', 'eq', qaySiteId);
     }
 
+    let homepageLocalesQuery = supabase
+      .from('locales')
+      .select('*')
+      .eq('is_published', isPublished)
+      .is('deleted_at', null);
+
+    homepageLocalesQuery = qaySiteId
+      ? homepageLocalesQuery.eq('qay_site_id', qaySiteId)
+      : homepageLocalesQuery.is('qay_site_id', null);
+
     // Fetch locales, homepage, and components in parallel
     const [
-      { data: availableLocales },
+      homepageLocalesResult,
       { data: homepage },
       componentsResult,
     ] = await Promise.all([
-      supabase.from('locales').select('*').eq('is_published', isPublished).is('deleted_at', null),
+      homepageLocalesQuery,
       homepageQuery.limit(1).single(),
       preloadedComponents ? Promise.resolve(preloadedComponents) : fetchComponents(supabase, isPublished),
     ]);
+    let availableLocales = homepageLocalesResult.data;
+    if (homepageLocalesResult.error && isMissingLocalisationSiteColumnError(homepageLocalesResult.error)) {
+      const fallback = await supabase
+        .from('locales')
+        .select('*')
+        .eq('is_published', isPublished)
+        .is('deleted_at', null);
+      availableLocales = qaySiteId ? pickSafeDefaultLocales(fallback.data as Locale[] | null) : fallback.data;
+    }
 
     if (!homepage) {
       return null;

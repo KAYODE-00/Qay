@@ -9,7 +9,15 @@ import { getSupabaseAdmin } from '@/lib/supabase-server';
 import type { Locale, CreateLocaleData, UpdateLocaleData } from '@/types';
 import { isMissingLocalisationSiteColumnError } from '@/qay/lib/localisation-schema';
 
-async function getAllLocalesWithoutSiteFilter(isPublished: boolean): Promise<Locale[]> {
+function pickSafeDefaultLocale(locales: Locale[]): Locale[] {
+  const fallback = locales.find((locale) => locale.is_default)
+    || locales.find((locale) => locale.code === 'en')
+    || locales[0];
+
+  return fallback ? [fallback] : [];
+}
+
+async function getAllLocalesWithoutSiteFilter(isPublished: boolean, safeDefaultOnly = false): Promise<Locale[]> {
   const client = await getSupabaseAdmin();
   if (!client) {
     throw new Error('Failed to initialize Supabase client');
@@ -27,7 +35,8 @@ async function getAllLocalesWithoutSiteFilter(isPublished: boolean): Promise<Loc
     throw new Error(`Failed to fetch locales: ${error.message}`);
   }
 
-  return data || [];
+  const locales = data || [];
+  return safeDefaultOnly ? pickSafeDefaultLocale(locales) : locales;
 }
 
 /**
@@ -55,7 +64,7 @@ export async function getAllLocales(isPublished: boolean = false, qaySiteId?: st
 
   if (error) {
     if (isMissingLocalisationSiteColumnError(error)) {
-      return getAllLocalesWithoutSiteFilter(isPublished);
+      return getAllLocalesWithoutSiteFilter(isPublished, Boolean(qaySiteId));
     }
     throw new Error(`Failed to fetch locales: ${error.message}`);
   }

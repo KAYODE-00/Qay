@@ -7,6 +7,7 @@
 
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import type { Translation, CreateTranslationData, UpdateTranslationData } from '@/types';
+import { isMissingLocalisationSiteColumnError } from '@/qay/lib/localisation-schema';
 
 /**
  * Get all translations for a locale (draft by default)
@@ -37,6 +38,9 @@ export async function getTranslationsByLocale(
   const { data, error } = await query;
 
   if (error) {
+    if (qaySiteId && isMissingLocalisationSiteColumnError(error)) {
+      return [];
+    }
     throw new Error(`Failed to fetch translations: ${error.message}`);
   }
 
@@ -74,6 +78,9 @@ export async function getTranslationsBySource(
   const { data, error } = await query;
 
   if (error) {
+    if (qaySiteId && isMissingLocalisationSiteColumnError(error)) {
+      return [];
+    }
     throw new Error(`Failed to fetch translations: ${error.message}`);
   }
 
