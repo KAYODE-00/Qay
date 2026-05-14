@@ -51,6 +51,11 @@ function hasExplicitQayBaseDomain(): boolean {
   );
 }
 
+function getQayUrlMode(): 'subdomain' | 'path' {
+  const raw = process.env.NEXT_PUBLIC_QAY_URL_MODE || process.env.QAY_URL_MODE;
+  return raw?.toLowerCase() === 'path' ? 'path' : 'subdomain';
+}
+
 export function getQayBaseHostname(): string | null {
   const explicit = normalizeHostLike(
     process.env.NEXT_PUBLIC_QAY_BASE_DOMAIN || process.env.QAY_BASE_DOMAIN
@@ -80,9 +85,7 @@ export function shouldUsePathBasedQayUrls(baseHost = getQayBaseHost()): boolean 
     return false;
   }
 
-  // Vercel preview/production hosts cannot serve arbitrary user subdomains
-  // without domain configuration, so keep QAY sites under /:siteSlug there.
-  if (baseHost.endsWith('.vercel.app')) {
+  if (getQayUrlMode() === 'path') {
     return true;
   }
 
