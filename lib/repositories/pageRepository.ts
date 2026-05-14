@@ -738,7 +738,7 @@ export async function batchUpdatePageOrder(updates: Array<{ id: string; order: n
  * Also deletes all page_layers (draft and published) for this page
  * After deletion, reorders remaining pages with the same parent_id
  */
-export async function deletePage(id: string): Promise<void> {
+export async function deletePage(id: string, qaySiteId?: string | null): Promise<void> {
   const client = await getSupabaseAdmin();
 
   if (!client) {
@@ -749,7 +749,7 @@ export async function deletePage(id: string): Promise<void> {
 
   // Get the draft page before deletion to know its parent_id and depth
   // Repository delete functions always delete draft versions
-  const pageToDelete = await getPageById(id, false);
+  const pageToDelete = await getPageById(id, false, qaySiteId);
   if (!pageToDelete) {
     throw new Error('Page not found');
   }
@@ -757,13 +757,19 @@ export async function deletePage(id: string): Promise<void> {
   // Prevent deleting the homepage
   if (isHomepage(pageToDelete)) {
     // Check if there are other index pages in root folder
-    const { data: otherRootIndexPages, error: checkError } = await client
+    let otherRootIndexQuery = client
       .from('pages')
       .select('id')
       .eq('is_index', true)
       .is('page_folder_id', null)
       .is('deleted_at', null)
       .neq('id', id);
+
+    if (qaySiteId) {
+      otherRootIndexQuery = otherRootIndexQuery.filter('settings->>qay_site_id', 'eq', qaySiteId);
+    }
+
+    const { data: otherRootIndexPages, error: checkError } = await otherRootIndexQuery;
 
     if (checkError) {
       throw new Error(`Failed to check for other root index pages: ${checkError.message}`);

@@ -10,6 +10,7 @@ import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 import { buildQayIndexSlug } from '@/qay/lib/index-slug';
+import { ensureQaySiteComponentsTable } from '@/qay/lib/site-components';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -45,6 +46,7 @@ type ImportedRowIds = {
   assetFolders: string[];
   collections: string[];
   fonts: string[];
+  components: string[];
 };
 
 function stripQayUnsafeTemplateStatements(sql: string) {
@@ -146,6 +148,7 @@ async function collectImportedRowIds(
     assetFolders: await findNewIds('asset_folders'),
     collections: await findNewIds('collections'),
     fonts: await findNewIds('fonts'),
+    components: await findNewIds('components'),
   };
 }
 
@@ -502,7 +505,7 @@ async function resolveDuplicateLayerStyleNames(
   }
 }
 
-async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowIds) {
+async function tagImportedTemplateData(siteId: string, templateId: string, importedIds: ImportedRowIds) {
   const knex = await getKnexClient();
   const siteSettings = JSON.stringify({ qay_site_id: siteId });
   const importedPageIds = new Set(importedIds.pages);
@@ -517,7 +520,7 @@ async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowI
       .update({
         settings: knex.raw("coalesce(settings, '{}'::jsonb) || ?::jsonb", [siteSettings]),
         slug: knex.raw(
-          "case when error_page is null and is_index = true and page_folder_id is null then ? else slug end",
+          'case when error_page is null and is_index = true and page_folder_id is null then ? else slug end',
           [buildQayIndexSlug(siteId)]
         ),
       });
@@ -527,6 +530,31 @@ async function tagImportedTemplateData(siteId: string, importedIds: ImportedRowI
     await resolveDuplicatePageSlots(knex, importedPageIds);
     await resolveLegacyGlobalDuplicatePageSlots(knex);
     await restorePageSiteUniqueIndex(knex);
+  }
+
+  if (
+    await knex.schema.hasTable('components') &&
+    importedIds.components.length > 0
+  ) {
+    await ensureQaySiteComponentsTable(knex);
+    const components = await knex('components')
+      .whereNull('deleted_at')
+      .where('is_published', false)
+      .whereIn('id', importedIds.components)
+      .select('id');
+
+    if (components.length > 0) {
+      await knex('qay_site_components')
+        .insert(components.map((component) => ({
+          site_id: siteId,
+          component_id: component.id,
+          source: 'template',
+          category: 'Template components',
+          template_id: templateId,
+        })))
+        .onConflict(['site_id', 'component_id'])
+        .merge();
+    }
   }
 
   if (await knex.schema.hasTable('page_folders') && importedIds.pageFolders.length > 0) {
@@ -683,6 +711,7 @@ export async function POST(
       asset_folders: await loadExistingIds(knex, 'asset_folders'),
       collections: await loadExistingIds(knex, 'collections'),
       fonts: await loadExistingIds(knex, 'fonts'),
+      components: await loadExistingIds(knex, 'components'),
     };
 
     const { template, sql } = await fetchProcessedTemplateApplyPayload(templateId);
@@ -695,7 +724,7 @@ export async function POST(
     });
 
     const importedIds = await collectImportedRowIds(knex, existingIds);
-    await tagImportedTemplateData(siteId, importedIds);
+    await tagImportedTemplateData(siteId, templateId, importedIds);
 
     await supabase
       .from('qay_sites')

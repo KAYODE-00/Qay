@@ -11,14 +11,6 @@ type DashboardProps = {
   userEmail: string;
 };
 
-function makeSlug(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
 function formatRelativeDate(value: string | null) {
   if (!value) return 'Updated recently';
 
@@ -38,7 +30,6 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [siteName, setSiteName] = useState('');
-  const [siteSlug, setSiteSlug] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,7 +51,7 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
       const response = await fetch('/api/qay/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: siteName, slug: siteSlug || siteName }),
+        body: JSON.stringify({ name: siteName }),
       });
       const payload = await response.json();
 
@@ -170,13 +161,17 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
                 ? 'rounded-lg border border-border bg-card p-4'
                 : 'flex items-center gap-4 rounded-lg border border-border bg-card p-4'}
             >
-              <div className={view === 'grid'
-                ? 'flex aspect-video items-center justify-center rounded-md border border-border bg-muted'
-                : 'flex h-20 w-32 shrink-0 items-center justify-center rounded-md border border-border bg-muted'}
+              <div
+                className={view === 'grid'
+                  ? 'flex aspect-video items-center justify-center rounded-md border border-border bg-muted'
+                  : 'flex h-20 w-32 shrink-0 items-center justify-center rounded-md border border-border bg-muted'}
               >
                 {site.thumbnail_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={site.thumbnail_url} alt="" className="h-full w-full rounded-md object-cover" />
+                  <img
+                    src={site.thumbnail_url} alt=""
+                    className="h-full w-full rounded-md object-cover"
+                  />
                 ) : (
                   <span className="text-sm font-medium text-muted-foreground">{site.name.slice(0, 2).toUpperCase()}</span>
                 )}
@@ -277,24 +272,13 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
                 <span>Site name</span>
                 <input
                   value={siteName}
-                  onChange={(event) => {
-                    setSiteName(event.target.value);
-                    setSiteSlug((current) => current || makeSlug(event.target.value));
-                  }}
+                  onChange={(event) => setSiteName(event.target.value)}
                   required
                   className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
                 />
               </label>
 
-              <label className="block space-y-2 text-sm text-muted-foreground">
-                <span>Slug</span>
-                <input
-                  value={siteSlug}
-                  onChange={(event) => setSiteSlug(makeSlug(event.target.value))}
-                  required
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
-                />
-              </label>
+              <p className="text-sm text-muted-foreground">QAY will create a short site URL automatically.</p>
 
               {error && <p className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
 

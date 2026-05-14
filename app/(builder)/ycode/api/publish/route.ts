@@ -7,7 +7,8 @@ import { publishFolders } from '@/lib/services/folderService';
 import { publishCSS, savePublishedAt } from '@/lib/services/settingsService';
 import { clearAllCache } from '@/lib/services/cacheService';
 import { getAllDraftPages, hardDeleteSoftDeletedPages } from '@/lib/repositories/pageRepository';
-import { publishComponents, getUnpublishedComponents, hardDeleteSoftDeletedComponents } from '@/lib/repositories/componentRepository';
+import { publishComponents, getUnpublishedComponents, hardDeleteSoftDeletedComponents, getComponentsByIds } from '@/lib/repositories/componentRepository';
+import { getDraftLayersForPages } from '@/lib/repositories/pageLayersRepository';
 import { publishLayerStyles, getUnpublishedLayerStyles, hardDeleteSoftDeletedLayerStyles } from '@/lib/repositories/layerStyleRepository';
 import { getAllCollections } from '@/lib/repositories/collectionRepository';
 import { getItemsByCollectionId } from '@/lib/repositories/collectionItemRepository';
@@ -20,6 +21,7 @@ import { getSiteAssetFolderIds, getSiteAssetIds } from '@/qay/lib/media-isolatio
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { setQaySiteSettings } from '@/qay/lib/site-settings';
 import { getQaySiteLiveUrl } from '@/qay/lib/site-url';
+import { collectComponentIds } from '@/lib/component-utils';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -81,6 +83,45 @@ function createEmptyStats(): PublishStats {
       css: emptyTableStats(),
     },
   };
+}
+
+async function collectComponentIdsForQayPages(pageIds: string[]): Promise<string[]> {
+  if (pageIds.length === 0) {
+    return [];
+  }
+
+  const draftLayers = await getDraftLayersForPages(pageIds);
+  const componentIds = new Set<string>();
+
+  for (const draft of draftLayers) {
+    for (const componentId of collectComponentIds(draft.layers || [])) {
+      componentIds.add(componentId);
+    }
+  }
+
+  const pending = Array.from(componentIds);
+  const visited = new Set<string>();
+
+  while (pending.length > 0) {
+    const batch = pending.filter((componentId) => !visited.has(componentId));
+    if (batch.length === 0) {
+      break;
+    }
+
+    batch.forEach((componentId) => visited.add(componentId));
+    const componentsById = await getComponentsByIds(batch, false);
+
+    for (const component of Object.values(componentsById)) {
+      for (const nestedComponentId of collectComponentIds(component.layers || [])) {
+        if (!componentIds.has(nestedComponentId)) {
+          componentIds.add(nestedComponentId);
+          pending.push(nestedComponentId);
+        }
+      }
+    }
+  }
+
+  return Array.from(componentIds);
 }
 
 /**
@@ -295,7 +336,17 @@ export async function POST(request: NextRequest) {
     // Publish components
     {
       const stepStart = performance.now();
-      if (!qaySiteId && componentIds && componentIds.length > 0) {
+      if (qaySiteId) {
+        const referencedComponentIds = await collectComponentIdsForQayPages(effectivePageIds);
+        const requestedComponentIds = componentIds?.filter((componentId) => referencedComponentIds.includes(componentId)) ?? [];
+        const effectiveComponentIds = Array.from(new Set([...referencedComponentIds, ...requestedComponentIds]));
+
+        if (effectiveComponentIds.length > 0) {
+          const componentsResult = await publishComponents(effectiveComponentIds);
+          result.changes.components = componentsResult.count;
+          stats.tables.components.added = componentsResult.count;
+        }
+      } else if (componentIds && componentIds.length > 0) {
         const componentsResult = await publishComponents(componentIds);
         result.changes.components = componentsResult.count;
         stats.tables.components.added = componentsResult.count;

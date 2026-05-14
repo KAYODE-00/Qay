@@ -163,15 +163,15 @@ export async function DELETE(
     if (qaySiteId) {
       const currentPage = await getPageById(id, false, qaySiteId);
       if (!(await canUsePageInQaySite(qaySiteId, currentPage))) {
-        return noCache(
-          { error: 'Page not found' },
-          404
-        );
+        return noCache({
+          success: true,
+          message: 'Page already removed',
+        });
       }
     }
 
     // Delete the page
-    await deletePage(id);
+    await deletePage(id, qaySiteId);
 
     // Delete all translations for this page
     await deleteTranslationsInBulk('page', id);

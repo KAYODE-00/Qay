@@ -42,7 +42,7 @@ import ComponentCard from './ComponentCard';
 import SaveLayoutDialog from './SaveLayoutDialog';
 import { usePagesStore } from '@/stores/usePagesStore';
 import { useEditorStore } from '@/stores/useEditorStore';
-import { useComponentsStore } from '@/stores/useComponentsStore';
+import { triggerThumbnailGeneration, useComponentsStore } from '@/stores/useComponentsStore';
 import { useEditorActions } from '@/hooks/use-editor-url';
 import type { UseLiveLayerUpdatesReturn } from '@/hooks/use-live-layer-updates';
 
@@ -178,8 +178,7 @@ function hasInlinedComponents(layer: Layer): boolean {
  */
 async function restoreInlinedComponents(
   layer: Layer,
-  existingComponents: { id: string; name: string }[],
-  createdComponents: Map<string, string> // name -> componentId
+  usedComponentNames: Set<string>
 ): Promise<Layer> {
   const newLayer = { ...layer } as Layer & {
     _inlinedComponentName?: string;
@@ -188,67 +187,63 @@ async function restoreInlinedComponents(
 
   // Check if this layer has inlined component data
   if (newLayer._inlinedComponentName && newLayer.children?.length) {
-    const componentName = newLayer._inlinedComponentName;
+    const baseComponentName = newLayer._inlinedComponentName.trim() || 'Template part';
+    let componentName = baseComponentName;
+    let suffix = 2;
+    while (usedComponentNames.has(componentName)) {
+      componentName = `${baseComponentName} ${suffix++}`;
+    }
+    usedComponentNames.add(componentName);
     const componentVariables = newLayer._inlinedComponentVariables;
 
-    // Check if we already created this component in this batch
-    let componentId: string | undefined = createdComponents.get(componentName);
+    let componentId: string | undefined;
 
-    if (!componentId) {
-      // Check if a component with this name already exists
-      const existing = existingComponents.find(c => c.name === componentName);
-
-      if (existing) {
-        componentId = existing.id;
-      } else {
-        // Create new component from inlined layers (including variables)
-        try {
-          // Debug: check if layers have interactions and log layer IDs
-          const collectLayerIds = (layers: any[]): string[] => {
-            const ids: string[] = [];
-            for (const l of layers) {
-              if (l.id) ids.push(l.id);
-              if (l.children) ids.push(...collectLayerIds(l.children));
-            }
-            return ids;
-          };
-          const collectInteractionTargets = (layers: any[]): string[] => {
-            const targets: string[] = [];
-            for (const l of layers) {
-              if (l.interactions) {
-                for (const int of l.interactions) {
-                  for (const tween of int.tweens || []) {
-                    if (tween.layer_id) targets.push(tween.layer_id);
-                  }
-                }
-              }
-              if (l.children) targets.push(...collectInteractionTargets(l.children));
-            }
-            return targets;
-          };
-
-          const layerIds = collectLayerIds(newLayer.children || []);
-          const interactionTargets = collectInteractionTargets(newLayer.children || []);
-          const missingTargets = interactionTargets.filter(t => !layerIds.includes(t));
-
-          if (missingTargets.length > 0) {
-            console.warn(`[restoreInlinedComponents] ⚠️ Missing layer targets:`, missingTargets);
-          }
-
-          const result = await componentsApi.create({
-            name: componentName,
-            layers: newLayer.children,
-            variables: componentVariables,
-          });
-          const newId = result.data?.id;
-          if (newId) {
-            componentId = newId;
-            createdComponents.set(componentName, newId);
-          }
-        } catch (error) {
-          console.error(`Failed to create component "${componentName}":`, error);
+    // Always create a fresh component for inlined template parts. Reusing by name
+    // makes every "Navigation" instance point at the same editable component.
+    try {
+      // Debug: check if layers have interactions and log layer IDs
+      const collectLayerIds = (layers: any[]): string[] => {
+        const ids: string[] = [];
+        for (const l of layers) {
+          if (l.id) ids.push(l.id);
+          if (l.children) ids.push(...collectLayerIds(l.children));
         }
+        return ids;
+      };
+      const collectInteractionTargets = (layers: any[]): string[] => {
+        const targets: string[] = [];
+        for (const l of layers) {
+          if (l.interactions) {
+            for (const int of l.interactions) {
+              for (const tween of int.tweens || []) {
+                if (tween.layer_id) targets.push(tween.layer_id);
+              }
+            }
+          }
+          if (l.children) targets.push(...collectInteractionTargets(l.children));
+        }
+        return targets;
+      };
+
+      const layerIds = collectLayerIds(newLayer.children || []);
+      const interactionTargets = collectInteractionTargets(newLayer.children || []);
+      const missingTargets = interactionTargets.filter(t => !layerIds.includes(t));
+
+      if (missingTargets.length > 0) {
+        console.warn(`[restoreInlinedComponents] ⚠️ Missing layer targets:`, missingTargets);
       }
+
+      const result = await componentsApi.create({
+        name: componentName,
+        layers: newLayer.children,
+        variables: componentVariables,
+      });
+      const newId = result.data?.id;
+      if (newId) {
+        componentId = newId;
+      }
+    } catch (error) {
+      console.error(`Failed to create component "${componentName}":`, error);
     }
 
     if (componentId) {
@@ -265,7 +260,7 @@ async function restoreInlinedComponents(
   if (newLayer.children?.length && !newLayer.componentId) {
     const processedChildren: Layer[] = [];
     for (const child of newLayer.children) {
-      const processed = await restoreInlinedComponents(child, existingComponents, createdComponents);
+      const processed = await restoreInlinedComponents(child, usedComponentNames);
       processedChildren.push(processed);
     }
     newLayer.children = processedChildren;
@@ -315,6 +310,27 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
   }, [components, componentSearch]);
 
   const hasComponentResults = !matchingComponentIds || matchingComponentIds.size > 0;
+  const templateThumbnailGenerationRef = useRef(new Set<string>());
+  const componentGroups = useMemo(() => {
+    const categoryOrder = ['Navigation', 'Hero', 'Header', 'Sections', 'Features', 'Pricing', 'Testimonials', 'FAQ', 'Blog', 'Footer', 'Saved components'];
+    const groups = new Map<string, Component[]>();
+
+    for (const component of components) {
+      if (matchingComponentIds && !matchingComponentIds.has(component.id)) continue;
+      const category = component.qay_site_category || 'Saved components';
+      groups.set(category, [...(groups.get(category) || []), component]);
+    }
+
+    return Array.from(groups.entries()).sort(([a], [b]) => {
+      const aIndex = categoryOrder.indexOf(a);
+      const bIndex = categoryOrder.indexOf(b);
+      if (aIndex !== -1 || bIndex !== -1) {
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      }
+      return a.localeCompare(b);
+    });
+  }, [components, matchingComponentIds]);
+  const hasAnyComponentResults = componentGroups.length > 0;
 
   const [isEditLayoutDialogOpen, setIsEditLayoutDialogOpen] = useState(false);
   const [editingLayoutKey, setEditingLayoutKey] = useState<string>('');
@@ -334,7 +350,11 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
     }
     // Initialize with all categories collapsed except "Navigation", "Hero", "Blog header" and "Blog posts"
     const allCategories = Object.keys(getLayoutsByCategory());
-    return new Set(allCategories.filter(cat => cat !== 'Navigation' && cat !== 'Hero' && cat !== 'Blog header' && cat !== 'Blog posts'));
+    const collapsed = allCategories.filter(cat => cat !== 'Navigation' && cat !== 'Hero' && cat !== 'Blog header' && cat !== 'Blog posts');
+    return new Set([
+      ...collapsed,
+      ...collapsed.map((category) => `template:${category}`),
+    ]);
   });
 
   // Sync tab when explicitly requested (e.g., "Add layout" button)
@@ -355,6 +375,22 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
       sessionStorage.setItem('elementLibrary-activeTab', activeTab);
     }
   }, [activeTab]);
+
+  React.useEffect(() => {
+    if (activeTab !== 'components') return;
+
+    components
+      .filter((component) =>
+        !component.thumbnail_url
+        && component.layers?.length
+        && !templateThumbnailGenerationRef.current.has(component.id)
+      )
+      .slice(0, 8)
+      .forEach((component) => {
+        templateThumbnailGenerationRef.current.add(component.id);
+        triggerThumbnailGeneration(component.id, component.layers, components);
+      });
+  }, [activeTab, components]);
 
   // Persist collapsed state to sessionStorage
   React.useEffect(() => {
@@ -727,17 +763,8 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
 
       // Restore inlined components (create actual components from inlined data)
       if (hasInlinedComponents(newLayer)) {
-        const createdComponents = new Map<string, string>();
-        newLayer = await restoreInlinedComponents(
-          newLayer,
-          components.map(c => ({ id: c.id, name: c.name })),
-          createdComponents
-        );
-
-        // Refresh components store if new components were created
-        if (createdComponents.size > 0) {
-          await loadComponents();
-        }
+        newLayer = await restoreInlinedComponents(newLayer, new Set(components.map(c => c.name)));
+        await loadComponents();
       }
 
       // Check for circular reference: layout may contain component instances
@@ -915,17 +942,8 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
 
     // Restore inlined components (create actual components from inlined data)
     if (hasInlinedComponents(newLayer)) {
-      const createdComponents = new Map<string, string>();
-      newLayer = await restoreInlinedComponents(
-        newLayer,
-        components.map(c => ({ id: c.id, name: c.name })),
-        createdComponents
-      );
-
-      // Refresh components store if new components were created
-      if (createdComponents.size > 0) {
-        await loadComponents();
-      }
+      newLayer = await restoreInlinedComponents(newLayer, new Set(components.map(c => c.name)));
+      await loadComponents();
     }
 
     // Find parent layer
@@ -1538,9 +1556,9 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
           >
             {components.length === 0 ? (
               <Empty>
-                <EmptyTitle>No components yet</EmptyTitle>
+                <EmptyTitle>No reusable parts yet</EmptyTitle>
                 <EmptyDescription>
-                  Right-click a layer and select &quot;Create component&quot; to make it reusable
+                  Template parts from this site and saved components will appear here.
                 </EmptyDescription>
               </Empty>
             ) : (
@@ -1557,71 +1575,93 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
                   </div>
                 </div>
                 <div className="border-b border-border mb-4" />
-                {!hasComponentResults && (
+                {!hasAnyComponentResults && (
                   <Empty>
                     <EmptyMedia variant="icon">
                       <Icon name="component" className="size-4" />
                     </EmptyMedia>
-                    <EmptyTitle>No matching components</EmptyTitle>
+                    <EmptyTitle>No matching reusable parts</EmptyTitle>
                   </Empty>
                 )}
-                <div className={cn('grid grid-cols-1 gap-1.5 pb-5', !hasComponentResults && 'hidden')}>
-                  {components.map((component) => {
-                    const isHidden = matchingComponentIds && !matchingComponentIds.has(component.id);
+                <div className={cn('flex flex-col divide-y pb-5', !hasAnyComponentResults && 'hidden')}>
+                  {componentGroups.map(([category, groupedComponents]) => {
+                    const collapseKey = `components:${category}`;
+                    const isCollapsed = collapsedCategories.has(collapseKey);
+
                     return (
-                      <ComponentCard
-                        key={component.id}
-                        component={component}
-                        className={cn(
-                          circularComponentIds.has(component.id) && 'opacity-40 pointer-events-none',
-                          isHidden && 'hidden',
-                        )}
-                        onClick={() => handleAddComponent(component.id)}
-                        onMouseDown={(e) => {
-                          if (e.button !== 0) return;
-                          if (circularComponentIds.has(component.id)) return;
-                          const startX = e.clientX;
-                          const startY = e.clientY;
-                          let dragging = false;
+                      <div key={category} className="flex flex-col">
+                        <header
+                          className="py-4 flex items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity"
+                          onClick={() => toggleCategory(collapseKey)}
+                        >
+                          <Icon
+                            name="triangle-down"
+                            className={cn(
+                              'size-3 opacity-25 transition-transform',
+                              isCollapsed && '-rotate-90'
+                            )}
+                          />
+                          <Label className="cursor-pointer">{category}</Label>
+                        </header>
+                        <div className={cn('grid grid-cols-1 gap-1.5 pb-5', isCollapsed && 'hidden')}>
+                          {groupedComponents.map((component) => {
+                            return (
+                        <ComponentCard
+                          key={component.id}
+                          component={component}
+                          className={cn(
+                            circularComponentIds.has(component.id) && 'opacity-40 pointer-events-none',
+                          )}
+                          onClick={() => handleAddComponent(component.id)}
+                          onMouseDown={(e) => {
+                            if (e.button !== 0) return;
+                            if (circularComponentIds.has(component.id)) return;
+                            const startX = e.clientX;
+                            const startY = e.clientY;
+                            let dragging = false;
 
-                          const handleMouseMove = (moveEvent: MouseEvent) => {
-                            const dx = moveEvent.clientX - startX;
-                            const dy = moveEvent.clientY - startY;
-                            if (!dragging && Math.sqrt(dx * dx + dy * dy) > 5) {
-                              dragging = true;
-                              handleElementDragStart(e, component.id, 'components', component.name);
-                            }
-                          };
+                            const handleMouseMove = (moveEvent: MouseEvent) => {
+                              const dx = moveEvent.clientX - startX;
+                              const dy = moveEvent.clientY - startY;
+                              if (!dragging && Math.sqrt(dx * dx + dy * dy) > 5) {
+                                dragging = true;
+                                handleElementDragStart(e, component.id, 'components', component.name);
+                              }
+                            };
 
-                          const handleMouseUp = () => {
-                            document.removeEventListener('mousemove', handleMouseMove);
-                            document.removeEventListener('mouseup', handleMouseUp);
-                            if (!dragging) handleAddComponent(component.id);
-                            dragging = false;
-                          };
+                            const handleMouseUp = () => {
+                              document.removeEventListener('mousemove', handleMouseMove);
+                              document.removeEventListener('mouseup', handleMouseUp);
+                              if (!dragging) handleAddComponent(component.id);
+                              dragging = false;
+                            };
 
-                          document.addEventListener('mousemove', handleMouseMove);
-                          document.addEventListener('mouseup', handleMouseUp);
-                        }}
-                        actions={
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Icon name="more" className="size-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={(e) => handleEditComponent(component, e)}>Edit</DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => handleDeleteClick(component, e)}>Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        }
-                      />
+                            document.addEventListener('mousemove', handleMouseMove);
+                            document.addEventListener('mouseup', handleMouseUp);
+                          }}
+                          actions={
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Icon name="more" className="size-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => handleEditComponent(component, e)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => handleDeleteClick(component, e)}>Delete</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          }
+                        />
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

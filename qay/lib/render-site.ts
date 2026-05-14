@@ -40,6 +40,9 @@ function getSubdomain(hostname: string): string | null {
   const configuredBaseDomain = getQayBaseHostname();
   if (configuredBaseDomain) {
     const base = configuredBaseDomain.toLowerCase().replace(/^\./, '');
+    if (hostname === base) {
+      return null;
+    }
     if (hostname.endsWith(`.${base}`)) {
       return hostname.slice(0, -(base.length + 1)).split('.').pop() || null;
     }

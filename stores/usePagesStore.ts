@@ -69,6 +69,22 @@ function filterFoldersForCurrentQaySite(folders: PageFolder[]): PageFolder[] {
   return Array.from(new Map(scopedFolders.map((folder) => [folder.id, folder])).values());
 }
 
+function removePageFromState(pageId: string) {
+  const { pages, folders, draftsByPageId } = usePagesStore.getState();
+  const filteredPages = pages.filter((page) => page.id !== pageId);
+  const { pages: reorderedPages, folders: reorderedFolders } = reorderPagesAndFoldersTogether(filteredPages, folders);
+  const nextDrafts = { ...draftsByPageId };
+  delete nextDrafts[pageId];
+
+  usePagesStore.setState({
+    pages: reorderedPages,
+    folders: reorderedFolders,
+    draftsByPageId: nextDrafts,
+    error: null,
+    isLoading: false,
+  });
+}
+
 function ensureUniqueLayerIds(layers: Layer[], seen = new Set<string>()): Layer[] {
   return layers.map((layer) => {
     let id = layer.id;
@@ -390,6 +406,11 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
       try {
         const response = await pageLayersApi.getDraft(pageId);
         if (response.error) {
+          if (readQayEditorSiteIdFromBrowser() && response.error.toLowerCase().includes('not found')) {
+            removePageFromState(pageId);
+            return;
+          }
+
           set({ error: response.error });
           return;
         }
@@ -2207,6 +2228,21 @@ export const usePagesStore = create<PagesStore>((set, get) => ({
       const response = await pagesApi.delete(pageId);
 
       if (response.error) {
+        if (response.error.toLowerCase().includes('not found')) {
+          set({
+            pages: updatedPages,
+            folders: updatedFolders,
+            draftsByPageId: updatedDrafts,
+            error: null,
+            isLoading: false,
+          });
+          return {
+            success: true,
+            currentPageDeleted: isCurrentPage,
+            nextPageId,
+          };
+        }
+
         console.error('[usePagesStore.deletePage] Error:', response.error);
         set({
           ...originalState,
