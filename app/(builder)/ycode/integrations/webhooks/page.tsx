@@ -44,6 +44,7 @@ import {
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 
 // =============================================================================
 // Types
@@ -318,9 +319,14 @@ export default function WebhooksPage() {
 
   const loadFilterData = async () => {
     setIsLoadingFilterData(true);
+    const qaySiteId = readQayEditorSiteIdFromBrowser();
+    const formsUrl = qaySiteId
+      ? `/ycode/api/form-submissions?summary=true&site=${encodeURIComponent(qaySiteId)}`
+      : '/ycode/api/form-submissions?summary=true';
+
     try {
       const [formsRes, collectionsRes] = await Promise.all([
-        fetch('/ycode/api/form-submissions?summary=true'),
+        fetch(formsUrl),
         fetch('/ycode/api/collections'),
       ]);
       const formsResult = await formsRes.json();

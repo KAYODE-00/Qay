@@ -43,6 +43,7 @@ import { APP_CATEGORIES } from '@/lib/apps/registry';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { MAILERLITE_SUBSCRIBER_FIELDS } from '@/lib/apps/mailerlite/types';
 import type { MailerLiteConnection, MailerLiteFieldMapping } from '@/lib/apps/mailerlite/types';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 import AirtableSettings from './airtable-settings';
 import WebflowSettings from './webflow-settings';
 import { toCurrentEditorPath } from '@/qay/lib/editor-path';
@@ -549,11 +550,15 @@ export default function AppsPage() {
   const loadGroupsAndForms = useCallback(async () => {
     setIsLoadingGroups(true);
     setIsLoadingForms(true);
+    const qaySiteId = readQayEditorSiteIdFromBrowser();
+    const formsUrl = qaySiteId
+      ? `/ycode/api/form-submissions?summary=true&site=${encodeURIComponent(qaySiteId)}`
+      : '/ycode/api/form-submissions?summary=true';
 
     try {
       const [groupsRes, formsRes] = await Promise.all([
         fetch('/ycode/api/apps/mailerlite/groups'),
-        fetch('/ycode/api/form-submissions?summary=true'),
+        fetch(formsUrl),
       ]);
 
       const groupsResult = await groupsRes.json();
