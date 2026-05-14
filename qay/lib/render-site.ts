@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { headers } from 'next/headers';
 import { getQayAdmin } from './supabase-admin';
 import { QAY_EDITOR_SITE_COOKIE } from './editor-site';
-import { getQayBaseHostname, shouldUsePathBasedQayUrls } from './site-url';
+import { getQayBaseHost, getQayBaseHostname } from './site-url';
 import { buildQayIndexSlug } from './index-slug';
 
 export const QAY_RENDER_SITE_COOKIE = 'qay_render_site_id';
@@ -27,6 +27,19 @@ function resolveRequestHost(headerStore: Awaited<ReturnType<typeof headers>>): s
 
 function getHostname(rawHost: string): string {
   return rawHost.replace(/:\d+$/, '');
+}
+
+function canUsePathSitePrefix(rawHost: string, hostname: string): boolean {
+  if (hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+    return true;
+  }
+
+  const configuredBaseHost = getQayBaseHost();
+  if (!configuredBaseHost) {
+    return false;
+  }
+
+  return normalizeRawHost(rawHost) === configuredBaseHost.toLowerCase();
 }
 
 function getSubdomain(hostname: string): string | null {
@@ -140,7 +153,7 @@ export async function resolveQayPathSiteContext(pathSegments: string[]): Promise
 
   const hostname = getHostname(rawHost);
   const subdomain = getSubdomain(hostname);
-  if (subdomain || !shouldUsePathBasedQayUrls(rawHost)) {
+  if (subdomain || !canUsePathSitePrefix(rawHost, hostname)) {
     return { siteId: null, siteSlug: null, remainingSegments: pathSegments };
   }
 
