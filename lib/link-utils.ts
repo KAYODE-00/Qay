@@ -349,7 +349,7 @@ export function normalizeSiteHref(
 
   try {
     const parsed = new URL(trimmed);
-    parsed.pathname = normalizeSitePath(parsed.pathname, isPreview, previewBasePath);
+    parsed.pathname = normalizeSitePath(parsed.pathname, isPreview, previewBasePath, sitePathPrefix);
     return parsed.toString();
   } catch {
     return trimmed;
