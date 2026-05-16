@@ -12,6 +12,7 @@
 import { getAppSettingValue } from '@/lib/repositories/appSettingsRepository';
 import { processFormSubmission } from '@/lib/apps/mailerlite';
 import type { MailerLiteConnection } from '@/lib/apps/mailerlite/types';
+import { getQaySiteAppSettings } from '@/qay/lib/integration-scope';
 
 /**
  * Process a form submission through all configured app integrations.
@@ -20,10 +21,11 @@ import type { MailerLiteConnection } from '@/lib/apps/mailerlite/types';
 export async function processAppIntegrations(
   formId: string,
   submissionId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  qaySiteId?: string | null
 ): Promise<void> {
   try {
-    await processMailerLiteIntegration(formId, payload);
+    await processMailerLiteIntegration(formId, payload, qaySiteId);
   } catch (error) {
     console.error('[processAppIntegrations] Unexpected error:', error);
   }
@@ -34,18 +36,21 @@ export async function processAppIntegrations(
  */
 async function processMailerLiteIntegration(
   formId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  qaySiteId?: string | null
 ): Promise<void> {
   try {
     // Load MailerLite API key
-    const apiKey = await getAppSettingValue<string>('mailerlite', 'api_key');
+    const siteSettings = qaySiteId ? await getQaySiteAppSettings(qaySiteId, 'mailerlite') : null;
+    const apiKey = qaySiteId
+      ? siteSettings?.api_key as string | undefined
+      : await getAppSettingValue<string>('mailerlite', 'api_key');
     if (!apiKey) return; // MailerLite not configured
 
     // Load connections
-    const connections = await getAppSettingValue<MailerLiteConnection[]>(
-      'mailerlite',
-      'connections'
-    );
+    const connections = qaySiteId
+      ? siteSettings?.connections as MailerLiteConnection[] | undefined
+      : await getAppSettingValue<MailerLiteConnection[]>('mailerlite', 'connections');
     if (!connections || connections.length === 0) return;
 
     // Find active connections for this form

@@ -14,6 +14,7 @@ import {
   type Webhook,
   type WebhookEventType,
 } from '@/lib/repositories/webhookRepository';
+import { listQaySiteWebhooks } from '@/qay/lib/integration-scope';
 
 // =============================================================================
 // Types
@@ -28,6 +29,8 @@ export interface WebhookEvent {
   resourceId?: string;
   /** Resource type for filter matching ('form' or 'collection') */
   resourceType?: 'form' | 'collection';
+  /** QAY site id for site-scoped webhooks */
+  qaySiteId?: string | null;
 }
 
 export interface WebhookPayload {
@@ -61,7 +64,9 @@ export function generateWebhookSignature(payload: string, secret: string): strin
 export async function dispatchWebhookEvent(event: WebhookEvent): Promise<void> {
   try {
     // Get all enabled webhooks for this event type
-    const webhooks = await getWebhooksForEvent(event.type);
+    const webhooks = event.qaySiteId
+      ? (await listQaySiteWebhooks(event.qaySiteId)).filter((webhook) => webhook.enabled && webhook.events.includes(event.type))
+      : await getWebhooksForEvent(event.type);
 
     if (webhooks.length === 0) {
       return;
@@ -110,16 +115,19 @@ async function deliverToWebhook(webhook: Webhook, event: WebhookEvent): Promise<
 
   // Create delivery log entry
   let deliveryId: string | undefined;
-  try {
-    const delivery = await createWebhookDelivery({
-      webhook_id: webhook.id,
-      event_type: event.type,
-      payload: payload as unknown as Record<string, unknown>,
-      status: 'pending',
-    });
-    deliveryId = delivery.id;
-  } catch (error) {
-    console.error('Failed to create webhook delivery log:', error);
+  const shouldLogDelivery = !event.qaySiteId;
+  if (shouldLogDelivery) {
+    try {
+      const delivery = await createWebhookDelivery({
+        webhook_id: webhook.id,
+        event_type: event.type,
+        payload: payload as unknown as Record<string, unknown>,
+        status: 'pending',
+      });
+      deliveryId = delivery.id;
+    } catch (error) {
+      console.error('Failed to create webhook delivery log:', error);
+    }
   }
 
   // Build headers
@@ -165,7 +173,9 @@ async function deliverToWebhook(webhook: Webhook, event: WebhookEvent): Promise<
     }
 
     // Update webhook trigger status
-    await markWebhookTriggered(webhook.id, response.ok);
+    if (shouldLogDelivery) {
+      await markWebhookTriggered(webhook.id, response.ok);
+    }
 
     if (!response.ok) {
       console.error(`Webhook failed for ${webhook.name}: ${response.status}`);
@@ -185,7 +195,9 @@ async function deliverToWebhook(webhook: Webhook, event: WebhookEvent): Promise<
     }
 
     // Mark webhook as failed
-    await markWebhookTriggered(webhook.id, false);
+    if (shouldLogDelivery) {
+      await markWebhookTriggered(webhook.id, false);
+    }
 
     console.error(`Webhook delivery failed for ${webhook.name}:`, error);
   }
@@ -206,7 +218,9 @@ export async function dispatchFormSubmittedEvent(data: {
     page_url?: string;
     user_agent?: string;
     referrer?: string;
+    qay_site_id?: string;
   };
+  qaySiteId?: string | null;
 }): Promise<void> {
   await dispatchWebhookEvent({
     type: 'form.submitted',
@@ -219,6 +233,7 @@ export async function dispatchFormSubmittedEvent(data: {
     metadata: data.metadata,
     resourceType: 'form',
     resourceId: data.form_id,
+    qaySiteId: data.qaySiteId,
   });
 }
 

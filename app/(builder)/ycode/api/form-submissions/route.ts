@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
       referrer: request.headers.get('referer') || undefined,
       // Note: IP is typically handled by the proxy/edge, not available directly
     };
+    const qaySiteId = typeof metadata.qay_site_id === 'string' ? metadata.qay_site_id : null;
 
     const submission = await createFormSubmission({
       form_id: body.form_id,
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
       submission_id: submission.id,
       fields: body.payload,
       metadata,
+      qaySiteId,
     });
 
     // Send email notification if enabled (fire and forget)
@@ -122,12 +124,13 @@ export async function POST(request: NextRequest) {
             submitted_at: submission.created_at,
           },
           replyTo,
-        }
+        },
+        qaySiteId
       );
     }
 
     // Process app integrations (fire and forget)
-    processAppIntegrations(body.form_id, submission.id, body.payload);
+    processAppIntegrations(body.form_id, submission.id, body.payload, qaySiteId);
 
     return NextResponse.json(
       { data: submission, message: 'Form submitted successfully' },

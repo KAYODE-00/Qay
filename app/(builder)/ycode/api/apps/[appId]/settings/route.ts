@@ -7,6 +7,12 @@ import {
 import { getAppById } from '@/lib/apps/registry';
 import { cleanupWebhooks as cleanupAirtableWebhooks } from '@/lib/apps/airtable/sync-service';
 import { noCache } from '@/lib/api-response';
+import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
+import {
+  deleteQaySiteAppSettings,
+  getQaySiteAppSettings,
+  saveQaySiteAppSettings,
+} from '@/qay/lib/integration-scope';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -17,7 +23,7 @@ export const revalidate = 0;
  * Get all settings for a specific app
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ appId: string }> }
 ) {
   try {
@@ -26,6 +32,11 @@ export async function GET(
     const app = getAppById(appId);
     if (!app) {
       return noCache({ error: 'App not found' }, 404);
+    }
+
+    const siteId = getQaySiteIdFromRequest(request);
+    if (siteId) {
+      return noCache({ data: await getQaySiteAppSettings(siteId, appId) });
     }
 
     const settings = await getAppSettings(appId);
@@ -65,6 +76,11 @@ export async function PUT(
     }
 
     const body = await request.json();
+    const siteId = getQaySiteIdFromRequest(request);
+
+    if (siteId) {
+      return noCache({ data: await saveQaySiteAppSettings(siteId, appId, body) });
+    }
 
     // Update each setting
     for (const [key, value] of Object.entries(body)) {
@@ -93,7 +109,7 @@ export async function PUT(
  * Delete all settings for a specific app (disconnect)
  */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ appId: string }> }
 ) {
   try {
@@ -102,6 +118,12 @@ export async function DELETE(
     const app = getAppById(appId);
     if (!app) {
       return noCache({ error: 'App not found' }, 404);
+    }
+
+    const siteId = getQaySiteIdFromRequest(request);
+    if (siteId) {
+      await deleteQaySiteAppSettings(siteId, appId);
+      return noCache({ message: 'App disconnected successfully' });
     }
 
     if (appId === 'airtable') {

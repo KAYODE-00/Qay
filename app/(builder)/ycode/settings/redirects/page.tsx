@@ -25,8 +25,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
 
 import type { Redirect } from '@/types';
+
+function settingsUrl() {
+  return appendQayEditorSiteParam('/ycode/api/settings/redirects');
+}
 
 export default function RedirectsSettingsPage() {
   const [redirects, setRedirects] = useState<Redirect[]>([]);
@@ -49,7 +54,7 @@ export default function RedirectsSettingsPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await fetch('/ycode/api/settings/redirects');
+        const response = await fetch(settingsUrl());
         if (response.ok) {
           const result = await response.json();
           setRedirects(result.data || []);
@@ -75,7 +80,7 @@ export default function RedirectsSettingsPage() {
     try {
       setIsSaving(true);
       setError(null);
-      const response = await fetch('/ycode/api/settings/redirects', {
+      const response = await fetch(settingsUrl(), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: newRedirects }),
