@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
@@ -43,9 +43,12 @@ import { Spinner } from '@/components/ui/spinner';
 import FileManagerDialog from '../../components/FileManagerDialog';
 import { toast } from 'sonner';
 import { ASSET_CATEGORIES } from '@/lib/asset-constants';
+import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
 
 export default function GeneralSettingsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const qaySiteId = searchParams.get('site');
   const [activeTab, setActiveTab] = useState('website');
   const { getSettingByKey, saveSettings } = useSettingsStore();
 
@@ -112,7 +115,7 @@ export default function GeneralSettingsPage() {
     // Fetch missing assets
     Promise.all(
       idsToFetch.map((id) =>
-        fetch(`/ycode/api/assets/${id}`)
+        fetch(appendQayEditorSiteParam(`/ycode/api/assets/${id}`))
           .then((res) => (res.ok ? res.json() : null))
           .then((result) => result?.data as Asset | null)
           .catch(() => null)
@@ -495,6 +498,7 @@ export default function GeneralSettingsPage() {
               </div>
             </div>
 
+            {!qaySiteId && (
             <div className="grid grid-cols-3 gap-10 bg-secondary/20 p-8 rounded-lg">
               <div>
                 <FieldLegend>Danger zone</FieldLegend>
@@ -525,6 +529,7 @@ export default function GeneralSettingsPage() {
 
               </div>
             </div>
+            )}
 
           </TabsContent>
 
