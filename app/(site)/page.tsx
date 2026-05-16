@@ -4,7 +4,7 @@ import { fetchHomepage, fetchErrorPage, splitPageData, reassemblePageData, slimP
 import type { PageData } from '@/lib/page-fetcher';
 import PageRenderer from '@/components/PageRenderer';
 import PasswordForm from '@/components/PasswordForm';
-import { generatePageMetadata, fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
+import { generatePageMetadata, fetchPageRenderSettings } from '@/lib/generate-page-metadata';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import { QayLogo } from '@/qay/components/QayLogo';
@@ -50,12 +50,13 @@ async function fetchPublishedHomepage(qaySiteId?: string | null) {
   return reassemblePageData(core, layers || []);
 }
 
-async function fetchCachedGlobalSettings() {
+async function fetchCachedGlobalSettings(qaySiteId?: string | null) {
+  const siteKey = qaySiteId || 'global';
   try {
     return await unstable_cache(
-      async () => fetchGlobalPageSettings(),
-      ['data-for-global-settings'],
-      { tags: ['all-pages'], revalidate: false }
+      async () => fetchPageRenderSettings(qaySiteId),
+      [`data-for-global-settings-${siteKey}`],
+      { tags: ['all-pages', `site-${siteKey}`], revalidate: false }
     )();
   } catch {
     return {
@@ -206,7 +207,7 @@ export default async function Home({
   }
 
   // Load all global settings early so error pages also get global custom code
-  const globalSettings = await fetchCachedGlobalSettings();
+  const globalSettings = await fetchCachedGlobalSettings(qaySiteId);
 
   // Check password protection for homepage.
   // First evaluate without cookies() so non-protected pages can stay cacheable.
@@ -297,7 +298,7 @@ export async function generateMetadata(): Promise<Metadata> {
   // Fetch page and global settings in parallel
   const [data, globalSettings] = await Promise.all([
     fetchPublishedHomepage(qaySiteId),
-    fetchCachedGlobalSettings(),
+    fetchCachedGlobalSettings(qaySiteId),
   ]);
 
   if (!data) {

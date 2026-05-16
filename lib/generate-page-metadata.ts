@@ -16,6 +16,8 @@ import { getAssetById } from '@/lib/repositories/assetRepository';
 import { getAssetProxyUrl } from '@/lib/asset-utils';
 import { generateColorVariablesCss } from '@/lib/repositories/colorVariableRepository';
 import { getSiteBaseUrl } from '@/lib/url-utils';
+import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { QAY_SITE_SCOPED_SETTING_KEYS } from '@/qay/lib/site-settings';
 
 /**
  * Global page render settings fetched once per page render
@@ -116,6 +118,74 @@ export const fetchGlobalPageSettings = cache(async (): Promise<GlobalPageSetting
     faviconUrl,
     webClipUrl,
   };
+});
+
+async function resolvePublishedAssetUrl(assetId: unknown): Promise<string | null> {
+  if (typeof assetId !== 'string' || !assetId.trim()) {
+    return null;
+  }
+
+  try {
+    const asset = await getAssetById(assetId, true);
+    return asset ? getAssetProxyUrl(asset) || asset.public_url || null : null;
+  } catch {
+    return null;
+  }
+}
+
+export const fetchPageRenderSettings = cache(async (qaySiteId?: string | null): Promise<GlobalPageSettings> => {
+  const globalSettings = await fetchGlobalPageSettings();
+  if (!qaySiteId) {
+    return globalSettings;
+  }
+
+  try {
+    const supabase = getQayAdmin() as any;
+    const { data, error } = await supabase
+      .from('qay_site_settings')
+      .select('key, value')
+      .eq('site_id', qaySiteId)
+      .in('key', Array.from(QAY_SITE_SCOPED_SETTING_KEYS));
+
+    if (error || !data?.length) {
+      return {
+        ...globalSettings,
+        faviconUrl: null,
+        webClipUrl: null,
+      };
+    }
+
+    const scoped = (data as Array<{ key: string; value: unknown }>).reduce(
+      (acc: Record<string, unknown>, row) => {
+        acc[row.key] = row.value;
+        return acc;
+      },
+      {}
+    );
+
+    const [faviconUrl, webClipUrl] = await Promise.all([
+      resolvePublishedAssetUrl(scoped.favicon_asset_id),
+      resolvePublishedAssetUrl(scoped.web_clip_asset_id),
+    ]);
+
+    return {
+      ...globalSettings,
+      googleSiteVerification: typeof scoped.google_site_verification === 'string' ? scoped.google_site_verification : null,
+      globalCanonicalUrl: typeof scoped.global_canonical_url === 'string' ? scoped.global_canonical_url : null,
+      gaMeasurementId: typeof scoped.ga_measurement_id === 'string' ? scoped.ga_measurement_id : null,
+      globalCustomCodeHead: typeof scoped.custom_code_head === 'string' ? scoped.custom_code_head : null,
+      globalCustomCodeBody: typeof scoped.custom_code_body === 'string' ? scoped.custom_code_body : null,
+      ycodeBadge: typeof scoped.ycode_badge === 'boolean' ? scoped.ycode_badge : true,
+      faviconUrl,
+      webClipUrl,
+    };
+  } catch {
+    return {
+      ...globalSettings,
+      faviconUrl: null,
+      webClipUrl: null,
+    };
+  }
 });
 
 /** @deprecated Use fetchGlobalPageSettings instead */
