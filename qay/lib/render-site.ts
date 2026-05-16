@@ -249,9 +249,5 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
     }
   }
 
-  if (!subdomain && cookieSiteId) {
-    return cookieSiteId;
-  }
-
   return null;
 }
