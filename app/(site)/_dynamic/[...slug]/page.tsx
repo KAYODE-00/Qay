@@ -3,12 +3,13 @@ import { unstable_noStore } from 'next/cache';
 import { fetchPageByPath, fetchErrorPage, PaginationContext } from '@/lib/page-fetcher';
 import PageRenderer from '@/components/PageRenderer';
 import PasswordForm from '@/components/PasswordForm';
-import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
+import { fetchPageRenderSettings } from '@/lib/generate-page-metadata';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getQayRenderHostSubdomain, getQayRenderSiteId, resolveQayPathSiteContext } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import type { Redirect as RedirectType } from '@/types';
+import type { Metadata } from 'next';
 
 // Internal pagination path: always dynamic/no-store.
 export const dynamic = 'force-dynamic';
@@ -76,7 +77,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
       const { page, pageLayers, components } = errorPageData;
       const publishedCSS = await getSettingByKey('published_css');
 
-        return (
+      return (
           <PageRenderer
             page={page}
             layers={pageLayers.layers || []}
@@ -141,7 +142,7 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
     }
   }
 
-  const globalSettings = await fetchGlobalPageSettings();
+  const globalSettings = await fetchPageRenderSettings(qaySiteId);
 
   return (
     <PageRenderer
@@ -164,4 +165,26 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
       ycodeBadge={globalSettings.ycodeBadge}
     />
   );
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string | string[] }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const slugSegments = Array.isArray(slug) ? slug : [slug];
+  const pathSiteContext = await resolveQayPathSiteContext(slugSegments);
+  const renderSubdomain = await getQayRenderHostSubdomain();
+  const qaySiteId = pathSiteContext.siteId || await getQayRenderSiteId();
+  if (renderSubdomain && !qaySiteId) {
+    return {
+      title: 'Not Found',
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const settings = await fetchPageRenderSettings(qaySiteId);
+  return {
+    icons: {
+      icon: settings.faviconUrl || '/icon.svg',
+      apple: settings.webClipUrl || settings.faviconUrl || '/icon.svg',
+    },
+  };
 }

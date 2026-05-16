@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { fetchHomepage, fetchErrorPage, PaginationContext } from '@/lib/page-fetcher';
 import PageRenderer from '@/components/PageRenderer';
 import PasswordForm from '@/components/PasswordForm';
-import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
+import { fetchPageRenderSettings } from '@/lib/generate-page-metadata';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { getQayRenderHostSubdomain, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
+import type { Metadata } from 'next';
 
 // Internal pagination path: always dynamic/no-store.
 export const dynamic = 'force-dynamic';
@@ -116,7 +117,7 @@ export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
     }
   }
 
-  const globalSettings = await fetchGlobalPageSettings();
+  const globalSettings = await fetchPageRenderSettings(qaySiteId);
 
   return (
     <PageRenderer
@@ -134,4 +135,23 @@ export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
       ycodeBadge={globalSettings.ycodeBadge}
     />
   );
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const renderSubdomain = await getQayRenderHostSubdomain();
+  const qaySiteId = await getQayRenderSiteId();
+  if (renderSubdomain && !qaySiteId) {
+    return {
+      title: 'Not Found',
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const settings = await fetchPageRenderSettings(qaySiteId);
+  return {
+    icons: {
+      icon: settings.faviconUrl || '/icon.svg',
+      apple: settings.webClipUrl || settings.faviconUrl || '/icon.svg',
+    },
+  };
 }

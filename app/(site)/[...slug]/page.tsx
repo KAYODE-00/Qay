@@ -3,7 +3,7 @@ import { unstable_cache } from 'next/cache';
 import type { Metadata } from 'next';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { buildSlugPath } from '@/lib/page-utils';
-import { generatePageMetadata, fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
+import { generatePageMetadata, fetchPageRenderSettings } from '@/lib/generate-page-metadata';
 import { fetchPageByPath, fetchPageByPathForMetadata, fetchErrorPage, splitPageData, reassemblePageData, slimPageData } from '@/lib/page-fetcher';
 import PageRenderer from '@/components/PageRenderer';
 import PasswordForm from '@/components/PasswordForm';
@@ -202,12 +202,13 @@ async function fetchCachedRedirects(): Promise<RedirectType[] | null> {
   }
 }
 
-async function fetchCachedGlobalSettings() {
+async function fetchCachedGlobalSettings(qaySiteId?: string | null) {
+  const siteKey = qaySiteId || 'global';
   try {
     return await unstable_cache(
-      async () => fetchGlobalPageSettings(),
-      ['data-for-global-settings'],
-      { tags: ['all-pages'], revalidate: false }
+      async () => fetchPageRenderSettings(qaySiteId),
+      [`data-for-global-settings-${siteKey}`],
+      { tags: ['all-pages', `site-${siteKey}`], revalidate: false }
     )();
   } catch {
     return {
@@ -286,7 +287,7 @@ export default async function Page({ params }: PageProps) {
   // Fetch page data and global settings in parallel
   const [data, globalSettings] = await Promise.all([
     fetchPublishedPageWithLayers(slugPath, qaySiteId),
-    fetchCachedGlobalSettings(),
+    fetchCachedGlobalSettings(qaySiteId),
   ]);
   const siteScopedCss = data
     ? await generatePreviewCss(data.pageLayers.layers || [], data.components)
@@ -299,7 +300,7 @@ export default async function Page({ params }: PageProps) {
     if (errorPageData) {
       const { page: errorPage, pageLayers: errorPageLayers, components: errorComponents } = errorPageData;
 
-        return (
+      return (
           <PageRenderer
             page={errorPage}
             layers={errorPageLayers.layers || []}
@@ -419,7 +420,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // Fetch page and global settings in parallel
   const [data, globalSettings] = await Promise.all([
     fetchPublishedPageForMetadata(slugPath, qaySiteId),
-    fetchCachedGlobalSettings(),
+    fetchCachedGlobalSettings(qaySiteId),
   ]);
 
   if (!data) {
