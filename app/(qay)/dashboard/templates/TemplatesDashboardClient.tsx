@@ -155,7 +155,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
       const response = await fetch('/api/qay/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: siteName }),
+        body: JSON.stringify({ name: siteName, skipDefaultPages: Boolean(selectedTemplate) }),
       });
       const payload = await response.json();
 
