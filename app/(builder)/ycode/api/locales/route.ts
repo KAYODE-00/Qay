@@ -3,7 +3,6 @@ import { getAllLocales, createLocale } from '@/lib/repositories/localeRepository
 import { canAccessQaySite } from '@/qay/lib/site-access';
 import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
 import {
-  allowRuntimeQaySchemaChanges,
   qaySchemaPublicMessage,
   reloadQaySchemaCache,
   runQayLocalisationMigration,
@@ -18,10 +17,6 @@ async function createLocaleWithSchemaRepair(input: CreateLocaleInput, qaySiteId?
   } catch (error) {
     if (!qaySiteId || !isMissingLocalisationSiteColumnError(error)) {
       throw error;
-    }
-
-    if (!allowRuntimeQaySchemaChanges()) {
-      throw new Error(qaySchemaPublicMessage());
     }
 
     const migration = await runQayLocalisationMigration();
