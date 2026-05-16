@@ -157,7 +157,7 @@ export default function PublishPopover({
             </a>
           </Label>
           <span className="text-popover-foreground text-[10px]">
-            {publishedAt ? `Published ${formatRelativeTime(publishedAt, false)}` : 'Never published'}
+            {publishedAt ? `Published ${formatRelativeTime(publishedAt, false)}` : 'Not published yet'}
           </span>
         </div>
 
