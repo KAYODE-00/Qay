@@ -16,8 +16,7 @@ import { getAssetById } from '@/lib/repositories/assetRepository';
 import { getAssetProxyUrl } from '@/lib/asset-utils';
 import { generateColorVariablesCss } from '@/lib/repositories/colorVariableRepository';
 import { getSiteBaseUrl } from '@/lib/url-utils';
-import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { QAY_SITE_SCOPED_SETTING_KEYS } from '@/qay/lib/site-settings';
+import { listPublicQaySiteSettings, QAY_SITE_SCOPED_SETTING_KEYS } from '@/qay/lib/site-settings';
 
 /**
  * Global page render settings fetched once per page render
@@ -140,28 +139,15 @@ export const fetchPageRenderSettings = cache(async (qaySiteId?: string | null): 
   }
 
   try {
-    const supabase = getQayAdmin() as any;
-    const { data, error } = await supabase
-      .from('qay_site_settings')
-      .select('key, value')
-      .eq('site_id', qaySiteId)
-      .in('key', Array.from(QAY_SITE_SCOPED_SETTING_KEYS));
+    const scoped = await listPublicQaySiteSettings(qaySiteId, Array.from(QAY_SITE_SCOPED_SETTING_KEYS));
 
-    if (error || !data?.length) {
+    if (Object.keys(scoped).length === 0) {
       return {
         ...globalSettings,
         faviconUrl: null,
         webClipUrl: null,
       };
     }
-
-    const scoped = (data as Array<{ key: string; value: unknown }>).reduce(
-      (acc: Record<string, unknown>, row) => {
-        acc[row.key] = row.value;
-        return acc;
-      },
-      {}
-    );
 
     const [faviconUrl, webClipUrl] = await Promise.all([
       resolvePublishedAssetUrl(scoped.favicon_asset_id),

@@ -8,10 +8,21 @@
 
 import { NextResponse } from 'next/server';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
+import { getQayRenderSiteId } from '@/qay/lib/render-site';
+import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
+
+async function getRenderLlmsText(qaySiteId: string | null) {
+  if (qaySiteId) {
+    const settings = await listPublicQaySiteSettings(qaySiteId, ['llms_txt']);
+    return settings.llms_txt;
+  }
+
+  return getSettingByKey('llms_txt');
+}
 
 export async function GET() {
   try {
-    const customLlms = await getSettingByKey('llms_txt');
+    const customLlms = await getRenderLlmsText(await getQayRenderSiteId());
 
     if (customLlms && typeof customLlms === 'string' && customLlms.trim()) {
       return new NextResponse(customLlms.trim(), {

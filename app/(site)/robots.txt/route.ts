@@ -8,8 +8,17 @@ import { NextResponse } from 'next/server';
 import { getSettingsByKeys } from '@/lib/repositories/settingsRepository';
 import { credentials } from '@/lib/credentials';
 import { getSiteBaseUrl } from '@/lib/url-utils';
-import { getQayRenderSiteBaseUrl } from '@/qay/lib/render-site';
+import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
+import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
 import type { SitemapSettings } from '@/types';
+
+async function getRenderRobotsSettings(qaySiteId: string | null) {
+  if (qaySiteId) {
+    return listPublicQaySiteSettings(qaySiteId, ['robots_txt', 'sitemap', 'global_canonical_url']);
+  }
+
+  return getSettingsByKeys(['robots_txt', 'sitemap', 'global_canonical_url']);
+}
 
 export async function GET() {
   try {
@@ -32,7 +41,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       });
     }
 
-    const allSettings = await getSettingsByKeys(['robots_txt', 'sitemap', 'global_canonical_url']);
+    const qaySiteId = await getQayRenderSiteId();
+    const allSettings = await getRenderRobotsSettings(qaySiteId);
     const sitemapSettings = allSettings.sitemap as SitemapSettings | null;
     const sitemapEnabled = sitemapSettings?.mode && sitemapSettings.mode !== 'none';
     const baseUrl = await getQayRenderSiteBaseUrl() || getSiteBaseUrl({ globalCanonicalUrl: allSettings.global_canonical_url }) || '';
