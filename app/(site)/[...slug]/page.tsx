@@ -12,6 +12,7 @@ import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/l
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import { getQayRenderHostSubdomain, getQayRenderSiteBaseUrl, getQayRenderSiteId, resolveQayPathSiteContext } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
+import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
 import type { Page, PageFolder, Translation, Redirect as RedirectType } from '@/types';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -190,12 +191,20 @@ async function fetchPublishedPageForMetadata(slugPath: string, qaySiteId?: strin
   )();
 }
 
-async function fetchCachedRedirects(): Promise<RedirectType[] | null> {
+async function fetchCachedRedirects(qaySiteId?: string | null): Promise<RedirectType[] | null> {
+  const siteKey = qaySiteId || 'global';
   try {
     return await unstable_cache(
-      async () => getSettingByKey('redirects') as Promise<RedirectType[] | null>,
-      ['data-for-redirects'],
-      { tags: ['all-pages'], revalidate: false }
+      async () => {
+        if (qaySiteId) {
+          const settings = await listPublicQaySiteSettings(qaySiteId, ['redirects']);
+          return settings.redirects as RedirectType[] | null;
+        }
+
+        return getSettingByKey('redirects') as Promise<RedirectType[] | null>;
+      },
+      [`data-for-redirects-${siteKey}`],
+      { tags: ['all-pages', `site-${siteKey}`], revalidate: false }
     )();
   } catch {
     return null;
@@ -271,7 +280,7 @@ export default async function Page({ params }: PageProps) {
 
   // Check for redirects before processing the page
   const currentPath = `/${slugPath}`;
-  const redirects = await fetchCachedRedirects();
+  const redirects = await fetchCachedRedirects(qaySiteId);
   if (redirects && Array.isArray(redirects)) {
     const matchedRedirect = redirects.find((r) => r.oldUrl === currentPath);
     if (matchedRedirect) {

@@ -8,6 +8,7 @@ import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getQayRenderHostSubdomain, getQayRenderSiteId, resolveQayPathSiteContext } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
+import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
 import type { Redirect as RedirectType } from '@/types';
 import type { Metadata } from 'next';
 
@@ -35,7 +36,9 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
   const slugPath = (pathSiteContext.siteId ? pathSiteContext.remainingSegments : slugSegments).join('/');
   const currentPath = `/${slugPath}`;
 
-  const redirects = await getSettingByKey('redirects') as RedirectType[] | null;
+  const redirects = qaySiteId
+    ? (await listPublicQaySiteSettings(qaySiteId, ['redirects'])).redirects as RedirectType[] | null
+    : await getSettingByKey('redirects') as RedirectType[] | null;
   if (redirects && Array.isArray(redirects)) {
     const matchedRedirect = redirects.find((r) => r.oldUrl === currentPath);
     if (matchedRedirect) {

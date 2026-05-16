@@ -17,6 +17,7 @@ const QAY_SITE_SCOPED_SETTING_KEY_LIST = [
   'favicon_asset_id',
   'web_clip_asset_id',
   'published_at',
+  'redirects',
 ] as const;
 
 export const QAY_SITE_SCOPED_SETTING_KEYS = new Set<string>(QAY_SITE_SCOPED_SETTING_KEY_LIST);
@@ -50,7 +51,10 @@ export function isQaySiteScopedSettingKey(key: string) {
 
 export async function listQaySiteSettings(siteId: string, keys?: string[]): Promise<Record<string, unknown>> {
   await ensureQaySiteSettingsAccess(siteId, false);
+  return listPublicQaySiteSettings(siteId, keys);
+}
 
+export async function listPublicQaySiteSettings(siteId: string, keys?: string[]): Promise<Record<string, unknown>> {
   const supabase = getQayAdmin() as any;
   let query = supabase
     .from('qay_site_settings')

@@ -44,6 +44,7 @@ import type { FieldVariable, AssetVariable, DynamicTextVariable, LinkSettings } 
 import type { DesignColorVariable } from '@/types';
 import { buildQayIndexSlug, getQaySiteIdFromSettings } from '@/qay/lib/index-slug';
 import { isMissingLocalisationSiteColumnError } from '@/qay/lib/localisation-schema';
+import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
 
 // Cached map provider tokens for synchronous use inside layerToHtml.
 // Set by ensureMapTokens() before HTML generation begins.
@@ -57,6 +58,15 @@ async function ensureMapTokens(): Promise<void> {
   if (_cachedGoogleMapsEmbedKey === null) {
     _cachedGoogleMapsEmbedKey = (await getGoogleMapsEmbedApiKey()) || '';
   }
+}
+
+async function getRenderTimezone(qaySiteId?: string | null): Promise<string> {
+  if (qaySiteId) {
+    const settings = await listPublicQaySiteSettings(qaySiteId, ['timezone']);
+    return typeof settings.timezone === 'string' && settings.timezone.trim() ? settings.timezone : 'UTC';
+  }
+
+  return (await getSettingByKey('timezone') as string | null) || 'UTC';
 }
 
 /**
@@ -438,7 +448,7 @@ async function fetchPageByPathInternal(
       supabase.from('pages').select('*').eq('is_published', isPublished).is('deleted_at', null),
       supabase.from('page_folders').select('*').eq('is_published', isPublished).is('deleted_at', null),
       resolveLayers ? fetchComponents(supabase, isPublished) : Promise.resolve([] as Component[]),
-      resolveLayers ? getSettingByKey('timezone') : Promise.resolve('UTC'),
+      resolveLayers ? getRenderTimezone(qaySiteId) : Promise.resolve('UTC'),
     ]);
     let availableLocales = localesResult.data;
     if (localesResult.error && isMissingLocalisationSiteColumnError(localesResult.error)) {

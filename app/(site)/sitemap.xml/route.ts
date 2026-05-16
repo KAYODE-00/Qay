@@ -22,6 +22,15 @@ import {
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import type { SitemapSettings, Translation, CollectionItem } from '@/types';
 import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
+import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
+
+async function getRenderSitemapSettings(qaySiteId: string | null) {
+  if (qaySiteId) {
+    return listPublicQaySiteSettings(qaySiteId, ['sitemap', 'global_canonical_url']);
+  }
+
+  return getSettingsByKeys(['sitemap', 'global_canonical_url']);
+}
 
 export async function GET() {
   try {
@@ -37,7 +46,8 @@ export async function GET() {
       });
     }
 
-    const allSettings = await getSettingsByKeys(['sitemap', 'global_canonical_url']);
+    const qaySiteId = await getQayRenderSiteId();
+    const allSettings = await getRenderSitemapSettings(qaySiteId);
     const settings: SitemapSettings = allSettings.sitemap || getDefaultSitemapSettings();
     const globalCanonicalUrl: string | null = allSettings.global_canonical_url || null;
 
@@ -57,7 +67,6 @@ export async function GET() {
     }
 
     // Auto-generate sitemap
-    const qaySiteId = await getQayRenderSiteId();
     const baseUrl = await getQayRenderSiteBaseUrl() || getSiteBaseUrl({ globalCanonicalUrl }) || '';
 
     // Fetch published pages and folders
