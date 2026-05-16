@@ -18,6 +18,7 @@ const QAY_SITE_SCOPED_SETTING_KEY_LIST = [
   'web_clip_asset_id',
   'published_at',
   'redirects',
+  'email',
 ] as const;
 
 export const QAY_SITE_SCOPED_SETTING_KEYS = new Set<string>(QAY_SITE_SCOPED_SETTING_KEY_LIST);

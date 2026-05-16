@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SMTP_PRESETS, SMTP_PROVIDER_OPTIONS, type SmtpProvider } from '@/lib/email-presets';
+import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
 
 type EmailMode = 'ycode' | 'custom';
 
@@ -51,6 +52,10 @@ function resolveMode(data: Partial<EmailSettings> | null): EmailMode | undefined
   return undefined;
 }
 
+function emailSettingsUrl() {
+  return appendQayEditorSiteParam('/ycode/api/settings/email');
+}
+
 export default function EmailSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -69,7 +74,7 @@ export default function EmailSettingsPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await fetch('/ycode/api/settings/email');
+        const response = await fetch(emailSettingsUrl());
         if (response.ok) {
           const result = await response.json();
           if (result.data) {
@@ -146,7 +151,7 @@ export default function EmailSettingsPage() {
         enabled: selectedMode === 'custom',
       };
 
-      const response = await fetch('/ycode/api/settings/email', {
+      const response = await fetch(emailSettingsUrl(), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: savePayload }),

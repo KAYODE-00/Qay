@@ -8,6 +8,7 @@ import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { escapeHtml } from '@/lib/escape-html';
+import { getQaySiteSetting } from '@/qay/lib/site-settings';
 
 export interface EmailSettings {
   enabled: boolean;
@@ -30,6 +31,7 @@ export interface FormSubmissionEmailData {
     user_agent?: string;
     referrer?: string;
     submitted_at: string;
+    qay_site_id?: string;
   };
   replyTo?: string;
 }
@@ -140,11 +142,14 @@ export function generateEmailText(data: FormSubmissionEmailData): string {
 export async function sendFormSubmissionEmail(
   to: string,
   subject: string,
-  data: FormSubmissionEmailData
+  data: FormSubmissionEmailData,
+  qaySiteId?: string | null
 ): Promise<boolean> {
   try {
     // Get email settings from database
-    const settings = await getSettingByKey('email') as EmailSettings | null;
+    const settings = (qaySiteId
+      ? await getQaySiteSetting(qaySiteId, 'email')
+      : await getSettingByKey('email')) as EmailSettings | null;
 
     if (!settings?.enabled) {
       return false;
