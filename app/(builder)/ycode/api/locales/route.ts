@@ -2,6 +2,42 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllLocales, createLocale } from '@/lib/repositories/localeRepository';
 import { canAccessQaySite } from '@/qay/lib/site-access';
 import { getQaySiteIdFromRequest } from '@/qay/lib/page-access';
+import {
+  allowRuntimeQaySchemaChanges,
+  qaySchemaPublicMessage,
+  reloadQaySchemaCache,
+  runQayLocalisationMigration,
+} from '@/qay/lib/schema';
+import { isMissingLocalisationSiteColumnError } from '@/qay/lib/localisation-schema';
+
+type CreateLocaleInput = Parameters<typeof createLocale>[0];
+
+async function createLocaleWithSchemaRepair(input: CreateLocaleInput, qaySiteId?: string | null) {
+  try {
+    return await createLocale(input, qaySiteId);
+  } catch (error) {
+    if (!qaySiteId || !isMissingLocalisationSiteColumnError(error)) {
+      throw error;
+    }
+
+    if (!allowRuntimeQaySchemaChanges()) {
+      throw new Error(qaySchemaPublicMessage());
+    }
+
+    const migration = await runQayLocalisationMigration();
+    if (!migration.success) {
+      console.error('QAY localisation schema repair failed:', migration.error);
+      throw new Error(qaySchemaPublicMessage());
+    }
+
+    const reload = await reloadQaySchemaCache();
+    if (!reload.success) {
+      console.error('QAY localisation schema cache reload failed:', reload.error);
+    }
+
+    return createLocale(input, qaySiteId);
+  }
+}
 
 /**
  * GET /ycode/api/locales
@@ -47,14 +83,17 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { locale, locales } = await createLocale({ code, label, is_default, qay_site_id: qaySiteId }, qaySiteId);
+    const { locale, locales } = await createLocaleWithSchemaRepair({ code, label, is_default, qay_site_id: qaySiteId }, qaySiteId);
     
     return NextResponse.json({ data: { locale, locales } }, { status: 201 });
   } catch (error) {
     console.error('Error creating locale:', error);
+    const isSetupIssue = isMissingLocalisationSiteColumnError(error)
+      || (error instanceof Error && error.message === qaySchemaPublicMessage());
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create locale' },
-      { status: 500 }
+      { error: isSetupIssue ? qaySchemaPublicMessage() : 'Failed to create locale' },
+      { status: isSetupIssue ? 503 : 500 }
     );
   }
 }
