@@ -12,6 +12,11 @@ const QAY_MIGRATION_FILES = [
   '003_qay_site_collections.sql',
   '004_qay_site_integrations.sql',
   '005_qay_site_settings.sql',
+  '007_qay_localisation_isolation.sql',
+];
+
+const QAY_LOCALISATION_MIGRATION_FILES = [
+  '007_qay_localisation_isolation.sql',
 ];
 
 const MISSING_SCHEMA_PATTERNS = [
@@ -67,11 +72,19 @@ export async function reloadQaySchemaCache() {
 }
 
 export async function runQayCoreMigration() {
+  return runQayMigrationFiles(QAY_MIGRATION_FILES, 'Failed to run QAY core migration');
+}
+
+export async function runQayLocalisationMigration() {
+  return runQayMigrationFiles(QAY_LOCALISATION_MIGRATION_FILES, 'Failed to run QAY localisation migration');
+}
+
+async function runQayMigrationFiles(fileNames: string[], fallbackError: string) {
   const knex = await getKnexClient();
 
   try {
     const migrationsDir = path.join(process.cwd(), 'qay', 'database', 'migrations');
-    for (const fileName of QAY_MIGRATION_FILES) {
+    for (const fileName of fileNames) {
       const migrationPath = path.join(migrationsDir, fileName);
       const sql = await fs.readFile(migrationPath, 'utf8');
       await knex.raw(sql);
@@ -84,7 +97,7 @@ export async function runQayCoreMigration() {
   } catch (error) {
     return {
       success: false as const,
-      error: error instanceof Error ? error.message : 'Failed to run QAY core migration',
+      error: error instanceof Error ? error.message : fallbackError,
     };
   } finally {
     await closeKnexClient();
@@ -94,7 +107,7 @@ export async function runQayCoreMigration() {
 export function qaySchemaSetupMessage(error?: string) {
   return [
     'QAY database tables are not ready yet.',
-    'Run the QAY migrations after Ycode setup: qay/database/migrations/001_qay_core.sql through qay/database/migrations/005_qay_site_settings.sql.',
+    'Run the QAY migrations after Ycode setup: qay/database/migrations/001_qay_core.sql through qay/database/migrations/007_qay_localisation_isolation.sql.',
     error ? `Details: ${error}` : null,
   ].filter(Boolean).join(' ');
 }
