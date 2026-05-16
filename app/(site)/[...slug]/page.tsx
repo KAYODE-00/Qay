@@ -274,6 +274,9 @@ export default async function Page({ params }: PageProps) {
   if (renderSubdomain && !qaySiteId) {
     notFound();
   }
+  if (!qaySiteId) {
+    notFound();
+  }
 
   // Handle catch-all slug (join array into path)
   const slugPath = (pathSiteContext.siteId ? pathSiteContext.remainingSegments : slugSegments).join('/');
@@ -422,6 +425,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const siteBaseUrl = qaySiteId
     ? await getQayRenderSiteBaseUrl()
     : null;
+  if (!qaySiteId) {
+    return {
+      title: 'Page Not Found',
+      robots: { index: false, follow: false },
+    };
+  }
 
   // Handle catch-all slug (join array into path)
   const slugPath = (pathSiteContext.siteId ? pathSiteContext.remainingSegments : slugSegments).join('/');

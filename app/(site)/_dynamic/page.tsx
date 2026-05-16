@@ -26,6 +26,9 @@ export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
   if (renderSubdomain && !qaySiteId) {
     notFound();
   }
+  if (!qaySiteId) {
+    notFound();
+  }
 
   const pageNumbers: Record<string, number> = {};
   for (const [key, value] of Object.entries(resolvedSearchParams)) {
@@ -141,6 +144,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = await getQayRenderSiteId();
   if (renderSubdomain && !qaySiteId) {
+    return {
+      title: 'Not Found',
+      robots: { index: false, follow: false },
+    };
+  }
+  if (!qaySiteId) {
     return {
       title: 'Not Found',
       robots: { index: false, follow: false },

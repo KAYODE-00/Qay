@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
+import { isQayBaseHost, withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 
 type RouteContext = {
   params: Promise<{ siteId: string }>;
@@ -88,7 +88,15 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   if (typeof body?.custom_domain === 'string' || body?.custom_domain === null) {
-    updates.custom_domain = body.custom_domain ? body.custom_domain.trim().toLowerCase() : null;
+    const customDomain = body.custom_domain ? body.custom_domain.trim().toLowerCase() : null;
+    if (customDomain && isQayBaseHost(customDomain)) {
+      return NextResponse.json(
+        { error: 'Use a custom domain that is different from the QAY app domain.' },
+        { status: 400 }
+      );
+    }
+
+    updates.custom_domain = customDomain;
     updates.domain_verified = false;
   }
 
