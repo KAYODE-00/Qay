@@ -153,7 +153,7 @@ export async function resolveQayPathSiteContext(pathSegments: string[]): Promise
 
   const hostname = getHostname(rawHost);
   const subdomain = getSubdomain(hostname);
-  if (subdomain || !canUsePathSitePrefix(rawHost, hostname)) {
+  if (!subdomain && !canUsePathSitePrefix(rawHost, hostname)) {
     return { siteId: null, siteSlug: null, remainingSegments: pathSegments };
   }
 
@@ -162,11 +162,15 @@ export async function resolveQayPathSiteContext(pathSegments: string[]): Promise
     return { siteId: null, siteSlug: null, remainingSegments: pathSegments };
   }
 
+  if (subdomain && siteSlug !== subdomain) {
+    return { siteId: null, siteSlug: null, remainingSegments: pathSegments };
+  }
+
   const supabase = getQayAdmin() as any;
   const { data, error } = await supabase
     .from('qay_sites')
     .select('id, slug, publish_status')
-    .eq('slug', siteSlug)
+    .eq('slug', subdomain || siteSlug)
     .limit(1)
     .maybeSingle();
 
@@ -184,7 +188,7 @@ export async function resolveQayPathSiteContext(pathSegments: string[]): Promise
 
   return {
     siteId: data.id,
-    siteSlug,
+    siteSlug: data.slug,
     remainingSegments: pathSegments.slice(1),
   };
 }

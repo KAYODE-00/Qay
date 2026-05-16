@@ -141,11 +141,11 @@ export async function setQaySiteSettings(siteId: string, settings: Record<string
 
 export async function overlaySettingsForQaySite(siteId: string, settings: Setting[]): Promise<Setting[]> {
   const scopedValues = await listQaySiteSettings(siteId, [...QAY_SITE_SCOPED_SETTING_KEYS]);
-  if (Object.keys(scopedValues).length === 0) {
-    return settings;
-  }
-
-  const byKey = new Map(settings.map((setting) => [setting.key, setting] as const));
+  const byKey = new Map(
+    settings
+      .filter((setting) => !isQaySiteScopedSettingKey(setting.key))
+      .map((setting) => [setting.key, setting] as const)
+  );
 
   for (const [key, value] of Object.entries(scopedValues)) {
     const existing = byKey.get(key);

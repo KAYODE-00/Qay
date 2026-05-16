@@ -89,7 +89,12 @@ export function shouldUsePathBasedQayUrls(baseHost = getQayBaseHost()): boolean 
     return true;
   }
 
-  return false;
+  const hostname = baseHost.split(':')[0]?.toLowerCase() || baseHost.toLowerCase();
+  return hostname.endsWith('.vercel.app') && !hasExplicitQayBaseDomain();
+}
+
+function getSitePathPrefix(siteSlug: string): string {
+  return `/${siteSlug.trim().toLowerCase()}`;
 }
 
 export function getQaySiteBaseUrl(
@@ -106,10 +111,11 @@ export function getQaySiteBaseUrl(
   }
 
   if (shouldUsePathBasedQayUrls(baseHost)) {
-    return `${getQayProtocol()}://${baseHost}/${site.slug.trim().toLowerCase()}`;
+    return `${getQayProtocol()}://${baseHost}${getSitePathPrefix(site.slug)}`;
   }
 
-  return `${getQayProtocol()}://${site.slug.trim().toLowerCase()}.${baseHost}`;
+  const siteSlug = site.slug.trim().toLowerCase();
+  return `${getQayProtocol()}://${siteSlug}.${baseHost}${getSitePathPrefix(siteSlug)}`;
 }
 
 function getQayProtocol(): 'http' | 'https' {
