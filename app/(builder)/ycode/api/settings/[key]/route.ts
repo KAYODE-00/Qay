@@ -17,7 +17,7 @@ export async function GET(
     const { key } = await params;
     const siteId = getQaySiteIdFromRequest(request);
     const value = siteId && isQaySiteScopedSettingKey(key)
-      ? (await getQaySiteSetting(siteId, key)) ?? await getSettingByKey(key)
+      ? await getQaySiteSetting(siteId, key)
       : await getSettingByKey(key);
 
     if (value === null) {
