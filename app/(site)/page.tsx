@@ -118,7 +118,8 @@ export default async function Home({
     notFound();
   }
   // Cache-first homepage path; pagination is served through internal dynamic routes.
-  const data = await fetchPublishedHomepage(qaySiteId);
+  // The bare QAY app domain must never fall back to a global published site.
+  const data = qaySiteId ? await fetchPublishedHomepage(qaySiteId) : null;
   const siteScopedCss = data
     ? await generatePreviewCss(data.pageLayers.layers || [], data.components)
     : undefined;
@@ -295,6 +296,17 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteBaseUrl = qaySiteId
     ? await getQayRenderSiteBaseUrl()
     : null;
+  if (!qaySiteId) {
+    return {
+      title: 'QAY',
+      description: 'Build, invite, and hand off websites from one workspace.',
+      icons: {
+        icon: '/icon.svg',
+        apple: '/icon.svg',
+      },
+    };
+  }
+
   // Fetch page and global settings in parallel
   const [data, globalSettings] = await Promise.all([
     fetchPublishedHomepage(qaySiteId),

@@ -32,6 +32,9 @@ export default async function DynamicSlugPage({ params, searchParams }: DynamicS
   if (renderSubdomain && !qaySiteId) {
     notFound();
   }
+  if (!qaySiteId) {
+    notFound();
+  }
 
   const slugPath = (pathSiteContext.siteId ? pathSiteContext.remainingSegments : slugSegments).join('/');
   const currentPath = `/${slugPath}`;
@@ -177,6 +180,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = pathSiteContext.siteId || await getQayRenderSiteId();
   if (renderSubdomain && !qaySiteId) {
+    return {
+      title: 'Not Found',
+      robots: { index: false, follow: false },
+    };
+  }
+  if (!qaySiteId) {
     return {
       title: 'Not Found',
       robots: { index: false, follow: false },

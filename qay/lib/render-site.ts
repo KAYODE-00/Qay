@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { headers } from 'next/headers';
 import { getQayAdmin } from './supabase-admin';
 import { QAY_EDITOR_SITE_COOKIE } from './editor-site';
-import { getQayBaseHost, getQayBaseHostname } from './site-url';
+import { getQayBaseHost, getQayBaseHostname, isQayBaseHost } from './site-url';
 import { buildQayIndexSlug } from './index-slug';
 
 export const QAY_RENDER_SITE_COOKIE = 'qay_render_site_id';
@@ -237,7 +237,9 @@ export async function getQayRenderSiteId(options: GetQayRenderSiteIdOptions = {}
     return (await siteHasPublishedPages(supabase, data.id)) ? data.id : null;
   };
 
-  const byCustomDomain = await findRenderableSite('custom_domain', hostname);
+  const byCustomDomain = isQayBaseHost(rawHost) || isQayBaseHost(hostname)
+    ? null
+    : await findRenderableSite('custom_domain', hostname);
   if (byCustomDomain) {
     return byCustomDomain;
   }

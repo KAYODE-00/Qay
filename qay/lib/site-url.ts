@@ -80,6 +80,13 @@ export function getQayBaseHost(): string | null {
   return getConfiguredOrigin()?.host.toLowerCase() ?? null;
 }
 
+export function isQayBaseHost(value: string | null | undefined): boolean {
+  const candidate = normalizeHostLike(value);
+  const baseHost = getQayBaseHost();
+
+  return !!candidate && !!baseHost && candidate === baseHost.toLowerCase();
+}
+
 export function shouldUsePathBasedQayUrls(baseHost = getQayBaseHost()): boolean {
   if (!baseHost) {
     return false;
@@ -101,7 +108,7 @@ export function getQaySiteBaseUrl(
   site: Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified'>
 ): string | null {
   const customDomain = normalizeHostLike(site.custom_domain);
-  if (customDomain && site.domain_verified) {
+  if (customDomain && site.domain_verified && !isQayBaseHost(customDomain)) {
     return `${getQayProtocol()}://${customDomain}`;
   }
 
@@ -140,7 +147,7 @@ export function getQaySiteHost(
   site: Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified'>
 ): string | null {
   const customDomain = normalizeHostLike(site.custom_domain);
-  if (customDomain && site.domain_verified) {
+  if (customDomain && site.domain_verified && !isQayBaseHost(customDomain)) {
     return customDomain;
   }
 
