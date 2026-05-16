@@ -98,6 +98,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => null);
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const skipDefaultPages = body?.skipDefaultPages === true;
 
     if (!name) {
       return NextResponse.json({ error: 'Site name is required' }, { status: 400 });
@@ -169,8 +170,10 @@ export async function POST(request: Request) {
       .select()
       .maybeSingle();
 
-    await ensureQayDraftHomePage(data.id);
-    await ensureQayDraftErrorPages(data.id);
+    if (!skipDefaultPages) {
+      await ensureQayDraftHomePage(data.id);
+      await ensureQayDraftErrorPages(data.id);
+    }
 
     return NextResponse.json({ data: withResolvedQayLiveUrl(data) }, { status: 201 });
   } catch (error) {
