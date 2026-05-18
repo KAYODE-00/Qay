@@ -66,10 +66,10 @@ export function ClientContentEditor({
       : `/${selectedPage.slug.replace(/^\/+/, '')}`
     : '/';
 
-  function updateField(layerId: string, value: string) {
+  function updateField(fieldId: string, value: string) {
     setFields((current) =>
       current.map((item) =>
-        item.layerId === layerId
+        item.fieldId === fieldId
           ? { ...item, value }
           : item
       )
@@ -115,7 +115,7 @@ export function ClientContentEditor({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pageId: selectedPageId,
-          fields: fields.map((field) => ({ layerId: field.layerId, value: field.value })),
+          fields: fields.map((field) => ({ fieldId: field.fieldId, layerId: field.layerId, value: field.value })),
         }),
       });
       const payload = await response.json();
@@ -252,7 +252,7 @@ export function ClientContentEditor({
           ) : fields.length > 0 ? (
             <div className="space-y-4">
               {visibleFields.map((field) => (
-                <label key={field.layerId} className="block rounded-lg border border-border bg-card p-4 shadow-sm">
+                <label key={field.fieldId} className="block rounded-lg border border-border bg-card p-4 shadow-sm">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
                       {field.kind === 'image' ? <ImageIcon className="size-4 shrink-0" /> : <Type className="size-4 shrink-0" />}
@@ -274,7 +274,7 @@ export function ClientContentEditor({
                       <div className="space-y-2">
                         <input
                           value={field.value}
-                          onChange={(event) => updateField(field.layerId, event.target.value)}
+                          onChange={(event) => updateField(field.fieldId, event.target.value)}
                           className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-ring"
                         />
                         <p className="text-xs text-muted-foreground">Paste a public image URL. Upload permissions stay with the developer.</p>
@@ -284,7 +284,7 @@ export function ClientContentEditor({
                     <textarea
                       rows={field.kind === 'richText' ? 8 : 4}
                       value={field.value}
-                      onChange={(event) => updateField(field.layerId, event.target.value)}
+                      onChange={(event) => updateField(field.fieldId, event.target.value)}
                       className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 text-foreground outline-none transition focus:border-ring"
                     />
                   )}
