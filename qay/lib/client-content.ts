@@ -575,9 +575,7 @@ export async function updateClientPageContent(
   );
 
   const nextLayers = updateLayerContent(siteContent.draftLayers.layers, updates);
-  await upsertDraftLayers(pageId, nextLayers, {
-    generated_css: siteContent.draftLayers.generated_css ?? null,
-  });
+  await upsertDraftLayers(pageId, nextLayers);
 
   return getClientSiteContent(userId, siteId, pageId);
 }
