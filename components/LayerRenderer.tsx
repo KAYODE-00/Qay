@@ -2733,6 +2733,8 @@ const LayerItem: React.FC<{
               collectionItemSlugs={collectionItemSlugs}
               isPreview={isPreview}
               previewBasePath={previewBasePath}
+              qaySiteId={qaySiteId}
+              sitePathPrefix={sitePathPrefix}
               translations={translations}
               anchorMap={anchorMap}
               resolvedAssets={resolvedAssets}
@@ -2965,6 +2967,8 @@ const LayerItem: React.FC<{
                     collectionItemSlugs={collectionItemSlugs}
                     isPreview={isPreview}
                     previewBasePath={previewBasePath}
+                    qaySiteId={qaySiteId}
+                    sitePathPrefix={sitePathPrefix}
                     translations={translations}
                     anchorMap={anchorMap}
                     resolvedAssets={resolvedAssets}
@@ -3024,6 +3028,8 @@ const LayerItem: React.FC<{
               collectionItemSlugs={collectionItemSlugs}
               isPreview={isPreview}
               previewBasePath={previewBasePath}
+              qaySiteId={qaySiteId}
+              sitePathPrefix={sitePathPrefix}
               translations={translations}
               anchorMap={anchorMap}
               resolvedAssets={resolvedAssets}
@@ -3115,6 +3121,8 @@ const LayerItem: React.FC<{
             collectionItemSlugs={collectionItemSlugs}
             isPreview={isPreview}
             previewBasePath={previewBasePath}
+            qaySiteId={qaySiteId}
+            sitePathPrefix={sitePathPrefix}
             translations={translations}
             anchorMap={anchorMap}
             resolvedAssets={resolvedAssets}
