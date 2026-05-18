@@ -25,7 +25,7 @@ export type ClientEditableField = {
   fieldId: string;
   layerId: string;
   label: string;
-  kind: 'text' | 'richText' | 'image';
+  kind: 'text' | 'richText' | 'image' | 'video';
   value: string;
 };
 
@@ -129,8 +129,9 @@ function collectAssetIds(layers: Layer[]): string[] {
       const variables = layer.variables as any;
       const imageSrc = variables?.image?.src;
       const backgroundSrc = variables?.backgroundImage?.src;
+      const videoSrc = variables?.video?.src;
 
-      for (const variable of [imageSrc, backgroundSrc]) {
+      for (const variable of [imageSrc, backgroundSrc, videoSrc]) {
         const data = isRecord(variable?.data) ? variable.data : null;
         if (variable?.type === 'asset' && typeof data?.asset_id === 'string') {
           ids.add(data.asset_id);
@@ -153,6 +154,7 @@ function getLayerEditableValues(layer: Layer, assetMap: Record<string, Asset>): 
   const variables = layer.variables as any;
   const imageValue = getVariableContent(variables?.image?.src, assetMap);
   const backgroundValue = getVariableContent(variables?.backgroundImage?.src, assetMap);
+  const videoValue = getVariableContent(variables?.video?.src, assetMap);
 
   if (imageValue !== null) {
     fields.push({
@@ -171,6 +173,16 @@ function getLayerEditableValues(layer: Layer, assetMap: Record<string, Asset>): 
       label: `${label} background`,
       kind: 'image',
       value: backgroundValue,
+    });
+  }
+
+  if (videoValue !== null) {
+    fields.push({
+      fieldId: `${layer.id}:video`,
+      layerId: layer.id,
+      label: `${label} video`,
+      kind: 'video',
+      value: videoValue,
     });
   }
 
@@ -262,8 +274,9 @@ function updateLayerContent(layers: Layer[], updates: Map<string, string>): Laye
     const textValue = updates.get(`${layer.id}:text`) ?? updates.get(layer.id);
     const imageValue = updates.get(`${layer.id}:image`);
     const backgroundImageValue = updates.get(`${layer.id}:backgroundImage`);
+    const videoValue = updates.get(`${layer.id}:video`);
 
-    if (textValue === undefined && imageValue === undefined && backgroundImageValue === undefined) {
+    if (textValue === undefined && imageValue === undefined && backgroundImageValue === undefined && videoValue === undefined) {
       return nextLayer;
     }
 
@@ -318,6 +331,21 @@ function updateLayerContent(layers: Layer[], updates: Map<string, string>): Laye
           backgroundImage: {
             ...existingBackgroundImage,
             src: updateVariableContent(backgroundSrc, backgroundImageValue),
+          },
+        },
+      };
+    }
+
+    const existingVideo = (updatedLayer.variables as any)?.video;
+    const videoSrc = existingVideo?.src;
+    if (videoValue !== undefined && existingVideo && videoSrc) {
+      updatedLayer = {
+        ...updatedLayer,
+        variables: {
+          ...updatedLayer.variables,
+          video: {
+            ...existingVideo,
+            src: updateVariableContent(videoSrc, videoValue),
           },
         },
       };
@@ -572,7 +600,7 @@ export async function getClientSiteCms(userId: string, siteId: string): Promise<
   const [{ data: collections, error: collectionsError }, { data: fields, error: fieldsError }, { data: items, error: itemsError }] = await Promise.all([
     supabase
       .from('collections')
-      .select('id, name, slug')
+      .select('id, name')
       .in('id', collectionIds)
       .eq('is_published', false)
       .is('deleted_at', null)
@@ -618,7 +646,7 @@ export async function getClientSiteCms(userId: string, siteId: string): Promise<
       return {
         collectionId: collection.id,
         name: collection.name,
-        slug: collection.slug ?? null,
+        slug: null,
         fieldCount: collectionFields.length,
         itemCount: itemCounts.get(collection.id) ?? 0,
         fields: collectionFields,
