@@ -6,6 +6,17 @@ type RouteContext = {
   params: Promise<{ siteId: string }>;
 };
 
+function toClientContentPayload(content: Awaited<ReturnType<typeof getClientSiteContent>>) {
+  if (!content) return null;
+
+  return {
+    site: content.site,
+    pages: content.pages,
+    selectedPage: content.selectedPage,
+    editableFields: content.editableFields,
+  };
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const user = await getQayAuthUser();
@@ -22,8 +33,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Site content not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: content });
+    return NextResponse.json({ data: toClientContentPayload(content) });
   } catch (error) {
+    console.error('[QAY client content GET]', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch client content' },
       { status: 500 }
@@ -54,8 +66,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Site content not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: content });
+    return NextResponse.json({ data: toClientContentPayload(content) });
   } catch (error) {
+    console.error('[QAY client content PATCH]', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update client content' },
       { status: 500 }
