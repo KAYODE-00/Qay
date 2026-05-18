@@ -27,11 +27,11 @@ export default async function QaySiteEditorGatePage({ params }: PageProps) {
   const { data: membership, error: membershipError } = ownedSite
     ? { data: null, error: null }
     : await supabase
-        .from('qay_site_members')
-        .select('id')
-        .eq('site_id', id)
-        .eq('user_id', user.id)
-        .maybeSingle();
+      .from('qay_site_members')
+      .select('id, role')
+      .eq('site_id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
 
   if (membershipError) {
     throw new Error(membershipError.message);
@@ -39,6 +39,21 @@ export default async function QaySiteEditorGatePage({ params }: PageProps) {
 
   if (!ownedSite && !membership) {
     notFound();
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('qay_user_profiles')
+    .select('account_type')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+
+  const memberRole = typeof membership?.role === 'string' ? membership.role : null;
+  if (profile?.account_type === 'client' || memberRole === 'client' || memberRole === 'viewer') {
+    redirect(`/client/${id}/editor`);
   }
 
   await ensureQayPageSiteUniqueness();

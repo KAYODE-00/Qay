@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Home, LayoutTemplate, User } from 'lucide-react';
 import { requireDeveloper } from '@/qay/lib/auth-guard';
 import { QayLogo } from '@/qay/components/QayLogo';
+import { getQayAccountProfile } from '@/qay/lib/account';
+import { AccountSettingsForm } from '@/qay/components/account/AccountSettingsForm';
 
 function NavItem({
   href,
@@ -33,6 +35,7 @@ function NavItem({
 
 export default async function DashboardProfilePage() {
   const user = await requireDeveloper();
+  const profile = await getQayAccountProfile(user);
   const initials = (user.email || 'QAY').slice(0, 2).toUpperCase();
 
   return (
@@ -76,16 +79,8 @@ export default async function DashboardProfilePage() {
         </header>
 
         <section className="px-4 py-10 sm:px-6 lg:px-8">
-          <div className="max-w-2xl rounded-lg border border-border bg-card p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex size-14 items-center justify-center rounded-full border border-border bg-muted text-sm font-medium text-muted-foreground">
-                {initials}
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold tracking-normal">Account</h2>
-                <p className="text-sm text-muted-foreground">{user.email}</p>
-              </div>
-            </div>
+          <div className="max-w-2xl">
+            <AccountSettingsForm profile={profile} />
           </div>
         </section>
       </div>

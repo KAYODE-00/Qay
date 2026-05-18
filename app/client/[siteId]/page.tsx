@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ExternalLink, PenSquare } from 'lucide-react';
+import { BarChart3, Database, ExternalLink, ImageIcon, PenSquare } from 'lucide-react';
 import { requireClient } from '@/qay/lib/auth-guard';
 import { getClientSiteContent } from '@/qay/lib/client-content';
 import { ClientSidebar } from '@/qay/components/client/ClientSidebar';
@@ -51,6 +51,36 @@ export default async function ClientSitePage({ params }: PageProps) {
                   View live site
                 </a>
               )}
+            </div>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              <Link href={`/client/${siteId}/editor`} className="rounded-lg border border-border bg-card p-4 transition hover:bg-accent">
+                <PenSquare className="size-5 text-muted-foreground" />
+                <h2 className="mt-4 text-sm font-medium">Text</h2>
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">Update page copy in a focused editor.</p>
+              </Link>
+              <Link href={`/client/${siteId}/editor`} className="rounded-lg border border-border bg-card p-4 transition hover:bg-accent">
+                <ImageIcon className="size-5 text-muted-foreground" />
+                <h2 className="mt-4 text-sm font-medium">Images</h2>
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">Review image blocks exposed by the site draft.</p>
+              </Link>
+              <Link href={`/client/${siteId}/analytics`} className="rounded-lg border border-border bg-card p-4 transition hover:bg-accent">
+                <BarChart3 className="size-5 text-muted-foreground" />
+                <h2 className="mt-4 text-sm font-medium">Analytics</h2>
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">See visits for this site only.</p>
+              </Link>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-dashed border-border bg-card/60 p-4">
+              <div className="flex items-start gap-3">
+                <Database className="mt-0.5 size-5 text-muted-foreground" />
+                <div>
+                  <h2 className="text-sm font-medium">CMS access</h2>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    CMS content stays scoped to this site. Collection editing can be added here without giving clients the full builder.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="mt-8 rounded-lg border border-border bg-card">

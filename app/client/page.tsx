@@ -1,12 +1,16 @@
 import Link from 'next/link';
 import { ArrowRight, ExternalLink } from 'lucide-react';
 import { requireClient } from '@/qay/lib/auth-guard';
-import { getClientAccessibleSites } from '@/qay/lib/client-content';
+import { getClientAccessibleSites, getPendingClientInvites } from '@/qay/lib/client-content';
 import { ClientSidebar } from '@/qay/components/client/ClientSidebar';
+import { PendingInvites } from '@/qay/components/client/PendingInvites';
 
 export default async function ClientDashboardPage() {
   const user = await requireClient();
-  const sites = await getClientAccessibleSites(user.id);
+  const [sites, pendingInvites] = await Promise.all([
+    getClientAccessibleSites(user.id),
+    getPendingClientInvites(user.email),
+  ]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -21,13 +25,20 @@ export default async function ClientDashboardPage() {
               Open any site your developer shared with you, review the draft, and update content without diving into the full builder.
             </p>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-8">
+              <PendingInvites invites={pendingInvites} />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {sites.map((site) => (
                 <article key={site.id} className="rounded-lg border border-border bg-card p-4">
                   <div className="flex aspect-video items-center justify-center rounded-md border border-border bg-muted">
                     {site.thumbnail_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={site.thumbnail_url} alt="" className="h-full w-full rounded-md object-cover" />
+                      <img
+                        src={site.thumbnail_url} alt=""
+                        className="h-full w-full rounded-md object-cover"
+                      />
                     ) : (
                       <span className="text-sm font-medium text-muted-foreground">{site.name.slice(0, 2).toUpperCase()}</span>
                     )}

@@ -1,5 +1,6 @@
 import { notFound, redirect, permanentRedirect } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { buildSlugPath } from '@/lib/page-utils';
@@ -13,6 +14,7 @@ import { getSiteBaseUrl } from '@/lib/url-utils';
 import { getQayRenderHostSubdomain, getQayRenderSiteBaseUrl, getQayRenderSiteId, resolveQayPathSiteContext } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
+import { recordQayPageView } from '@/qay/lib/analytics';
 import type { Page, PageFolder, Translation, Redirect as RedirectType } from '@/types';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -385,6 +387,9 @@ export default async function Page({ params }: PageProps) {
       );
     }
   }
+
+  const headerStore = await headers();
+  await recordQayPageView(qaySiteId, `/${slugPath}`, headerStore.get('referer'));
 
   return (
     <PageRenderer

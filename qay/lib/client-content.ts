@@ -20,7 +20,7 @@ export type ClientPageSummary = Pick<
 export type ClientEditableField = {
   layerId: string;
   label: string;
-  kind: 'text' | 'richText';
+  kind: 'text' | 'richText' | 'image';
   value: string;
 };
 
@@ -30,6 +30,17 @@ export type ClientSiteContent = {
   selectedPage: ClientPageSummary | null;
   editableFields: ClientEditableField[];
   draftLayers: PageLayers | null;
+};
+
+export type ClientPendingInvite = {
+  id: string;
+  site_id: string;
+  email: string;
+  token: string;
+  role: string;
+  expires_at: string | null;
+  created_at: string | null;
+  site: Pick<QaySite, 'id' | 'name' | 'slug' | 'thumbnail_url'> | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -69,6 +80,19 @@ function extractTextFromTiptap(node: unknown): string {
 }
 
 function getLayerEditableValue(layer: Layer): ClientEditableField | null {
+  const imageVariable = layer.variables?.image?.src;
+  if (imageVariable?.type === 'dynamic_text') {
+    const content = typeof imageVariable.data?.content === 'string' ? imageVariable.data.content.trim() : '';
+    if (content) {
+      return {
+        layerId: layer.id,
+        label: layer.customName || layer.name || 'Image',
+        kind: 'image',
+        value: content,
+      };
+    }
+  }
+
   const textVariable = layer.variables?.text;
   if (!textVariable || !('type' in textVariable)) {
     return null;
@@ -128,23 +152,44 @@ function updateLayerContent(layers: Layer[], updates: Map<string, string>): Laye
     }
 
     const existingText = nextLayer.variables?.text;
-    if (!existingText || existingText.type !== 'dynamic_rich_text') {
-      return nextLayer;
-    }
-
-    return {
-      ...nextLayer,
-      variables: {
-        ...nextLayer.variables,
-        text: {
-          ...existingText,
-          data: {
-            ...existingText.data,
-            content: getTiptapTextContent(nextValue),
+    if (existingText?.type === 'dynamic_rich_text') {
+      return {
+        ...nextLayer,
+        variables: {
+          ...nextLayer.variables,
+          text: {
+            ...existingText,
+            data: {
+              ...existingText.data,
+              content: getTiptapTextContent(nextValue),
+            },
           },
         },
-      },
-    };
+      };
+    }
+
+    const existingImage = nextLayer.variables?.image;
+    const imageSrc = existingImage?.src;
+    if (imageSrc?.type === 'dynamic_text' && existingImage) {
+      return {
+        ...nextLayer,
+        variables: {
+          ...nextLayer.variables,
+          image: {
+            ...existingImage,
+            src: {
+              ...imageSrc,
+              data: {
+                ...imageSrc.data,
+                content: nextValue,
+              },
+            },
+          },
+        },
+      };
+    }
+
+    return nextLayer;
   });
 }
 
@@ -255,6 +300,30 @@ export async function getClientAccessibleSites(userId: string): Promise<ClientAc
     const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
     return bTime - aTime;
   });
+}
+
+export async function getPendingClientInvites(email: string | null | undefined): Promise<ClientPendingInvite[]> {
+  if (!email) {
+    return [];
+  }
+
+  const supabase = getQayAdmin() as any;
+  const { data, error } = await supabase
+    .from('qay_site_invites')
+    .select('id, site_id, email, token, role, expires_at, created_at, site:qay_sites(id, name, slug, thumbnail_url)')
+    .ilike('email', email)
+    .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((invite: any) => ({
+    ...invite,
+    site: Array.isArray(invite.site) ? invite.site[0] ?? null : invite.site ?? null,
+  }));
 }
 
 export async function getClientSiteContent(userId: string, siteId: string, pageId?: string | null): Promise<ClientSiteContent | null> {
