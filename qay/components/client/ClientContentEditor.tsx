@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { FileText, ImageIcon, LayoutPanelLeft, Save, Search, Type } from 'lucide-react';
+import { FileText, ImageIcon, LayoutPanelLeft, Save, Search, Type, Video } from 'lucide-react';
 import type { ClientEditableField, ClientPageSummary } from '@/qay/lib/client-content';
 
 type ClientContentEditorProps = {
@@ -22,6 +22,7 @@ export function ClientContentEditor({
   const [fields, setFields] = useState(initialFields);
   const [loadingPage, setLoadingPage] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<'all' | 'text' | 'images'>('all');
@@ -37,15 +38,15 @@ export function ClientContentEditor({
     [fields]
   );
 
-  const imageFields = useMemo(
-    () => fields.filter((field) => field.kind === 'image'),
+  const mediaFields = useMemo(
+    () => fields.filter((field) => field.kind === 'image' || field.kind === 'video'),
     [fields]
   );
 
   const visibleFields = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const filteredByPanel = activePanel === 'images'
-      ? imageFields
+      ? mediaFields
       : activePanel === 'text'
         ? textFields
         : fields;
@@ -58,7 +59,7 @@ export function ClientContentEditor({
       field.label.toLowerCase().includes(normalizedQuery)
       || field.value.toLowerCase().includes(normalizedQuery)
     );
-  }, [activePanel, fields, imageFields, query, textFields]);
+  }, [activePanel, fields, mediaFields, query, textFields]);
 
   const selectedPagePath = selectedPage
     ? selectedPage.is_index
@@ -99,6 +100,46 @@ export function ClientContentEditor({
       setError(err instanceof Error ? err.message : 'Unable to load content');
     } finally {
       setLoadingPage(false);
+    }
+  }
+
+  async function uploadMedia(field: ClientEditableField, file: File | null) {
+    if (!file) return;
+
+    const category = field.kind === 'video' ? 'videos' : 'images';
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('source', 'client-editor');
+    formData.append('category', category);
+
+    setUploadingFieldId(field.fieldId);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/ycode/api/files/upload?site=${siteId}`, {
+        method: 'POST',
+        body: formData,
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setError(payload.error || 'Unable to upload file');
+        return;
+      }
+
+      const publicUrl = payload.data?.public_url;
+      if (typeof publicUrl !== 'string' || !publicUrl) {
+        setError('This file type cannot be used as a public media URL here.');
+        return;
+      }
+
+      updateField(field.fieldId, publicUrl);
+      setSuccess('File uploaded. Save the draft to apply it.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to upload file');
+    } finally {
+      setUploadingFieldId(null);
     }
   }
 
@@ -217,7 +258,7 @@ export function ClientContentEditor({
               {[
                 { key: 'all', label: 'All', count: fields.length },
                 { key: 'text', label: 'Text', count: textFields.length },
-                { key: 'images', label: 'Images', count: imageFields.length },
+                { key: 'images', label: 'Media', count: mediaFields.length },
               ].map((item) => (
                 <button
                   key={item.key}
@@ -255,21 +296,33 @@ export function ClientContentEditor({
                 <label key={field.fieldId} className="block rounded-lg border border-border bg-card p-4 shadow-sm">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
-                      {field.kind === 'image' ? <ImageIcon className="size-4 shrink-0" /> : <Type className="size-4 shrink-0" />}
+                      {field.kind === 'video'
+                        ? <Video className="size-4 shrink-0" />
+                        : field.kind === 'image'
+                          ? <ImageIcon className="size-4 shrink-0" />
+                          : <Type className="size-4 shrink-0" />}
                       <span className="truncate">{field.label}</span>
                     </span>
                     <span className="rounded-full border border-border px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      {field.kind === 'image' ? 'Image' : field.kind === 'richText' ? 'Rich text' : 'Text'}
+                      {field.kind === 'video' ? 'Video' : field.kind === 'image' ? 'Image' : field.kind === 'richText' ? 'Rich text' : 'Text'}
                     </span>
                   </div>
-                  {field.kind === 'image' ? (
+                  {field.kind === 'image' || field.kind === 'video' ? (
                     <div className="grid gap-3 lg:grid-cols-[190px_1fr]">
                       <div className="flex aspect-video items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={field.value} alt=""
-                          className="h-full w-full object-cover"
-                        />
+                        {field.kind === 'video' ? (
+                          <video
+                            src={field.value}
+                            className="h-full w-full object-cover"
+                            controls
+                          />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={field.value} alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        )}
                       </div>
                       <div className="space-y-2">
                         <input
@@ -277,7 +330,17 @@ export function ClientContentEditor({
                           onChange={(event) => updateField(field.fieldId, event.target.value)}
                           className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-ring"
                         />
-                        <p className="text-xs text-muted-foreground">Paste a public image URL. Upload permissions stay with the developer.</p>
+                        <label className="inline-flex h-9 cursor-pointer items-center rounded-md border border-border bg-background px-3 text-sm font-medium transition hover:bg-accent">
+                          {uploadingFieldId === field.fieldId ? 'Uploading...' : `Choose ${field.kind}`}
+                          <input
+                            type="file"
+                            accept={field.kind === 'video' ? 'video/*' : 'image/*'}
+                            disabled={uploadingFieldId === field.fieldId}
+                            onChange={(event) => uploadMedia(field, event.target.files?.[0] ?? null)}
+                            className="sr-only"
+                          />
+                        </label>
+                        <p className="text-xs text-muted-foreground">Paste a public URL or choose a file. Save the draft after upload to apply it.</p>
                       </div>
                     </div>
                   ) : (
@@ -317,8 +380,8 @@ export function ClientContentEditor({
                   <p className="mt-1 text-xs text-muted-foreground">Text fields</p>
                 </div>
                 <div className="rounded-md border border-border p-3">
-                  <p className="text-2xl font-semibold">{imageFields.length}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Images</p>
+                  <p className="text-2xl font-semibold">{mediaFields.length}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Media</p>
                 </div>
               </div>
             </div>
