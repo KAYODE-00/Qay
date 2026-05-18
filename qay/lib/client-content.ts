@@ -4,6 +4,7 @@ import { getAssetsByIds } from '@/lib/repositories/assetRepository';
 import { getFormSummaries } from '@/lib/repositories/formSubmissionRepository';
 import { getTopItemsWithValuesPerCollection } from '@/lib/repositories/collectionItemRepository';
 import { setValuesByFieldName } from '@/lib/repositories/collectionItemValueRepository';
+import { isValidUUID } from '@/lib/utils';
 import type { Asset, CollectionFieldType, Layer, Page, PageLayers } from '@/types';
 import type { QaySite } from '@/qay/types';
 import { getTiptapTextContent } from '@/lib/mcp/utils';
@@ -133,7 +134,7 @@ function collectAssetIds(layers: Layer[]): string[] {
 
       for (const variable of [imageSrc, backgroundSrc, videoSrc]) {
         const data = isRecord(variable?.data) ? variable.data : null;
-        if (variable?.type === 'asset' && typeof data?.asset_id === 'string') {
+        if (variable?.type === 'asset' && typeof data?.asset_id === 'string' && isValidUUID(data.asset_id)) {
           ids.add(data.asset_id);
         }
       }
@@ -223,7 +224,15 @@ function getLayerEditableValues(layer: Layer, assetMap: Record<string, Asset>): 
 export async function extractEditableFields(layers: Layer[]): Promise<ClientEditableField[]> {
   const fields: ClientEditableField[] = [];
   const assetIds = collectAssetIds(layers);
-  const assetMap = assetIds.length > 0 ? await getAssetsByIds(assetIds, false) : {};
+  let assetMap: Record<string, Asset> = {};
+
+  if (assetIds.length > 0) {
+    try {
+      assetMap = await getAssetsByIds(assetIds, false);
+    } catch (error) {
+      console.warn('[ClientContent] Unable to resolve asset-backed editable fields:', error);
+    }
+  }
 
   const walk = (items: Layer[]) => {
     for (const layer of items) {
