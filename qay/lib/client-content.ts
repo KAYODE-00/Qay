@@ -1,6 +1,10 @@
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { getDraftLayers, upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
-import type { Layer, Page, PageLayers } from '@/types';
+import { getAssetsByIds } from '@/lib/repositories/assetRepository';
+import { getFormSummaries } from '@/lib/repositories/formSubmissionRepository';
+import { getTopItemsWithValuesPerCollection } from '@/lib/repositories/collectionItemRepository';
+import { setValuesByFieldName } from '@/lib/repositories/collectionItemValueRepository';
+import type { Asset, CollectionFieldType, Layer, Page, PageLayers } from '@/types';
 import type { QaySite } from '@/qay/types';
 import { getTiptapTextContent } from '@/lib/mcp/utils';
 import { withResolvedQayLiveUrl } from './site-url';
@@ -18,10 +22,31 @@ export type ClientPageSummary = Pick<
 >;
 
 export type ClientEditableField = {
+  fieldId: string;
   layerId: string;
   label: string;
   kind: 'text' | 'richText' | 'image';
   value: string;
+};
+
+export type ClientCmsSummary = {
+  collectionId: string;
+  name: string;
+  slug: string | null;
+  fieldCount: number;
+  itemCount: number;
+  fields: Array<{ id: string; name: string; type: CollectionFieldType | null }>;
+  items: Array<{ itemId: string; values: Record<string, string | null> }>;
+};
+
+export type ClientFormSummary = {
+  formId: string;
+  name: string;
+  pageName: string;
+  pageSlug: string;
+  submissionCount: number;
+  newCount: number;
+  latestSubmission: string | null;
 };
 
 export type ClientSiteContent = {
@@ -79,55 +104,118 @@ function extractTextFromTiptap(node: unknown): string {
   return [text, childText].filter(Boolean).join(' ').trim();
 }
 
-function getLayerEditableValue(layer: Layer): ClientEditableField | null {
-  const imageVariable = layer.variables?.image?.src;
-  if (imageVariable?.type === 'dynamic_text') {
-    const content = typeof imageVariable.data?.content === 'string' ? imageVariable.data.content.trim() : '';
-    if (content) {
-      return {
-        layerId: layer.id,
-        label: layer.customName || layer.name || 'Image',
-        kind: 'image',
-        value: content,
-      };
+function getVariableContent(variable: unknown, assetMap: Record<string, Asset>): string | null {
+  if (!isRecord(variable)) {
+    return null;
+  }
+
+  const data = isRecord(variable.data) ? variable.data : {};
+
+  if ((variable.type === 'dynamic_text' || variable.type === 'static_text') && typeof data.content === 'string') {
+    return data.content;
+  }
+
+  if (variable.type === 'asset' && typeof data.asset_id === 'string') {
+    return assetMap[data.asset_id]?.public_url ?? null;
+  }
+
+  return null;
+}
+
+function collectAssetIds(layers: Layer[]): string[] {
+  const ids = new Set<string>();
+  const walk = (items: Layer[]) => {
+    for (const layer of items) {
+      const variables = layer.variables as any;
+      const imageSrc = variables?.image?.src;
+      const backgroundSrc = variables?.backgroundImage?.src;
+
+      for (const variable of [imageSrc, backgroundSrc]) {
+        const data = isRecord(variable?.data) ? variable.data : null;
+        if (variable?.type === 'asset' && typeof data?.asset_id === 'string') {
+          ids.add(data.asset_id);
+        }
+      }
+
+      if (layer.children?.length) {
+        walk(layer.children);
+      }
     }
+  };
+
+  walk(layers);
+  return Array.from(ids);
+}
+
+function getLayerEditableValues(layer: Layer, assetMap: Record<string, Asset>): ClientEditableField[] {
+  const fields: ClientEditableField[] = [];
+  const label = layer.customName || layer.name || 'Content';
+  const variables = layer.variables as any;
+  const imageValue = getVariableContent(variables?.image?.src, assetMap);
+  const backgroundValue = getVariableContent(variables?.backgroundImage?.src, assetMap);
+
+  if (imageValue !== null) {
+    fields.push({
+      fieldId: `${layer.id}:image`,
+      layerId: layer.id,
+      label: `${label} image`,
+      kind: 'image',
+      value: imageValue,
+    });
+  }
+
+  if (backgroundValue !== null) {
+    fields.push({
+      fieldId: `${layer.id}:backgroundImage`,
+      layerId: layer.id,
+      label: `${label} background`,
+      kind: 'image',
+      value: backgroundValue,
+    });
   }
 
   const textVariable = layer.variables?.text;
   if (!textVariable || !('type' in textVariable)) {
-    return null;
+    return fields;
   }
 
-  if (textVariable.type !== 'dynamic_rich_text') {
-    return null;
+  if (textVariable.type === 'dynamic_text' || (textVariable as any).type === 'static_text') {
+    const value = typeof (textVariable as any).data?.content === 'string' ? (textVariable as any).data.content : '';
+    fields.push({
+      fieldId: `${layer.id}:text`,
+      layerId: layer.id,
+      label,
+      kind: 'text',
+      value,
+    });
+    return fields;
   }
 
-  const rawContent = textVariable.data?.content;
-  const value = extractTextFromTiptap(rawContent).trim();
+  if (textVariable.type === 'dynamic_rich_text') {
+    const rawContent = textVariable.data?.content;
+    const value = extractTextFromTiptap(rawContent);
+    const isRichText = layer.name === 'richText';
 
-  if (!value) {
-    return null;
+    fields.push({
+      fieldId: `${layer.id}:text`,
+      layerId: layer.id,
+      label,
+      kind: isRichText ? 'richText' : 'text',
+      value,
+    });
   }
 
-  const isRichText = layer.name === 'richText';
-
-  return {
-    layerId: layer.id,
-    label: layer.customName || layer.name || 'Content',
-    kind: isRichText ? 'richText' : 'text',
-    value,
-  };
+  return fields;
 }
 
-export function extractEditableFields(layers: Layer[]): ClientEditableField[] {
+export async function extractEditableFields(layers: Layer[]): Promise<ClientEditableField[]> {
   const fields: ClientEditableField[] = [];
+  const assetIds = collectAssetIds(layers);
+  const assetMap = assetIds.length > 0 ? await getAssetsByIds(assetIds, false) : {};
 
   const walk = (items: Layer[]) => {
     for (const layer of items) {
-      const field = getLayerEditableValue(layer);
-      if (field) {
-        fields.push(field);
-      }
+      fields.push(...getLayerEditableValues(layer, assetMap));
 
       if (layer.children?.length) {
         walk(layer.children);
@@ -139,6 +227,31 @@ export function extractEditableFields(layers: Layer[]): ClientEditableField[] {
   return fields;
 }
 
+function updateVariableContent(variable: unknown, nextValue: string) {
+  if (!isRecord(variable)) {
+    return variable;
+  }
+
+  if (variable.type === 'dynamic_text' || variable.type === 'static_text') {
+    return {
+      ...variable,
+      data: {
+        ...(isRecord(variable.data) ? variable.data : {}),
+        content: nextValue,
+      },
+    };
+  }
+
+  if (variable.type === 'asset') {
+    return {
+      type: 'dynamic_text',
+      data: { content: nextValue },
+    };
+  }
+
+  return variable;
+}
+
 function updateLayerContent(layers: Layer[], updates: Map<string, string>): Layer[] {
   return layers.map((layer) => {
     const nextLayer: Layer = {
@@ -146,50 +259,71 @@ function updateLayerContent(layers: Layer[], updates: Map<string, string>): Laye
       children: layer.children ? updateLayerContent(layer.children, updates) : layer.children,
     };
 
-    const nextValue = updates.get(layer.id);
-    if (!nextValue) {
+    const textValue = updates.get(`${layer.id}:text`) ?? updates.get(layer.id);
+    const imageValue = updates.get(`${layer.id}:image`);
+    const backgroundImageValue = updates.get(`${layer.id}:backgroundImage`);
+
+    if (textValue === undefined && imageValue === undefined && backgroundImageValue === undefined) {
       return nextLayer;
     }
 
+    let updatedLayer = nextLayer;
     const existingText = nextLayer.variables?.text;
-    if (existingText?.type === 'dynamic_rich_text') {
-      return {
-        ...nextLayer,
+    if (textValue !== undefined && existingText?.type === 'dynamic_rich_text') {
+      updatedLayer = {
+        ...updatedLayer,
         variables: {
-          ...nextLayer.variables,
+          ...updatedLayer.variables,
           text: {
             ...existingText,
             data: {
               ...existingText.data,
-              content: getTiptapTextContent(nextValue),
+              content: getTiptapTextContent(textValue),
             },
           },
         },
       };
+    } else if (textValue !== undefined && existingText) {
+      updatedLayer = {
+        ...updatedLayer,
+        variables: {
+          ...updatedLayer.variables,
+          text: updateVariableContent(existingText, textValue) as any,
+        },
+      };
     }
 
-    const existingImage = nextLayer.variables?.image;
+    const existingImage = (updatedLayer.variables as any)?.image;
     const imageSrc = existingImage?.src;
-    if (imageSrc?.type === 'dynamic_text' && existingImage) {
-      return {
-        ...nextLayer,
+    if (imageValue !== undefined && existingImage && imageSrc) {
+      updatedLayer = {
+        ...updatedLayer,
         variables: {
-          ...nextLayer.variables,
+          ...updatedLayer.variables,
           image: {
             ...existingImage,
-            src: {
-              ...imageSrc,
-              data: {
-                ...imageSrc.data,
-                content: nextValue,
-              },
-            },
+            src: updateVariableContent(imageSrc, imageValue),
           },
         },
       };
     }
 
-    return nextLayer;
+    const existingBackgroundImage = (updatedLayer.variables as any)?.backgroundImage;
+    const backgroundSrc = existingBackgroundImage?.src;
+    if (backgroundImageValue !== undefined && existingBackgroundImage && backgroundSrc) {
+      updatedLayer = {
+        ...updatedLayer,
+        variables: {
+          ...updatedLayer.variables,
+          backgroundImage: {
+            ...existingBackgroundImage,
+            src: updateVariableContent(backgroundSrc, backgroundImageValue),
+          },
+        },
+      };
+    }
+
+    return updatedLayer;
   });
 }
 
@@ -365,7 +499,7 @@ export async function getClientSiteContent(userId: string, siteId: string, pageI
     ?? null;
 
   const draftLayers = selectedPage ? await getDraftLayers(selectedPage.id) : null;
-  const editableFields = draftLayers?.layers ? extractEditableFields(draftLayers.layers) : [];
+  const editableFields = draftLayers?.layers ? await extractEditableFields(draftLayers.layers) : [];
 
   return {
     site,
@@ -380,7 +514,7 @@ export async function updateClientPageContent(
   userId: string,
   siteId: string,
   pageId: string,
-  fieldUpdates: Array<{ layerId: string; value: string }>
+  fieldUpdates: Array<{ fieldId?: string; layerId: string; value: string }>
 ): Promise<ClientSiteContent | null> {
   const siteContent = await getClientSiteContent(userId, siteId, pageId);
 
@@ -390,8 +524,8 @@ export async function updateClientPageContent(
 
   const updates = new Map(
     fieldUpdates
-      .filter((item) => typeof item.layerId === 'string' && typeof item.value === 'string')
-      .map((item) => [item.layerId, item.value.trim()])
+      .filter((item) => typeof (item.fieldId ?? item.layerId) === 'string' && typeof item.value === 'string')
+      .map((item) => [item.fieldId ?? item.layerId, item.value])
   );
 
   const nextLayers = updateLayerContent(siteContent.draftLayers.layers, updates);
@@ -400,4 +534,210 @@ export async function updateClientPageContent(
   });
 
   return getClientSiteContent(userId, siteId, pageId);
+}
+
+export async function getClientSiteCms(userId: string, siteId: string): Promise<{
+  site: ClientAccessibleSite;
+  collections: ClientCmsSummary[];
+} | null> {
+  const supabase = getQayAdmin() as any;
+  const site = await getAccessibleSite(siteId, userId);
+
+  if (!site) {
+    return null;
+  }
+
+  const { data: links, error: linksError } = await supabase
+    .from('qay_site_collections')
+    .select('collection_id')
+    .eq('site_id', siteId);
+
+  if (linksError) {
+    if (linksError.code === 'PGRST205' || linksError.message?.includes('qay_site_collections')) {
+      return { site, collections: [] };
+    }
+    throw new Error(linksError.message);
+  }
+
+  const collectionIds: string[] = Array.from(new Set<string>(
+    (links ?? [])
+      .map((link: { collection_id: string }) => link.collection_id)
+      .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+  ));
+
+  if (collectionIds.length === 0) {
+    return { site, collections: [] };
+  }
+
+  const [{ data: collections, error: collectionsError }, { data: fields, error: fieldsError }, { data: items, error: itemsError }] = await Promise.all([
+    supabase
+      .from('collections')
+      .select('id, name, slug')
+      .in('id', collectionIds)
+      .eq('is_published', false)
+      .is('deleted_at', null)
+      .order('name', { ascending: true }),
+    supabase
+      .from('collection_fields')
+      .select('id, collection_id, name, type')
+      .in('collection_id', collectionIds)
+      .eq('is_published', false)
+      .is('deleted_at', null)
+      .order('order', { ascending: true }),
+    supabase
+      .from('collection_items')
+      .select('id, collection_id')
+      .in('collection_id', collectionIds)
+      .eq('is_published', false)
+      .is('deleted_at', null),
+  ]);
+
+  if (collectionsError) throw new Error(collectionsError.message);
+  if (fieldsError) throw new Error(fieldsError.message);
+  if (itemsError) throw new Error(itemsError.message);
+
+  const fieldsByCollection = new Map<string, Array<{ id: string; name: string; type: CollectionFieldType | null }>>();
+  for (const field of fields ?? []) {
+    const list = fieldsByCollection.get(field.collection_id) ?? [];
+    list.push({ id: field.id, name: field.name, type: field.type ?? null });
+    fieldsByCollection.set(field.collection_id, list);
+  }
+
+  const itemCounts = new Map<string, number>();
+  for (const item of items ?? []) {
+    itemCounts.set(item.collection_id, (itemCounts.get(item.collection_id) ?? 0) + 1);
+  }
+
+  const itemsByCollection = await getTopItemsWithValuesPerCollection(collectionIds, false, 25);
+
+  return {
+    site,
+    collections: (collections ?? []).map((collection: any) => {
+      const collectionFields = fieldsByCollection.get(collection.id) ?? [];
+      const collectionItems = itemsByCollection[collection.id]?.items ?? [];
+      return {
+        collectionId: collection.id,
+        name: collection.name,
+        slug: collection.slug ?? null,
+        fieldCount: collectionFields.length,
+        itemCount: itemCounts.get(collection.id) ?? 0,
+        fields: collectionFields,
+        items: collectionItems.map((item) => ({
+          itemId: item.id,
+          values: item.values,
+        })),
+      };
+    }),
+  };
+}
+
+export async function updateClientCmsItem(
+  userId: string,
+  siteId: string,
+  collectionId: string,
+  itemId: string,
+  values: Record<string, string>
+): Promise<{ site: ClientAccessibleSite; collections: ClientCmsSummary[] } | null> {
+  const cms = await getClientSiteCms(userId, siteId);
+
+  if (!cms) {
+    return null;
+  }
+
+  const collection = cms.collections.find((item) => item.collectionId === collectionId);
+  const collectionItem = collection?.items.find((item) => item.itemId === itemId);
+
+  if (!collection || !collectionItem) {
+    return null;
+  }
+
+  const fieldTypes = Object.fromEntries(
+    collection.fields
+      .filter((field): field is { id: string; name: string; type: CollectionFieldType } => Boolean(field.type))
+      .map((field) => [field.id, field.type])
+  );
+
+  const allowedFieldIds = new Set(collection.fields.map((field) => field.id));
+  const cleanValues = Object.fromEntries(
+    Object.entries(values).filter(([fieldId, value]) => allowedFieldIds.has(fieldId) && typeof value === 'string')
+  );
+
+  await setValuesByFieldName(itemId, collectionId, cleanValues, fieldTypes, false);
+
+  return getClientSiteCms(userId, siteId);
+}
+
+function findFormLayers(pages: ClientPageSummary[], layersByPage: Map<string, Layer[]>): ClientFormSummary[] {
+  const forms: ClientFormSummary[] = [];
+
+  const walk = (page: ClientPageSummary, layers: Layer[]) => {
+    for (const layer of layers) {
+      const settings = isRecord(layer.settings) ? layer.settings : {};
+      const layerAny = layer as any;
+      const isForm = layer.name === 'form' || settings.tag === 'form' || isRecord(layerAny.variables?.form);
+
+      if (isForm) {
+        const formId = typeof settings.formId === 'string'
+          ? settings.formId
+          : typeof settings.id === 'string'
+            ? settings.id
+            : layer.id;
+        forms.push({
+          formId,
+          name: layer.customName || layer.name || 'Form',
+          pageName: page.name,
+          pageSlug: page.slug,
+          submissionCount: 0,
+          newCount: 0,
+          latestSubmission: null,
+        });
+      }
+
+      if (layer.children?.length) {
+        walk(page, layer.children);
+      }
+    }
+  };
+
+  for (const page of pages) {
+    walk(page, layersByPage.get(page.id) ?? []);
+  }
+
+  return forms;
+}
+
+export async function getClientSiteForms(userId: string, siteId: string): Promise<{
+  site: ClientAccessibleSite;
+  forms: ClientFormSummary[];
+} | null> {
+  const content = await getClientSiteContent(userId, siteId);
+
+  if (!content) {
+    return null;
+  }
+
+  const layersByPage = new Map<string, Layer[]>();
+  await Promise.all(content.pages.map(async (page) => {
+    const draftLayers = await getDraftLayers(page.id);
+    if (draftLayers?.layers) {
+      layersByPage.set(page.id, draftLayers.layers);
+    }
+  }));
+
+  const forms = findFormLayers(content.pages, layersByPage);
+  const summaries = await getFormSummaries(siteId).catch(() => []);
+  const summariesByForm = new Map(summaries.map((summary) => [summary.form_id, summary]));
+
+  return {
+    site: content.site,
+    forms: forms.map((form) => {
+      const summary = summariesByForm.get(form.formId);
+      return {
+        ...form,
+        submissionCount: summary?.submission_count ?? 0,
+        newCount: summary?.new_count ?? 0,
+        latestSubmission: summary?.latest_submission ?? null,
+      };
+    }),
+  };
 }

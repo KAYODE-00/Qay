@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, BarChart3, FileText, LayoutDashboard, PenSquare, Settings } from 'lucide-react';
+import { ArrowLeft, BarChart3, Database, FileText, Inbox, LayoutDashboard, PenSquare, Settings } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 
 type ClientSidebarProps = {
@@ -13,6 +13,8 @@ type ClientSidebarProps = {
 const navItems = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard, href: (siteId: string) => `/client/${siteId}` },
   { key: 'editor', label: 'Content', icon: PenSquare, href: (siteId: string) => `/client/${siteId}/editor` },
+  { key: 'cms', label: 'CMS', icon: Database, href: (siteId: string) => `/client/${siteId}/cms` },
+  { key: 'forms', label: 'Forms', icon: Inbox, href: (siteId: string) => `/client/${siteId}/forms` },
   { key: 'analytics', label: 'Analytics', icon: BarChart3, href: (siteId: string) => `/client/${siteId}/analytics` },
 ];
 
