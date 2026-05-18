@@ -1,0 +1,60 @@
+import { NextRequest } from 'next/server';
+import { noCache } from '@/lib/api-response';
+import { getQayAuthUser } from '@/qay/lib/auth-guard';
+import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { getQayAccountProfile, type QayAccountMode } from '@/qay/lib/account';
+
+const accountModes = new Set<QayAccountMode>(['developer', 'client']);
+
+export async function GET() {
+  try {
+    const user = await getQayAuthUser();
+    if (!user) {
+      return noCache({ error: 'Please sign in first' }, 401);
+    }
+
+    return noCache({ data: await getQayAccountProfile(user) });
+  } catch (error) {
+    console.error('[GET /api/qay/account] Error:', error);
+    return noCache({ error: 'Unable to load account settings' }, 500);
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const user = await getQayAuthUser();
+    if (!user) {
+      return noCache({ error: 'Please sign in first' }, 401);
+    }
+
+    const body = await request.json();
+    const fullName = typeof body.full_name === 'string' ? body.full_name.trim().slice(0, 120) : null;
+    const accountType = accountModes.has(body.account_type) ? body.account_type as QayAccountMode : null;
+
+    if (!fullName && !accountType) {
+      return noCache({ error: 'No account changes were provided' }, 400);
+    }
+
+    const supabase = getQayAdmin() as any;
+    const updates: Record<string, unknown> = {
+      id: user.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (fullName !== null) updates.full_name = fullName;
+    if (accountType) updates.account_type = accountType;
+
+    const { error } = await supabase
+      .from('qay_user_profiles')
+      .upsert(updates, { onConflict: 'id' });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return noCache({ data: await getQayAccountProfile(user) });
+  } catch (error) {
+    console.error('[PATCH /api/qay/account] Error:', error);
+    return noCache({ error: 'Unable to save account settings' }, 500);
+  }
+}

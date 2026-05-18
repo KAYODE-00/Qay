@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { unstable_cache } from 'next/cache';
 import { fetchHomepage, fetchErrorPage, splitPageData, reassemblePageData, slimPageData } from '@/lib/page-fetcher';
 import type { PageData } from '@/lib/page-fetcher';
@@ -10,6 +11,7 @@ import { getSiteBaseUrl } from '@/lib/url-utils';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { getQayRenderHostSubdomain, getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
+import { recordQayPageView } from '@/qay/lib/analytics';
 import type { Metadata } from 'next';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -265,6 +267,9 @@ export default async function Home({
   }
 
   // Render homepage
+  const headerStore = await headers();
+  await recordQayPageView(qaySiteId, '/', headerStore.get('referer'));
+
   return (
     <PageRenderer
       page={data.page}

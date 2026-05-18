@@ -149,24 +149,50 @@ export function ClientContentEditor({
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <span className="text-sm font-medium text-foreground">{field.label}</span>
                   <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                    {field.kind === 'richText' ? 'Rich text' : 'Text'}
+                    {field.kind === 'image' ? 'Image URL' : field.kind === 'richText' ? 'Rich text' : 'Text'}
                   </span>
                 </div>
-                <textarea
-                  rows={field.kind === 'richText' ? 6 : 3}
-                  value={field.value}
-                  onChange={(event) => {
-                    const nextValue = event.target.value;
-                    setFields((current) =>
-                      current.map((item) =>
-                        item.layerId === field.layerId
-                          ? { ...item, value: nextValue }
-                          : item
-                      )
-                    );
-                  }}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring"
-                />
+                {field.kind === 'image' ? (
+                  <div className="grid gap-3 lg:grid-cols-[160px_1fr]">
+                    <div className="flex aspect-video items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={field.value} alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <input
+                      value={field.value}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setFields((current) =>
+                          current.map((item) =>
+                            item.layerId === field.layerId
+                              ? { ...item, value: nextValue }
+                              : item
+                          )
+                        );
+                      }}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-ring"
+                    />
+                  </div>
+                ) : (
+                  <textarea
+                    rows={field.kind === 'richText' ? 6 : 3}
+                    value={field.value}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      setFields((current) =>
+                        current.map((item) =>
+                          item.layerId === field.layerId
+                            ? { ...item, value: nextValue }
+                            : item
+                        )
+                      );
+                    }}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring"
+                  />
+                )}
               </label>
             ))}
           </div>

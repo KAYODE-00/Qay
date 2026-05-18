@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, FileText, LayoutDashboard, PenSquare } from 'lucide-react';
+import { ArrowLeft, BarChart3, FileText, LayoutDashboard, PenSquare, Settings } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 
 type ClientSidebarProps = {
@@ -13,6 +13,7 @@ type ClientSidebarProps = {
 const navItems = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard, href: (siteId: string) => `/client/${siteId}` },
   { key: 'editor', label: 'Content', icon: PenSquare, href: (siteId: string) => `/client/${siteId}/editor` },
+  { key: 'analytics', label: 'Analytics', icon: BarChart3, href: (siteId: string) => `/client/${siteId}/analytics` },
 ];
 
 export function ClientSidebar({ siteId, siteName }: ClientSidebarProps) {
@@ -59,8 +60,21 @@ export function ClientSidebar({ siteId, siteName }: ClientSidebarProps) {
             })}
           </div>
         ) : (
-          <div className="rounded-md border border-border bg-background/70 px-3 py-3 text-sm text-muted-foreground">
-            Pick a shared site to review pages and leave content updates.
+          <div className="space-y-2">
+            <div className="rounded-md border border-border bg-background/70 px-3 py-3 text-sm text-muted-foreground">
+              Pick a shared site to review pages and leave content updates.
+            </div>
+            <Link
+              href="/client/settings"
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition ${
+                pathname === '/client/settings'
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              }`}
+            >
+              <Settings className="size-4" />
+              Settings
+            </Link>
           </div>
         )}
       </nav>
