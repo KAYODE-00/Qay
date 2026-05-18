@@ -535,8 +535,17 @@ export async function getClientSiteContent(userId: string, siteId: string, pageI
     ?? pages[0]
     ?? null;
 
-  const draftLayers = selectedPage ? await getDraftLayers(selectedPage.id) : null;
-  const editableFields = draftLayers?.layers ? await extractEditableFields(draftLayers.layers) : [];
+  let draftLayers: PageLayers | null = null;
+  let editableFields: ClientEditableField[] = [];
+
+  if (selectedPage) {
+    try {
+      draftLayers = await getDraftLayers(selectedPage.id);
+      editableFields = draftLayers?.layers ? await extractEditableFields(draftLayers.layers) : [];
+    } catch (error) {
+      console.error('[ClientContent] Failed to load editable page content:', error);
+    }
+  }
 
   return {
     site,
