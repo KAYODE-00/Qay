@@ -261,9 +261,6 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
             >
               Dashboard
             </a>
-            <div className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs font-medium text-white/80">
-              {initials}
-            </div>
           </div>
         </div>
       </header>

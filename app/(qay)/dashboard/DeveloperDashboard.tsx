@@ -181,14 +181,6 @@ export function DeveloperDashboard({ initialSites, userEmail, pendingInvites = [
             >
               <Bell className="size-4" />
             </button>
-            <a
-              href="/dashboard/settings"
-              aria-label="Settings"
-              title="Settings"
-              className="flex size-10 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
-            >
-              {initials}
-            </a>
           </div>
         </div>
       </header>

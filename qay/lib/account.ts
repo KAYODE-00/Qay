@@ -6,6 +6,9 @@ export type QayAccountProfile = {
   id: string;
   email: string | null;
   full_name: string | null;
+  avatar_url: string | null;
+  company: string | null;
+  website: string | null;
   account_type: QayAccountMode;
 };
 
@@ -17,7 +20,7 @@ export async function getQayAccountProfile(user: { id: string; email?: string | 
   const supabase = getQayAdmin() as any;
   const { data, error } = await supabase
     .from('qay_user_profiles')
-    .select('id, full_name, account_type')
+    .select('id, full_name, avatar_url, company, website, account_type')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -29,6 +32,9 @@ export async function getQayAccountProfile(user: { id: string; email?: string | 
     id: user.id,
     email: user.email ?? null,
     full_name: typeof data?.full_name === 'string' ? data.full_name : null,
+    avatar_url: typeof data?.avatar_url === 'string' ? data.avatar_url : null,
+    company: typeof data?.company === 'string' ? data.company : null,
+    website: typeof data?.website === 'string' ? data.website : null,
     account_type: normalizeAccountMode(data?.account_type),
   };
 }
