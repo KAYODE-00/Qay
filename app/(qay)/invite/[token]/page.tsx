@@ -72,7 +72,7 @@ export default function QayInviteAcceptPage() {
       throw new Error(result.error || 'Unable to accept invitation.');
     }
 
-    window.location.replace(`/client/${result.data.siteId}`);
+    window.location.replace(result.data.redirectUrl || `/client/${result.data.siteId}`);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
