@@ -29,9 +29,12 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
     const fullName = typeof body.full_name === 'string' ? body.full_name.trim().slice(0, 120) : null;
+    const avatarUrl = typeof body.avatar_url === 'string' ? body.avatar_url.trim().slice(0, 500) : null;
+    const company = typeof body.company === 'string' ? body.company.trim().slice(0, 160) : null;
+    const website = typeof body.website === 'string' ? body.website.trim().slice(0, 300) : null;
     const accountType = accountModes.has(body.account_type) ? body.account_type as QayAccountMode : null;
 
-    if (!fullName && !accountType) {
+    if (fullName === null && avatarUrl === null && company === null && website === null && !accountType) {
       return noCache({ error: 'No account changes were provided' }, 400);
     }
 
@@ -42,6 +45,9 @@ export async function PATCH(request: NextRequest) {
     };
 
     if (fullName !== null) updates.full_name = fullName;
+    if (avatarUrl !== null) updates.avatar_url = avatarUrl || null;
+    if (company !== null) updates.company = company || null;
+    if (website !== null) updates.website = website || null;
     if (accountType) updates.account_type = accountType;
 
     const { error } = await supabase
@@ -56,5 +62,26 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     console.error('[PATCH /api/qay/account] Error:', error);
     return noCache({ error: 'Unable to save account settings' }, 500);
+  }
+}
+
+export async function DELETE() {
+  try {
+    const user = await getQayAuthUser();
+    if (!user) {
+      return noCache({ error: 'Please sign in first' }, 401);
+    }
+
+    const supabase = getQayAdmin() as any;
+    const { error } = await supabase.auth.admin.deleteUser(user.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return noCache({ data: { success: true } });
+  } catch (error) {
+    console.error('[DELETE /api/qay/account] Error:', error);
+    return noCache({ error: 'Unable to delete account' }, 500);
   }
 }

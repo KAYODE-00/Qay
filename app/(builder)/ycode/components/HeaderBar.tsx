@@ -83,8 +83,6 @@ function RailButton({ title, icon, active, onClick }: RailButtonProps) {
 }
 
 export default function HeaderBar({
-  user,
-  signOut,
   showPageDropdown,
   setShowPageDropdown,
   currentPage,
@@ -620,36 +618,6 @@ export default function HeaderBar({
           publishedUrl={publishedUrl}
           onPublishSuccess={onPublishSuccess}
         />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="size-9 rounded-full px-0 text-xs font-medium"
-              aria-label="Profile"
-              title="Profile"
-            >
-              {(user?.email || 'Q').slice(0, 1).toUpperCase()}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-              Dashboard
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push(withCurrentSite('/ycode/profile'))}>
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={async () => {
-                await signOut();
-              }}
-            >
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
 
       </div>
     </header>
