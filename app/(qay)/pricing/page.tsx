@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { QayLogo } from '@/qay/components/QayLogo';
+import { UpgradeModal } from '@/qay/components/billing/UpgradeModal';
+import { QAY_PLANS, type QayPlanKey } from '@/qay/lib/billing/plan-limits';
 
 const plans = [
-  { name: 'Free', price: '$0', body: 'Launch your first site, explore the editor, and publish when you are ready.' },
-  { name: 'Pro', price: '$19/mo', body: 'Built for freelancers shipping client sites with CMS, collaboration, and custom domains.' },
-  { name: 'Agency', price: '$79/mo', body: 'For teams juggling multiple sites, reviews, and client handoff without the usual clutter.' },
-];
+  { key: 'free', body: 'Launch your first site, explore the editor, and publish when you are ready.' },
+  { key: 'pro', body: 'Built for freelancers shipping client sites with CMS, collaboration, and custom domains.' },
+  { key: 'agency', body: 'For teams juggling multiple sites, reviews, and client handoff without the usual clutter.' },
+] as const;
 
 export default function PricingPage() {
   return (
@@ -30,18 +32,37 @@ export default function PricingPage() {
           </p>
         </div>
         <div className="mt-12 grid gap-4 lg:grid-cols-3">
-          {plans.map((plan) => (
-            <div key={plan.name} className="rounded-lg border border-white/10 bg-white/[0.03] p-6">
-              <div className="text-sm uppercase tracking-[0.2em] text-white/45">{plan.name}</div>
-              <div
-                className="mt-4 text-5xl"
-                style={{ fontFamily: "'Bebas Neue', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" }}
-              >
-                {plan.price}
+          {plans.map(({ key, body }) => {
+            const plan = QAY_PLANS[key as QayPlanKey];
+
+            return (
+              <div key={plan.key} className="rounded-lg border border-white/10 bg-white/[0.03] p-6">
+                <div className="text-sm uppercase tracking-[0.2em] text-white/45">{plan.name}</div>
+                <div
+                  className="mt-4 text-5xl"
+                  style={{ fontFamily: "'Bebas Neue', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" }}
+                >
+                  {plan.price === 0 ? '$0' : `$${plan.price}/mo`}
+                </div>
+                <p className="mt-3 text-sm leading-6 text-[#e5e5e5]">{body}</p>
+                <ul className="mt-5 space-y-2 text-sm text-[#e5e5e5]">
+                  {plan.features.map((feature) => (
+                    <li key={feature}>- {feature}</li>
+                  ))}
+                </ul>
+                {plan.key === 'free' ? (
+                  <Link
+                    href="/signup"
+                    className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md border border-white/15 text-sm font-medium text-white transition hover:bg-white/10"
+                  >
+                    Start free
+                  </Link>
+                ) : (
+                  <UpgradeModal plan={plan.key} />
+                )}
               </div>
-              <p className="mt-3 text-sm leading-6 text-[#e5e5e5]">{plan.body}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </main>

@@ -6,6 +6,7 @@ import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicM
 import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 import { ensureQayDraftHomePage } from '@/qay/lib/site-page-repair';
 import { ensureQayDraftErrorPages } from '@/qay/lib/site-error-pages';
+import { getHighestQayPlan, getQayPlan, getUserQayPlan } from '@/qay/lib/billing/plan-limits';
 
 function slugifyBase(value: string) {
   const base = value
@@ -105,6 +106,32 @@ export async function POST(request: Request) {
     }
 
     const supabase = getQayAdmin() as any;
+    const { data: existingSites, error: existingSitesError } = await supabase
+      .from('qay_sites')
+      .select('id, plan')
+      .eq('owner_id', user.id);
+
+    if (existingSitesError && !isMissingQaySchemaError(existingSitesError)) {
+      return NextResponse.json({ error: existingSitesError.message }, { status: 500 });
+    }
+
+    const accountPlan = getUserQayPlan(user);
+    const sitePlan = getHighestQayPlan((existingSites ?? []).map((site: any) => site.plan));
+    const plan = getQayPlan(getHighestQayPlan([accountPlan, sitePlan]));
+    const siteCount = existingSites?.length ?? 0;
+
+    if (siteCount >= plan.siteLimit) {
+      return NextResponse.json(
+        {
+          error: `Your ${plan.name} plan includes ${plan.siteLimit} site${plan.siteLimit === 1 ? '' : 's'}. Upgrade to create more sites.`,
+          code: 'PLAN_LIMIT_REACHED',
+          plan: plan.key,
+          limit: plan.siteLimit,
+        },
+        { status: 402 }
+      );
+    }
+
     const insertSite = (slug: string) => supabase
       .from('qay_sites')
       .insert({
@@ -112,7 +139,7 @@ export async function POST(request: Request) {
         name,
         slug,
         publish_status: 'draft',
-        plan: 'free',
+        plan: plan.key,
       })
       .select()
       .single();
