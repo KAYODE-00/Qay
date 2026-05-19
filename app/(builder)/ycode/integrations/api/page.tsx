@@ -238,7 +238,7 @@ export default function ApiPage() {
                 <h4 className="text-muted-foreground mb-1">Collection Items</h4>
                 <div className="bg-secondary p-3 rounded-lg space-y-1 text-xs font-mono">
                   <div><span className="text-green-500">GET</span> /api/v1/collections/{'{collection_id}'}/items</div>
-                  <div><span className="text-blue-500">POST</span> /api/v1/collections/{'{collection_id}'}/items</div>
+                  <div><span className="text-foreground">POST</span> /api/v1/collections/{'{collection_id}'}/items</div>
                   <div><span className="text-green-500">GET</span> /api/v1/collections/{'{collection_id}'}/items/{'{item_id}'}</div>
                   <div><span className="text-yellow-500">PUT</span> /api/v1/collections/{'{collection_id}'}/items/{'{item_id}'}</div>
                   <div><span className="text-yellow-500">PATCH</span> /api/v1/collections/{'{collection_id}'}/items/{'{item_id}'}</div>
@@ -258,7 +258,7 @@ export default function ApiPage() {
                 <h4 className="text-muted-foreground mb-1">Form Submissions</h4>
                 <div className="bg-secondary p-3 rounded-lg space-y-1 text-xs font-mono">
                   <div><span className="text-green-500">GET</span> /api/v1/forms/{'{form_id}'}/submissions</div>
-                  <div><span className="text-blue-500">POST</span> /api/v1/forms/{'{form_id}'}/submissions</div>
+                  <div><span className="text-foreground">POST</span> /api/v1/forms/{'{form_id}'}/submissions</div>
                   <div><span className="text-yellow-500">PATCH</span> /api/v1/forms/{'{form_id}'}/submissions/{'{submission_id}'}</div>
                   <div><span className="text-red-500">DELETE</span> /api/v1/forms/{'{form_id}'}/submissions/{'{submission_id}'}</div>
                 </div>
@@ -345,9 +345,9 @@ Content-Type: application/json
               These auto-generated fields cannot be set or modified via the API:
             </p>
             <div className="bg-secondary p-3 rounded-lg text-xs space-y-2">
-              <div><code className="text-blue-400">ID</code> - Auto-incrementing number, assigned on creation</div>
-              <div><code className="text-blue-400">Created Date</code> - Set automatically when item is created</div>
-              <div><code className="text-blue-400">Updated Date</code> - Updated automatically on every change</div>
+              <div><code className="text-foreground">ID</code> - Auto-incrementing number, assigned on creation</div>
+              <div><code className="text-foreground">Created Date</code> - Set automatically when item is created</div>
+              <div><code className="text-foreground">Updated Date</code> - Updated automatically on every change</div>
             </div>
           </section>
 

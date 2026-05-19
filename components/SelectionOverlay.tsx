@@ -47,13 +47,13 @@ export function SelectionOverlay({
 
   const SELECTED_OUTLINE_CLASS = isStateActive
     ? 'outline outline-1 outline-[#8dd92f]'
-    : 'outline outline-1 outline-blue-500';
+    : 'outline outline-1 outline-foreground';
   const HOVERED_OUTLINE_CLASS = isStateActive
     ? 'outline outline-1 outline-[#8dd92f]/50'
-    : 'outline outline-1 outline-blue-400/50';
+    : 'outline outline-1 outline-foreground/50';
   const PARENT_OUTLINE_CLASS = isStateActive
     ? 'outline outline-1 outline-dashed outline-[#8dd92f]'
-    : 'outline outline-1 outline-dashed outline-blue-400';
+    : 'outline outline-1 outline-dashed outline-foreground';
   // Container refs for outline groups (supports multiple instances per layer ID)
   const selectedContainerRef = useRef<HTMLDivElement>(null);
   const hoveredContainerRef = useRef<HTMLDivElement>(null);

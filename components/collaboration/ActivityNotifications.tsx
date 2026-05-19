@@ -148,7 +148,7 @@ export const ActivityNotifications: React.FC<ActivityNotificationsProps> = ({
       case 'user_left':
         return <UserIcon color="text-red-500" />;
       case 'layer_edit_started':
-        return <SettingsIcon color="text-blue-500" />;
+        return <SettingsIcon color="text-foreground" />;
       case 'layer_edit_ended':
         return <CheckIcon color="text-green-500" />;
       case 'page_published':
@@ -167,7 +167,7 @@ export const ActivityNotifications: React.FC<ActivityNotificationsProps> = ({
       case 'user_left':
         return 'border-red-500 bg-red-500/10';
       case 'layer_edit_started':
-        return 'border-blue-500 bg-blue-500/10';
+        return 'border-foreground bg-foreground/10';
       case 'layer_edit_ended':
         return 'border-green-500 bg-green-500/10';
       case 'page_published':

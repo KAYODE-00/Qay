@@ -1548,7 +1548,7 @@ const LayerItem: React.FC<{
     buttonNeedsFit && 'w-fit',
     enableDragDrop && !isEditing && !isLockedByOther && 'cursor-default',
     isDragging && 'opacity-30',
-    showProjection && 'outline outline-1 outline-dashed outline-blue-400 bg-blue-50/10',
+    showProjection && 'outline outline-1 outline-dashed outline-foreground bg-foreground/10',
     isLockedByOther && 'opacity-90 pointer-events-none select-none',
     'ycode-layer'
   ) : clsx(classesString, paragraphClasses, SWIPER_CLASS_MAP[layer.name], isSlideChild && 'swiper-slide', buttonNeedsFit && 'w-fit');

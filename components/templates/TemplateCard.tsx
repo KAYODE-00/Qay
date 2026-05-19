@@ -73,7 +73,7 @@ export function TemplateCard({
 
         {/* Selected indicator */}
         {selected && (
-          <div className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
+          <div className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-black text-white">
             <svg
               className="h-4 w-4"
               fill="none"

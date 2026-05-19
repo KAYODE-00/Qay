@@ -185,8 +185,8 @@ export default function ElementPickerOverlay({ iframeElement, zoom }: ElementPic
   const cp2y = endY - curveOffset;
   const pathD = `M ${origin.x} ${origin.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`;
 
-  const highlightColor = hoveredElement?.isValid ? '#2dd4bf' : '#2dd4bf';
-  const highlightFill = hoveredElement?.isValid ? 'rgba(45, 212, 191, 0.1)' : 'rgba(45, 212, 191, 0.1)';
+  const highlightColor = hoveredElement?.isValid ? '#ffffff' : '#ffffff';
+  const highlightFill = hoveredElement?.isValid ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.16)';
 
   return (
     <svg
@@ -198,7 +198,7 @@ export default function ElementPickerOverlay({ iframeElement, zoom }: ElementPic
       <path
         d={pathD}
         fill="none"
-        stroke="#2dd4bf"
+        stroke="#ffffff"
         strokeWidth={1.25}
         strokeLinecap="round"
       />
@@ -206,7 +206,7 @@ export default function ElementPickerOverlay({ iframeElement, zoom }: ElementPic
       {/* Origin dot */}
       <circle
         cx={origin.x} cy={origin.y}
-        r={5} fill="#2dd4bf"
+        r={5} fill="#ffffff"
       />
 
       {/* Crosshair icon at end of line */}
