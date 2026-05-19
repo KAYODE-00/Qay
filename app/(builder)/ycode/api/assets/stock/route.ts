@@ -42,6 +42,16 @@ function getIstockKey(): string | undefined {
   return process.env.ISTOCK_API_KEY || process.env.GETTY_IMAGES_API_KEY;
 }
 
+function normalizeStockSearchQuery(query: string): string {
+  const cleaned = query
+    .replace(/\b(i\s?stock|getty|unsplash)\b/gi, ' ')
+    .replace(/\bstock\s+(photos?|images?)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return cleaned || query;
+}
+
 async function searchUnsplash(query: string, page: number, limit: number): Promise<StockImage[]> {
   const key = getUnsplashKey();
   if (!key) return [];
@@ -129,8 +139,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const qaySiteId = searchParams.get('site');
-    const query = searchParams.get('query')?.trim();
-    const provider = searchParams.get('provider') as StockProvider | 'all' | null;
+    const rawQuery = searchParams.get('query')?.trim();
+    const requestedProvider = searchParams.get('provider') as StockProvider | 'all' | null;
+    const provider = requestedProvider === 'istock' && !ENABLE_ISTOCK_STOCK_IMAGES ? 'all' : requestedProvider;
     const page = Math.max(1, Number(searchParams.get('page') || '1'));
     const limit = Math.min(60, Math.max(12, Number(searchParams.get('limit') || '30')));
 
@@ -138,7 +149,7 @@ export async function GET(request: NextRequest) {
       return noCache({ error: 'Not authorized for QAY site' }, 403);
     }
 
-    if (!query) {
+    if (!rawQuery) {
       return noCache({
         data: [],
         providers: {
@@ -148,6 +159,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const query = normalizeStockSearchQuery(rawQuery);
     const searches: Array<Promise<StockImage[]>> = [];
     if (!provider || provider === 'all' || provider === 'unsplash') {
       searches.push(searchUnsplash(query, page, limit));
