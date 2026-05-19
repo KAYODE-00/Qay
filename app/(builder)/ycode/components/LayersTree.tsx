@@ -436,7 +436,7 @@ const LayerRow = React.memo(function LayerRow({
             !isSelected && !isChildOfSelected && 'rounded-lg text-secondary-foreground/80 dark:text-muted-foreground',
             // Background colors
             !isDragActive && !isDragging && !isLockedByOther && 'hover:bg-secondary/50',
-            // Component instances OR component edit mode use purple, regular layers use blue
+            // Component instances OR component edit mode use purple, regular layers use the neutral primary color
             // When a UI state (hover/focus/active/etc.) is active, use green (#8dd92f)
             isSelected && !usePurpleStyle && !isStateActive && 'bg-primary text-primary-foreground hover:bg-primary',
             isSelected && !usePurpleStyle && isStateActive && 'bg-[#8dd92f] text-black hover:bg-[#8dd92f]',

@@ -1,6 +1,6 @@
 'use client';
 
-type StatusTheme = 'green' | 'gray' | 'yellow' | 'blue';
+type StatusTheme = 'green' | 'gray' | 'yellow' | 'neutral';
 
 interface StatusData {
   label: string;
@@ -9,7 +9,7 @@ interface StatusData {
 
 const THEME_CLASSES: Record<StatusTheme, string> = {
   green: 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-300/70',
-  blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400/90',
+  neutral: 'bg-foreground/10 text-foreground',
   gray: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
   yellow: 'bg-amber-500/10 text-amber-600 dark:text-amber-400/75',
 };
@@ -37,7 +37,7 @@ export function parseStatusValue(value: unknown): ItemStatusValue | null {
 function getStatus(status: ItemStatusValue): StatusData {
   if (status.is_published && status.is_publishable) {
     return status.is_modified
-      ? { label: 'Published · Edited', theme: 'blue' }
+      ? { label: 'Published · Edited', theme: 'neutral' }
       : { label: 'Published', theme: 'green' };
   }
   return status.is_publishable

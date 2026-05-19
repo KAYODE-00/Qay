@@ -77,7 +77,7 @@ export default function AssetLibrary({
     return (
       <div className={`p-4 ${className}`}>
         <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
         </div>
       </div>
     );
@@ -151,7 +151,7 @@ export default function AssetLibrary({
                 {onAssetSelect && (
                   <button
                     onClick={() => onAssetSelect(asset)}
-                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                    className="px-3 py-1 bg-black text-white text-xs rounded hover:bg-black/80"
                   >
                     Use
                   </button>

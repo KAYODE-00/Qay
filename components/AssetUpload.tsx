@@ -96,7 +96,7 @@ export default function AssetUpload({
     <div
       className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
         dragActive
-          ? 'border-blue-500 bg-blue-50'
+          ? 'border-black bg-white'
           : 'border-gray-300 hover:border-gray-400'
       } ${className}`}
       onDragEnter={handleDrag}
@@ -114,7 +114,7 @@ export default function AssetUpload({
 
       {isUploading ? (
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
           <p className="mt-2 text-sm text-gray-600">Uploading...</p>
         </div>
       ) : (
@@ -133,7 +133,7 @@ export default function AssetUpload({
             />
           </svg>
           <p className="mt-2 text-sm text-gray-600">
-            <span className="font-medium text-blue-600 hover:text-blue-500">
+            <span className="font-medium text-black hover:text-black/70">
               Click to upload
             </span>{' '}
             or drag and drop

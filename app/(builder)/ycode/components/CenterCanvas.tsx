@@ -422,7 +422,7 @@ function CanvasSiblingReorderOverlay({
 
     const { elements, heights, tops, draggedHeight } = cache;
 
-    // Calculate dropzone Y position (where the blue box should appear)
+    // Calculate dropzone Y position (where the neutral box should appear)
     // The dropzone ALWAYS shows - at original position when first dragging,
     // then moves as you drag to different positions
     let lineY: number | null = null;
@@ -550,7 +550,7 @@ function CanvasSiblingReorderOverlay({
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-50">
-      {/* Blue dropzone box - shows where element will be inserted */}
+      {/* Neutral dropzone box - shows where element will be inserted */}
       {dropLineY !== null && dropzoneHeight > 0 && dropzoneWidth > 0 && (
         <div
           className="animate-in fade-in duration-100"
@@ -563,7 +563,7 @@ function CanvasSiblingReorderOverlay({
             transition: 'transform 150ms ease-out',
           }}
         >
-          <div className="absolute inset-0 bg-blue-100 rounded-sm border border-blue-300 border-dashed" />
+          <div className="absolute inset-0 bg-white/80 rounded-sm border border-black border-dashed" />
         </div>
       )}
     </div>
@@ -2498,8 +2498,8 @@ const CenterCanvas = React.memo(function CenterCanvas({
                   ) : (
                     <div className="w-full h-full flex items-center justify-center p-12">
                       <div className="text-center max-w-md relative">
-                        <div className="w-20 h-20 bg-linear-to-br from-blue-100 to-blue-50 rounded-2xl mx-auto mb-6 flex items-center justify-center">
-                          <Icon name="layout" className="w-10 h-10 text-blue-500" />
+                        <div className="w-20 h-20 bg-white rounded-2xl mx-auto mb-6 flex items-center justify-center border border-black/10">
+                          <Icon name="layout" className="w-10 h-10 text-black" />
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">
                           Start building
@@ -2733,8 +2733,8 @@ const CenterCanvas = React.memo(function CenterCanvas({
             ) : layers.length === 0 && isPreviewMode ? (
               <div className="w-full h-full flex items-center justify-center p-12">
                 <div className="text-center max-w-md">
-                  <div className="w-20 h-20 bg-linear-to-br from-blue-100 to-blue-50 rounded-2xl mx-auto mb-6 flex items-center justify-center">
-                    <Icon name="layout" className="w-10 h-10 text-blue-500" />
+                  <div className="w-20 h-20 bg-white rounded-2xl mx-auto mb-6 flex items-center justify-center border border-black/10">
+                    <Icon name="layout" className="w-10 h-10 text-black" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-3">
                     No content

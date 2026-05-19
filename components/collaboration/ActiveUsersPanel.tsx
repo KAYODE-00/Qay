@@ -169,7 +169,7 @@ export const ActiveUsersPanel: React.FC<ActiveUsersPanelProps> = ({
                       {user.display_name || getDisplayName(user.email || '')}
                     </span>
                     {user.user_id === currentUserId && (
-                      <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
+                      <span className="text-xs bg-white text-black px-2 py-0.5 rounded">
                         You
                       </span>
                     )}
@@ -184,7 +184,7 @@ export const ActiveUsersPanel: React.FC<ActiveUsersPanelProps> = ({
                       </span>
                     )}
                     {user.is_editing && (
-                      <span className="text-xs text-blue-400">
+                      <span className="text-xs text-white/70">
                         Typing...
                       </span>
                     )}
@@ -193,7 +193,7 @@ export const ActiveUsersPanel: React.FC<ActiveUsersPanelProps> = ({
                 
                 {/* Cursor indicator */}
                 {user.cursor && (
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                 )}
               </div>
             ))}

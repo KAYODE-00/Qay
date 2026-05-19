@@ -22,7 +22,7 @@ interface DropLineIndicatorProps {
 
 /**
  * Horizontal line indicator for inserting before/after a sibling element.
- * Shows a blue line with a circular endpoint.
+ * Shows a neutral line with a circular endpoint.
  */
 export function DropLineIndicator({ 
   position, 
@@ -32,7 +32,7 @@ export function DropLineIndicator({
   return (
     <div
       className={cn(
-        'absolute left-0 right-0 h-[1.5px] z-50 bg-primary',
+        'absolute left-0 right-0 h-[1.5px] z-50 bg-foreground',
         'animate-in fade-in duration-100',
         position === 'above' ? 'top-0' : 'bottom-0',
         className
@@ -40,7 +40,7 @@ export function DropLineIndicator({
       style={{ marginLeft: `${offsetLeft}px` }}
     >
       {/* Circular endpoint */}
-      <div className="absolute -bottom-[3px] -left-[5.5px] size-2 rounded-full border-[1.5px] bg-neutral-950 border-primary" />
+      <div className="absolute -bottom-[3px] -left-[5.5px] size-2 rounded-full border-[1.5px] bg-background border-foreground" />
     </div>
   );
 }
@@ -69,15 +69,15 @@ export function DropContainerIndicator({
         className={cn(
           'absolute inset-0 z-40 pointer-events-none',
           'animate-in fade-in duration-100',
-          // Canvas variant: blue background fill
-          variant === 'dashed' && 'bg-primary/15',
+          // Canvas variant: neutral background fill
+          variant === 'dashed' && 'bg-foreground/10',
           // Tree variant: solid border
-          variant === 'solid' && 'border-[1.5px] rounded-lg border-primary',
+          variant === 'solid' && 'border-[1.5px] rounded-lg border-foreground',
           className
         )} 
       />
       {label && (
-        <div className="absolute -top-6 left-0 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded z-50 whitespace-nowrap font-medium animate-in fade-in slide-in-from-top-1 duration-100">
+        <div className="absolute -top-6 left-0 bg-foreground text-background text-xs px-2 py-0.5 rounded z-50 whitespace-nowrap font-medium animate-in fade-in slide-in-from-top-1 duration-100">
           {label}
         </div>
       )}
