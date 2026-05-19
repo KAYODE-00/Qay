@@ -2420,7 +2420,7 @@ export default function FileManagerDialog({
                       <div className="flex-1 w-full flex-col flex gap-1 items-center justify-center text-center">
                         <div>Search stock images</div>
                         <div className="text-muted-foreground">
-                          Type a keyword above to search Unsplash and iStock.
+                          Type a keyword above to search stock photos.
                         </div>
                       </div>
                       <div className="flex-1" />
@@ -2432,9 +2432,9 @@ export default function FileManagerDialog({
                   ) : !stockProviders.unsplash && !stockProviders.istock ? (
                     <div className="flex-1 flex flex-col">
                       <div className="flex-1 w-full flex-col flex gap-1 items-center justify-center text-center">
-                        <div>Stock search is not connected</div>
+                        <div>Stock images are unavailable</div>
                         <div className="text-muted-foreground">
-                          Add UNSPLASH_ACCESS_KEY to enable it.
+                          Stock image search is not available for this workspace yet.
                         </div>
                       </div>
                       <div className="flex-1" />

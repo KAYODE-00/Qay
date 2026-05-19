@@ -2434,7 +2434,6 @@ const LayerItem: React.FC<{
       const mapToken = (settingsByKey[tokenKey] || serverSettings?.[tokenKey]) as string | undefined;
 
       if (!mapToken) {
-        const label = provider === 'google' ? 'Google Map API key' : 'Mapbox token';
         return (
           <div
             data-layer-id={layer.id}
@@ -2444,7 +2443,7 @@ const LayerItem: React.FC<{
             {...(isEditMode && !isEditing ? elementProps : {})}
           >
             <div className="flex items-center justify-center h-full bg-muted text-muted-foreground text-xs">
-              {label} not configured
+              Map preview is unavailable
             </div>
           </div>
         );
