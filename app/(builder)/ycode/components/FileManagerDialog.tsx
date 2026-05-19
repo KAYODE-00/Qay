@@ -2410,7 +2410,6 @@ export default function FileManagerDialog({
                         <SelectContent>
                           <SelectItem value="all">All sources</SelectItem>
                           <SelectItem value="unsplash">Unsplash</SelectItem>
-                          <SelectItem value="istock">iStock</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2435,7 +2434,7 @@ export default function FileManagerDialog({
                       <div className="flex-1 w-full flex-col flex gap-1 items-center justify-center text-center">
                         <div>Stock search is not connected</div>
                         <div className="text-muted-foreground">
-                          Add UNSPLASH_ACCESS_KEY or ISTOCK_API_KEY to enable it.
+                          Add UNSPLASH_ACCESS_KEY to enable it.
                         </div>
                       </div>
                       <div className="flex-1" />

@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 type StockProvider = 'unsplash' | 'istock';
+const ENABLE_ISTOCK_STOCK_IMAGES = false;
 
 interface StockImage {
   id: string;
@@ -37,6 +38,7 @@ function getUnsplashKey(): string | undefined {
 }
 
 function getIstockKey(): string | undefined {
+  if (!ENABLE_ISTOCK_STOCK_IMAGES) return undefined;
   return process.env.ISTOCK_API_KEY || process.env.GETTY_IMAGES_API_KEY;
 }
 
@@ -150,7 +152,7 @@ export async function GET(request: NextRequest) {
     if (!provider || provider === 'all' || provider === 'unsplash') {
       searches.push(searchUnsplash(query, page, limit));
     }
-    if (!provider || provider === 'all' || provider === 'istock') {
+    if (ENABLE_ISTOCK_STOCK_IMAGES && (!provider || provider === 'all' || provider === 'istock')) {
       searches.push(searchIstock(query, page, limit));
     }
 
