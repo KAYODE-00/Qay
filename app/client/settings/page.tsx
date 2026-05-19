@@ -17,11 +17,20 @@ export default async function ClientSettingsPage() {
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Settings</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal">Account</h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Change your account details or switch between client and developer mode.
+              Manage the account details used across your shared sites.
             </p>
 
-            <div className="mt-8">
-              <AccountSettingsForm profile={profile} />
+            <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+              <AccountSettingsForm profile={profile} role="client" />
+              <a
+                href="/client/settings/account-mode"
+                className="block h-fit rounded-lg border border-border bg-card p-5 transition hover:bg-accent"
+              >
+                <p className="text-sm font-medium text-foreground">Workspace mode</p>
+                <p className="mt-2 text-sm leading-5 text-muted-foreground">
+                  Switch dashboards from a separate account area when your access needs change.
+                </p>
+              </a>
             </div>
           </div>
         </section>

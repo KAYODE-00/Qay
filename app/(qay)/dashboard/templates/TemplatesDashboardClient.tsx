@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, User } from 'lucide-react';
+import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, Settings } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
 import { htmlToLayers } from '@/lib/html-layer-converter';
 import { QayLogo } from '@/qay/components/QayLogo';
@@ -238,8 +238,8 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
           >
             <LayoutTemplate className="size-5" />
           </DashboardNavItem>
-          <DashboardNavItem href="/dashboard/profile" label="Profile">
-            <User className="size-5" />
+          <DashboardNavItem href="/dashboard/settings" label="Settings">
+            <Settings className="size-5" />
           </DashboardNavItem>
         </nav>
         <div className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs font-medium text-white/80">

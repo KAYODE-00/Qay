@@ -68,9 +68,9 @@ export function ClientSidebar({ siteId, siteName }: ClientSidebarProps) {
           All sites
         </Link>
 
-        {siteId ? (
-          <div className="space-y-1">
-            {navItems.map((item) => {
+        <div className="space-y-1">
+          {siteId ? (
+            navItems.map((item) => {
               const href = item.href(siteId);
               const active = pathname === href;
               const Icon = item.icon;
@@ -89,26 +89,24 @@ export function ClientSidebar({ siteId, siteName }: ClientSidebarProps) {
                   {item.label}
                 </Link>
               );
-            })}
-          </div>
-        ) : (
-          <div className="space-y-2">
+            })
+          ) : (
             <div className="rounded-md border border-border bg-background/70 px-3 py-3 text-sm text-muted-foreground">
               Pick a shared site to review pages and leave content updates.
             </div>
-            <Link
-              href="/client/settings"
-              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition ${
-                pathname === '/client/settings'
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-            >
-              <Settings className="size-4" />
-              Settings
-            </Link>
-          </div>
-        )}
+          )}
+          <Link
+            href="/client/settings"
+            className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition ${
+              pathname.startsWith('/client/settings')
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+          >
+            <Settings className="size-4" />
+            Settings
+          </Link>
+        </div>
       </nav>
 
       <div className="space-y-3 border-t border-border px-4 py-4 text-xs text-muted-foreground">
