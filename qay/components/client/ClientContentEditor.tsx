@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { FileText, ImageIcon, LayoutPanelLeft, Save, Search, Type, Video } from 'lucide-react';
+import { FileText, ImageIcon, LayoutPanelLeft, Redo2, Save, Search, Type, Undo2, Video } from 'lucide-react';
 import type { ClientEditableField, ClientPageSummary } from '@/qay/lib/client-content';
 
 type ClientContentEditorProps = {
@@ -20,6 +20,8 @@ export function ClientContentEditor({
   const [pages] = useState(initialPages);
   const [selectedPageId, setSelectedPageId] = useState(initialPageId);
   const [fields, setFields] = useState(initialFields);
+  const [undoStack, setUndoStack] = useState<ClientEditableField[][]>([]);
+  const [redoStack, setRedoStack] = useState<ClientEditableField[][]>([]);
   const [loadingPage, setLoadingPage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export function ClientContentEditor({
   );
 
   const textFields = useMemo(
-    () => fields.filter((field) => field.kind !== 'image'),
+    () => fields.filter((field) => field.kind === 'text' || field.kind === 'richText'),
     [fields]
   );
 
@@ -67,15 +69,50 @@ export function ClientContentEditor({
       : `/${selectedPage.slug.replace(/^\/+/, '')}`
     : '/';
 
+  function commitFields(updater: (current: ClientEditableField[]) => ClientEditableField[]) {
+    setFields((current) => {
+      const next = updater(current);
+      if (next === current) return current;
+
+      setUndoStack((stack) => [...stack.slice(-49), current]);
+      setRedoStack([]);
+      return next;
+    });
+    setSuccess(null);
+  }
+
   function updateField(fieldId: string, value: string) {
-    setFields((current) =>
+    commitFields((current) =>
       current.map((item) =>
         item.fieldId === fieldId
           ? { ...item, value }
           : item
       )
     );
-    setSuccess(null);
+  }
+
+  function undo() {
+    setUndoStack((currentUndo) => {
+      const previous = currentUndo.at(-1);
+      if (!previous) return currentUndo;
+
+      setRedoStack((currentRedo) => [...currentRedo.slice(-49), fields]);
+      setFields(previous);
+      setSuccess(null);
+      return currentUndo.slice(0, -1);
+    });
+  }
+
+  function redo() {
+    setRedoStack((currentRedo) => {
+      const next = currentRedo.at(-1);
+      if (!next) return currentRedo;
+
+      setUndoStack((currentUndo) => [...currentUndo.slice(-49), fields]);
+      setFields(next);
+      setSuccess(null);
+      return currentRedo.slice(0, -1);
+    });
   }
 
   async function loadPage(pageId: string) {
@@ -96,6 +133,8 @@ export function ClientContentEditor({
 
       setSelectedPageId(payload.data.selectedPage?.id ?? null);
       setFields(payload.data.editableFields ?? []);
+      setUndoStack([]);
+      setRedoStack([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load content');
     } finally {
@@ -167,6 +206,8 @@ export function ClientContentEditor({
       }
 
       setFields(payload.data.editableFields ?? []);
+      setUndoStack([]);
+      setRedoStack([]);
       setSuccess('Draft content saved');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save changes');
@@ -185,11 +226,34 @@ export function ClientContentEditor({
               {selectedPage?.name || 'Shared content'}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Edit approved text and images without access to layout, styling, publishing, or integrations.
+              Update page content, media, and CMS entries for this site.
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="inline-flex h-10 rounded-md border border-border bg-background p-1">
+              <button
+                type="button"
+                onClick={undo}
+                disabled={undoStack.length === 0 || loadingPage || saving}
+                className="inline-flex size-8 items-center justify-center rounded text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Undo"
+                title="Undo"
+              >
+                <Undo2 className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={redo}
+                disabled={redoStack.length === 0 || loadingPage || saving}
+                className="inline-flex size-8 items-center justify-center rounded text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Redo"
+                title="Redo"
+              >
+                <Redo2 className="size-4" />
+              </button>
+            </div>
+
             <div className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm text-muted-foreground">
               <LayoutPanelLeft className="size-4" />
               <span>{selectedPagePath}</span>
@@ -362,7 +426,7 @@ export function ClientContentEditor({
             </div>
           ) : (
             <div className="rounded-lg border border-border bg-card px-6 py-10 text-sm text-muted-foreground">
-              This page does not expose any approved text or image blocks for client editing yet.
+              No page content is available for editing yet.
             </div>
           )}
         </main>
@@ -384,16 +448,6 @@ export function ClientContentEditor({
                   <p className="mt-1 text-xs text-muted-foreground">Media</p>
                 </div>
               </div>
-            </div>
-
-            <div className="rounded-lg border border-border bg-background p-4">
-              <p className="text-sm font-medium">Client limits</p>
-              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <li>Layout and styling are locked.</li>
-                <li>Publishing stays with the developer.</li>
-                <li>Integrations and settings are hidden.</li>
-                <li>Draft changes are saved per site.</li>
-              </ul>
             </div>
 
             <div className="rounded-lg border border-border bg-background p-4">
