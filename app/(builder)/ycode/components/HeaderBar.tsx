@@ -35,6 +35,7 @@ import { BackupRestoreDialog } from '@/components/project/BackupRestoreDialog';
 import { readQayEditorSiteIdFromBrowser, readQayEditorSiteSlugFromBrowser } from '@/qay/lib/editor-site';
 import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 import { getQaySiteBaseUrl } from '@/qay/lib/site-url';
+import type { QaySite } from '@/qay/types';
 
 interface HeaderBarProps {
   user: User | null;
@@ -63,6 +64,10 @@ type RailButtonProps = {
   active?: boolean;
   onClick: () => void;
 };
+
+const QAY_SITE_SETTINGS_UPDATED_EVENT = 'qay-site-settings-updated';
+
+type QayHeaderSite = Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified'>;
 
 function RailButton({ title, icon, active, onClick }: RailButtonProps) {
   return (
@@ -198,6 +203,16 @@ export default function HeaderBar({
     const siteId = readQayEditorSiteIdFromBrowser();
     const siteSlug = readQayEditorSiteSlugFromBrowser();
 
+    const applySiteUrl = (site: QayHeaderSite | null) => {
+      if (!site?.slug) {
+        setBaseUrl(fallbackBaseUrl);
+        return;
+      }
+
+      setCurrentQaySiteSlug(site.slug);
+      setBaseUrl(getQaySiteBaseUrl(site) || fallbackBaseUrl);
+    };
+
     if (siteSlug) {
       setCurrentQaySiteSlug(siteSlug);
       const directBaseUrl = getQaySiteBaseUrl({
@@ -208,7 +223,6 @@ export default function HeaderBar({
 
       if (directBaseUrl) {
         setBaseUrl(directBaseUrl);
-        return;
       }
     }
 
@@ -219,28 +233,40 @@ export default function HeaderBar({
 
     let isCancelled = false;
 
-    void fetch(`/api/qay/sites/${siteId}`)
-      .then(async (response) => {
-        if (!response.ok) {
-          return null;
-        }
+    const loadSiteUrl = () => {
+      void fetch(`/api/qay/sites/${siteId}`, { cache: 'no-store' })
+        .then(async (response) => {
+          if (!response.ok) {
+            return null;
+          }
 
-        const payload = await response.json().catch(() => null);
-        const site = payload?.data;
-        if (site?.slug && !isCancelled) {
-          setCurrentQaySiteSlug(site.slug);
-        }
-        return site ? (getQaySiteBaseUrl(site) || fallbackBaseUrl) : fallbackBaseUrl;
-      })
-      .catch(() => fallbackBaseUrl)
-      .then((resolvedBaseUrl) => {
-        if (!isCancelled && resolvedBaseUrl) {
-          setBaseUrl(resolvedBaseUrl);
-        }
-      });
+          const payload = await response.json().catch(() => null);
+          return payload?.data as QayHeaderSite | null;
+        })
+        .catch(() => null)
+        .then((site) => {
+          if (!isCancelled) {
+            applySiteUrl(site);
+          }
+        });
+    };
+
+    const handleSiteSettingsUpdated = (event: Event) => {
+      const site = (event as CustomEvent<QayHeaderSite>).detail;
+      if (site?.slug) {
+        applySiteUrl(site);
+        return;
+      }
+
+      loadSiteUrl();
+    };
+
+    window.addEventListener(QAY_SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated);
+    loadSiteUrl();
 
     return () => {
       isCancelled = true;
+      window.removeEventListener(QAY_SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated);
     };
   }, [currentQaySiteId]);
 

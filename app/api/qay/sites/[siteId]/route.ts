@@ -134,7 +134,17 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  return NextResponse.json({ data: withResolvedQayLiveUrl(data) });
+  const resolvedSite = withResolvedQayLiveUrl(data);
+
+  if (resolvedSite.publish_status === 'published' && resolvedSite.live_url !== data.live_url) {
+    await supabase
+      .from('qay_sites')
+      .update({ live_url: resolvedSite.live_url, updated_at: updates.updated_at })
+      .eq('id', siteId)
+      .eq('owner_id', user.id);
+  }
+
+  return NextResponse.json({ data: resolvedSite });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {

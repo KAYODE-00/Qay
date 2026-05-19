@@ -43,7 +43,7 @@ import { Spinner } from '@/components/ui/spinner';
 import FileManagerDialog from '../../components/FileManagerDialog';
 import { toast } from 'sonner';
 import { ASSET_CATEGORIES } from '@/lib/asset-constants';
-import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
+import { appendQayEditorSiteParam, QAY_EDITOR_SITE_SLUG_STORAGE_KEY } from '@/qay/lib/editor-site';
 
 type QaySiteSettings = {
   id: string;
@@ -303,6 +303,14 @@ export default function GeneralSettingsPage() {
       setSiteName(site.name || '');
       setSiteSlug(site.slug || '');
       setCustomDomain(site.custom_domain || '');
+
+      try {
+        window.sessionStorage.setItem(QAY_EDITOR_SITE_SLUG_STORAGE_KEY, site.slug || '');
+        window.dispatchEvent(new CustomEvent('qay-site-settings-updated', { detail: site }));
+      } catch {
+        // Ignore restricted storage or event environments.
+      }
+
       toast.success('Site settings saved');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save site settings');
