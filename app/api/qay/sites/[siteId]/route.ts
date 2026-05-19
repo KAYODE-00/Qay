@@ -88,7 +88,13 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   if (typeof body?.custom_domain === 'string' || body?.custom_domain === null) {
-    const customDomain = body.custom_domain ? body.custom_domain.trim().toLowerCase() : null;
+    const customDomain = body.custom_domain
+      ? body.custom_domain
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/.*$/, '')
+      : null;
     if (customDomain && isQayBaseHost(customDomain)) {
       return NextResponse.json(
         { error: 'Use a custom domain that is different from the QAY app domain.' },
@@ -115,8 +121,15 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   if (error) {
     const isDuplicate = error.code === '23505';
+    const errorText = `${error.message || ''} ${error.details || ''}`;
+    const duplicateMessage = errorText.includes('custom_domain')
+      ? 'This custom domain already exists.'
+      : errorText.includes('slug')
+        ? 'This site URL already exists.'
+        : 'That site URL or domain is already in use.';
+
     return NextResponse.json(
-      { error: isDuplicate ? 'That slug or domain is already in use' : error.message },
+      { error: isDuplicate ? duplicateMessage : error.message },
       { status: isDuplicate ? 409 : 500 }
     );
   }

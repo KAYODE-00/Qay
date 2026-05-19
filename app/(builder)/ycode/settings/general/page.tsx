@@ -45,6 +45,33 @@ import { toast } from 'sonner';
 import { ASSET_CATEGORIES } from '@/lib/asset-constants';
 import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
 
+type QaySiteSettings = {
+  id: string;
+  name: string;
+  slug: string;
+  custom_domain: string | null;
+  domain_verified: boolean | null;
+  plan?: string | null;
+  live_url?: string | null;
+};
+
+function normalizeSiteSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
+function normalizeCustomDomain(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
+}
+
 export default function GeneralSettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -84,6 +111,12 @@ export default function GeneralSettingsPage() {
   const storedYcodeBadge = getSettingByKey('ycode_badge') as boolean | null;
   const [ycodeBadge, setYcodeBadge] = useState(storedYcodeBadge ?? true);
   const [isSavingWebsite, setIsSavingWebsite] = useState(false);
+  const [siteSettings, setSiteSettings] = useState<QaySiteSettings | null>(null);
+  const [siteName, setSiteName] = useState('');
+  const [siteSlug, setSiteSlug] = useState('');
+  const [customDomain, setCustomDomain] = useState('');
+  const [isLoadingSiteSettings, setIsLoadingSiteSettings] = useState(false);
+  const [isSavingSiteSettings, setIsSavingSiteSettings] = useState(false);
 
   // Initialize timezone from store (default UTC)
   const storedTimezone = getSettingByKey('timezone') as string | null;
@@ -131,6 +164,43 @@ export default function GeneralSettingsPage() {
   // Get asset details for display
   const faviconAsset = faviconAssetId ? assetsById[faviconAssetId] : null;
   const webClipAsset = webClipAssetId ? assetsById[webClipAssetId] : null;
+
+  useEffect(() => {
+    if (!qaySiteId) return;
+
+    let cancelled = false;
+    setIsLoadingSiteSettings(true);
+
+    fetch(`/api/qay/sites/${qaySiteId}`)
+      .then(async (response) => {
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(result?.error || 'Failed to load site settings');
+        }
+        return result?.data as QaySiteSettings;
+      })
+      .then((site) => {
+        if (cancelled) return;
+        setSiteSettings(site);
+        setSiteName(site.name || '');
+        setSiteSlug(site.slug || '');
+        setCustomDomain(site.custom_domain || '');
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : 'Failed to load site settings');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingSiteSettings(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [qaySiteId]);
 
   // Derive activeSeoTab from sitemap mode
   const activeSeoTab = sitemapSettings.mode === 'auto'
@@ -192,6 +262,54 @@ export default function GeneralSettingsPage() {
     });
     setIsSavingWebsite(false);
   }, [saveSettings, ycodeBadge, timezone, faviconAssetId, webClipAssetId]);
+
+  const saveSiteSettings = useCallback(async () => {
+    if (!qaySiteId) return;
+
+    const normalizedSlug = normalizeSiteSlug(siteSlug);
+    const normalizedDomain = normalizeCustomDomain(customDomain);
+    const nextName = siteName.trim();
+
+    if (!nextName) {
+      toast.error('Site name is required');
+      return;
+    }
+
+    if (!normalizedSlug) {
+      toast.error('Site URL is required');
+      return;
+    }
+
+    try {
+      setIsSavingSiteSettings(true);
+
+      const response = await fetch(`/api/qay/sites/${qaySiteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: nextName,
+          slug: normalizedSlug,
+          custom_domain: normalizedDomain || null,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to save site settings');
+      }
+
+      const site = result.data as QaySiteSettings;
+      setSiteSettings(site);
+      setSiteName(site.name || '');
+      setSiteSlug(site.slug || '');
+      setCustomDomain(site.custom_domain || '');
+      toast.success('Site settings saved');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save site settings');
+    } finally {
+      setIsSavingSiteSettings(false);
+    }
+  }, [qaySiteId, siteName, siteSlug, customDomain]);
 
   const handleDetectTimezone = useCallback(() => {
     const detected = getDetectedTimezone();
@@ -298,6 +416,103 @@ export default function GeneralSettingsPage() {
               </div>
 
               <div className="col-span-2 grid grid-cols-2 gap-5">
+                {qaySiteId && (
+                  <>
+                    <Field className="col-span-2">
+                      <FieldLabel htmlFor="qay-site-name">
+                        Site name
+                      </FieldLabel>
+                      <Input
+                        id="qay-site-name"
+                        value={siteName}
+                        onChange={(event) => setSiteName(event.target.value)}
+                        placeholder="My website"
+                        disabled={isLoadingSiteSettings}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="qay-site-slug">
+                        Site URL
+                      </FieldLabel>
+                      <Input
+                        id="qay-site-slug"
+                        value={siteSlug}
+                        onChange={(event) => setSiteSlug(normalizeSiteSlug(event.target.value))}
+                        placeholder="my-site"
+                        disabled={isLoadingSiteSettings}
+                      />
+                      <FieldDescription>
+                        Your QAY URL uses this short site slug.
+                      </FieldDescription>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="qay-custom-domain">
+                        Custom domain
+                      </FieldLabel>
+                      <Input
+                        id="qay-custom-domain"
+                        value={customDomain}
+                        onChange={(event) => setCustomDomain(normalizeCustomDomain(event.target.value))}
+                        placeholder="www.example.com"
+                        disabled={isLoadingSiteSettings}
+                      />
+                      <FieldDescription>
+                        {siteSettings?.custom_domain
+                          ? siteSettings.domain_verified
+                            ? 'Connected and verified.'
+                            : 'Saved. Add the DNS records from your domain provider, then verify.'
+                          : 'Connect a domain you own. Leave blank to use the QAY URL.'}
+                      </FieldDescription>
+                    </Field>
+
+                    <Field className="col-span-2 rounded-lg border border-border bg-background p-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <FieldLabel>Plan</FieldLabel>
+                          <FieldDescription>
+                            Current plan: <span className="font-medium text-foreground">{siteSettings?.plan || 'free'}</span>. Upgrade when you need more publishing, collaboration, custom domain, and client handoff features.
+                          </FieldDescription>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => router.push('/pricing')}
+                        >
+                          Upgrade plan
+                        </Button>
+                      </div>
+                    </Field>
+
+                    {siteSettings?.live_url && (
+                      <Field className="col-span-2">
+                        <FieldLabel>Published URL</FieldLabel>
+                        <a
+                          href={siteSettings.live_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                        >
+                          {siteSettings.live_url}
+                        </a>
+                      </Field>
+                    )}
+
+                    <div className="col-span-2 flex justify-end">
+                      <Button
+                        size="sm"
+                        onClick={saveSiteSettings}
+                        disabled={isSavingSiteSettings || isLoadingSiteSettings}
+                      >
+                        {isSavingSiteSettings ? 'Saving...' : 'Save site details'}
+                      </Button>
+                    </div>
+
+                    <FieldSeparator className="col-span-2" />
+                  </>
+                )}
+
                 {isCloudVersion() && (
                   <>
                     <Field>
