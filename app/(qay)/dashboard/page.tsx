@@ -4,6 +4,7 @@ import type { QaySite } from '@/qay/types';
 import { DeveloperDashboard } from './DeveloperDashboard';
 import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
 import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
+import { getPendingClientInvites } from '@/qay/lib/client-content';
 
 function DashboardSetupNotice({ message }: { message: string }) {
   return (
@@ -60,10 +61,13 @@ export default async function DashboardPage() {
     return <DashboardSetupNotice message={error.message} />;
   }
 
+  const pendingInvites = await getPendingClientInvites(user.email);
+
   return (
     <DeveloperDashboard
       initialSites={((data ?? []) as QaySite[]).map((site) => withResolvedQayLiveUrl(site))}
       userEmail={user.email ?? ''}
+      pendingInvites={pendingInvites}
     />
   );
 }

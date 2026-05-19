@@ -5,10 +5,13 @@ import { Bell, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, 
 import { QayLogo } from '@/qay/components/QayLogo';
 import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
 import type { QaySite } from '@/qay/types';
+import type { ClientPendingInvite } from '@/qay/lib/client-content';
+import { PendingInvites } from '@/qay/components/client/PendingInvites';
 
 type DashboardProps = {
   initialSites: QaySite[];
   userEmail: string;
+  pendingInvites?: ClientPendingInvite[];
 };
 
 function DashboardNavItem({
@@ -53,7 +56,7 @@ function formatRelativeDate(value: string | null) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) {
+export function DeveloperDashboard({ initialSites, userEmail, pendingInvites = [] }: DashboardProps) {
   const [sites, setSites] = useState(initialSites);
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -216,6 +219,12 @@ export function DeveloperDashboard({ initialSites, userEmail }: DashboardProps) 
             </button>
           </div>
         </div>
+
+        {pendingInvites.length > 0 && (
+          <div className="mt-8">
+            <PendingInvites invites={pendingInvites} />
+          </div>
+        )}
 
         <div className={view === 'grid' ? 'mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'mt-8 space-y-3'}>
           {sites.map((site) => (
