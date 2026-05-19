@@ -48,6 +48,14 @@ function DialogOverlay({
   )
 }
 
+function hasDialogDescription(children: React.ReactNode): boolean {
+  return React.Children.toArray(children).some((child) => {
+    if (!React.isValidElement(child)) return false;
+    if (child.type === DialogDescription) return true;
+    return hasDialogDescription((child.props as { children?: React.ReactNode }).children);
+  });
+}
+
 function DialogContent({
   className,
   children,
@@ -60,6 +68,10 @@ function DialogContent({
   variant?: 'default' | 'side'
   width?: string
 }) {
+  const contentProps = hasDialogDescription(children) || Object.prototype.hasOwnProperty.call(props, 'aria-describedby')
+    ? props
+    : { ...props, 'aria-describedby': undefined };
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -74,7 +86,7 @@ function DialogContent({
           className
         )}
         style={width ? { maxWidth: width } : undefined}
-        {...props}
+        {...contentProps}
       >
         {children}
         {showCloseButton && (
