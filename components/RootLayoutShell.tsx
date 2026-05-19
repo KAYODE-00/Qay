@@ -12,7 +12,7 @@ const inter = Inter({
 
 export const defaultMetadata: Metadata = {
   metadataBase: getMetadataBase(),
-  title: 'Ycode - Visual Website Builder',
+  title: 'QAY - Visual Website Builder',
   description: 'Self-hosted visual website builder',
 };
 

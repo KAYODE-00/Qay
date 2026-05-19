@@ -198,7 +198,7 @@ export default function WelcomePage() {
               size="sm"
               style={{ animationDelay: '2500ms', animationFillMode: 'both' }}
             >
-              Welcome to Ycode
+              Welcome to QAY
             </Label>
             <Label
               variant="muted"
