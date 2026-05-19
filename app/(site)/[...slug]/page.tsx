@@ -285,6 +285,7 @@ export default async function Page({ params }: PageProps) {
 
   // Check for redirects before processing the page
   const currentPath = `/${slugPath}`;
+  const authRedirectPath = `${sitePathPrefix ?? ''}${currentPath === '/' ? '' : currentPath}` || '/';
   const redirects = await fetchCachedRedirects(qaySiteId);
   if (redirects && Array.isArray(redirects)) {
     const matchedRedirect = redirects.find((r) => r.oldUrl === currentPath);
@@ -362,7 +363,7 @@ export default async function Page({ params }: PageProps) {
             passwordProtection={{
               pageId: protection.protectedBy === 'page' ? protection.protectedById : undefined,
               folderId: protection.protectedBy === 'folder' ? protection.protectedById : undefined,
-              redirectUrl: currentPath,
+              redirectUrl: authRedirectPath,
               isPublished: true,
             }}
           />
@@ -379,7 +380,7 @@ export default async function Page({ params }: PageProps) {
             <PasswordForm
               pageId={protection.protectedBy === 'page' ? protection.protectedById : undefined}
               folderId={protection.protectedBy === 'folder' ? protection.protectedById : undefined}
-              redirectUrl={currentPath}
+              redirectUrl={authRedirectPath}
               isPublished={true}
             />
           </div>
