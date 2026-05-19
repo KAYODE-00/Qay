@@ -116,6 +116,7 @@ export default async function Home({
 
   const renderSubdomain = await getQayRenderHostSubdomain();
   const qaySiteId = await getQayRenderSiteId();
+  const authRedirectPath = renderSubdomain ? `/${renderSubdomain}` : '/';
   if (renderSubdomain && !qaySiteId) {
     notFound();
   }
@@ -240,7 +241,7 @@ export default async function Home({
             passwordProtection={{
               pageId: protection.protectedBy === 'page' ? protection.protectedById : undefined,
               folderId: protection.protectedBy === 'folder' ? protection.protectedById : undefined,
-              redirectUrl: '/',
+              redirectUrl: authRedirectPath,
               isPublished: true,
             }}
           />
@@ -257,7 +258,7 @@ export default async function Home({
             <PasswordForm
               pageId={protection.protectedBy === 'page' ? protection.protectedById : undefined}
               folderId={protection.protectedBy === 'folder' ? protection.protectedById : undefined}
-              redirectUrl="/"
+              redirectUrl={authRedirectPath}
               isPublished={true}
             />
           </div>

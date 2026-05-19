@@ -33,11 +33,16 @@ export default function PasswordForm({ pageId, folderId, redirectUrl, isPublishe
     setIsLoading(true);
 
     try {
+      const effectiveRedirectUrl =
+        redirectUrl === '/' && typeof window !== 'undefined' && window.location.pathname !== '/'
+          ? `${window.location.pathname}${window.location.search}`
+          : redirectUrl;
+
       const requestBody = {
         ...(pageId && { pageId }),
         ...(folderId && { folderId }),
         password,
-        redirectUrl,
+        redirectUrl: effectiveRedirectUrl,
         isPublished,
       };
 
