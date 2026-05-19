@@ -471,18 +471,12 @@ export default function HeaderBar({
       <div className="flex items-center gap-2">
         <Button
           variant="secondary" size="sm"
-          className="size-10! overflow-hidden rounded-lg p-0"
+          className="size-9! rounded-lg p-0"
           onClick={() => router.push('/dashboard')}
           title="Dashboard"
           aria-label="Dashboard"
         >
-          <img
-            src="/ycode-webclip.png"
-            alt=""
-            width={48}
-            height={48}
-            className="size-9 object-contain"
-          />
+          <Icon name="layout" className="size-4" />
         </Button>
       </div>
 
@@ -662,10 +656,6 @@ export default function HeaderBar({
 
     <aside className="fixed left-0 top-14 bottom-0 z-40 flex w-16 flex-col items-center border-r border-border bg-background/95 px-2 py-3 shadow-sm backdrop-blur">
       <div className="flex flex-1 flex-col items-center gap-2">
-        <RailButton
-          title="Dashboard" icon="layout"
-          onClick={() => router.push('/dashboard')}
-        />
         <RailButton
           title="Design" icon="cursor-default"
           active={activeNavButton === 'design'} onClick={goToDesign}
