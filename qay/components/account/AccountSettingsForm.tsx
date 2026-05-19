@@ -25,6 +25,7 @@ const modes: Array<{ value: QayAccountMode; title: string; body: string }> = [
 export function AccountSettingsForm({ profile, role = profile.account_type }: AccountSettingsFormProps) {
   const router = useRouter();
   const [fullName, setFullName] = useState(profile.full_name ?? '');
+  const [email, setEmail] = useState(profile.email ?? '');
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? '');
   const [company, setCompany] = useState(profile.company ?? '');
   const [website, setWebsite] = useState(profile.website ?? '');
@@ -45,6 +46,7 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           full_name: fullName,
+          email,
           avatar_url: avatarUrl,
           company,
           website,
@@ -173,6 +175,16 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
           />
         </label>
 
+        <label className="block space-y-2 text-sm">
+          <span className="font-medium text-foreground">Email address</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-ring"
+          />
+        </label>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block space-y-2 text-sm">
             <span className="font-medium text-foreground">Company</span>
@@ -205,6 +217,19 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
         >
           {saving ? 'Saving...' : 'Save settings'}
         </button>
+
+        <div className="border-t border-border pt-6">
+          <p className="text-sm font-medium text-foreground">Plan</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Upgrade when you need more publishing, collaboration, or custom domain features.
+          </p>
+          <a
+            href="/pricing"
+            className="mt-3 inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90"
+          >
+            Upgrade plan
+          </a>
+        </div>
 
         <div className="border-t border-border pt-6">
           <p className="text-sm font-medium text-foreground">Delete account</p>

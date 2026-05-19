@@ -32,13 +32,26 @@ export async function PATCH(request: NextRequest) {
     const avatarUrl = typeof body.avatar_url === 'string' ? body.avatar_url.trim().slice(0, 500) : null;
     const company = typeof body.company === 'string' ? body.company.trim().slice(0, 160) : null;
     const website = typeof body.website === 'string' ? body.website.trim().slice(0, 300) : null;
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase().slice(0, 254) : null;
     const accountType = accountModes.has(body.account_type) ? body.account_type as QayAccountMode : null;
 
-    if (fullName === null && avatarUrl === null && company === null && website === null && !accountType) {
+    if (fullName === null && avatarUrl === null && company === null && website === null && email === null && !accountType) {
       return noCache({ error: 'No account changes were provided' }, 400);
     }
 
+    if (email !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return noCache({ error: 'Enter a valid email address' }, 400);
+    }
+
     const supabase = getQayAdmin() as any;
+
+    if (email && email !== user.email?.toLowerCase()) {
+      const { error: authError } = await supabase.auth.admin.updateUserById(user.id, { email });
+      if (authError) {
+        throw new Error(authError.message);
+      }
+    }
+
     const updates: Record<string, unknown> = {
       id: user.id,
       updated_at: new Date().toISOString(),
@@ -58,7 +71,7 @@ export async function PATCH(request: NextRequest) {
       throw new Error(error.message);
     }
 
-    return noCache({ data: await getQayAccountProfile(user) });
+    return noCache({ data: await getQayAccountProfile({ ...user, email: email || user.email }) });
   } catch (error) {
     console.error('[PATCH /api/qay/account] Error:', error);
     return noCache({ error: 'Unable to save account settings' }, 500);

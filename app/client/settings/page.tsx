@@ -10,7 +10,7 @@ export default async function ClientSettingsPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen flex-col lg:flex-row">
-        <ClientSidebar />
+        <ClientSidebar profile={profile} />
 
         <section className="flex-1 px-6 py-8 lg:px-10">
           <div className="max-w-2xl">
