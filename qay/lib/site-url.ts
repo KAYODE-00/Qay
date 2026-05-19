@@ -108,7 +108,7 @@ export function getQaySiteBaseUrl(
   site: Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified'>
 ): string | null {
   const customDomain = normalizeHostLike(site.custom_domain);
-  if (customDomain && site.domain_verified && !isQayBaseHost(customDomain)) {
+  if (customDomain && !isQayBaseHost(customDomain)) {
     return `${getQayProtocol()}://${customDomain}`;
   }
 
@@ -147,7 +147,7 @@ export function getQaySiteHost(
   site: Pick<QaySite, 'slug' | 'custom_domain' | 'domain_verified'>
 ): string | null {
   const customDomain = normalizeHostLike(site.custom_domain);
-  if (customDomain && site.domain_verified && !isQayBaseHost(customDomain)) {
+  if (customDomain && !isQayBaseHost(customDomain)) {
     return customDomain;
   }
 
