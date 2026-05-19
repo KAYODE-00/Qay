@@ -15,10 +15,12 @@ import { Spinner } from '@/components/ui/spinner';
 
 interface InviteUserButtonProps {
   className?: string;
+  siteId?: string | null;
 }
 
 export const InviteUserButton: React.FC<InviteUserButtonProps> = ({
   className = '',
+  siteId,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [email, setEmail] = useState('');
@@ -39,6 +41,11 @@ export const InviteUserButton: React.FC<InviteUserButtonProps> = ({
   }, []);
 
   const handleInvite = useCallback(async () => {
+    if (!siteId) {
+      setError('Open a site before inviting someone.');
+      return;
+    }
+
     if (!email.trim()) {
       setError('Please enter an email address');
       return;
@@ -63,7 +70,8 @@ export const InviteUserButton: React.FC<InviteUserButtonProps> = ({
         },
         body: JSON.stringify({
           email: email.trim(),
-          redirectTo: window.location.origin + '/ycode/accept-invite',
+          siteId,
+          role: 'client',
         }),
       });
 
@@ -88,7 +96,7 @@ export const InviteUserButton: React.FC<InviteUserButtonProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [email]);
+  }, [email, siteId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !isLoading) {

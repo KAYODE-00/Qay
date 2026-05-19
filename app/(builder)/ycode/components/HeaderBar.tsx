@@ -552,7 +552,7 @@ export default function HeaderBar({
         <ActiveUsersInHeader />
 
         {/* Invite User */}
-        <InviteUserButton />
+        <InviteUserButton siteId={currentQaySiteId} />
 
         {/* Save Status Indicator */}
         <div className="flex items-center justify-end w-16 text-xs text-zinc-500 dark:text-white/50">
