@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, BarChart3, Database, FileText, Inbox, LayoutDashboard, PenSquare, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, BarChart3, Database, FileText, Inbox, LayoutDashboard, PenSquare, Rocket, Settings } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 
 type ClientSidebarProps = {
@@ -20,6 +21,35 @@ const navItems = [
 
 export function ClientSidebar({ siteId, siteName }: ClientSidebarProps) {
   const pathname = usePathname();
+  const [publishing, setPublishing] = useState(false);
+  const [publishMessage, setPublishMessage] = useState<string | null>(null);
+
+  async function publishSite() {
+    if (!siteId) return;
+
+    setPublishing(true);
+    setPublishMessage(null);
+
+    try {
+      const response = await fetch(`/ycode/api/publish?site=${siteId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publishAll: true }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setPublishMessage(payload?.error || 'Unable to publish');
+        return;
+      }
+
+      setPublishMessage('Published');
+    } catch (error) {
+      setPublishMessage(error instanceof Error ? error.message : 'Unable to publish');
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   return (
     <aside className="flex h-full w-full max-w-xs flex-col border-r border-border bg-card/80">
@@ -81,7 +111,23 @@ export function ClientSidebar({ siteId, siteName }: ClientSidebarProps) {
         )}
       </nav>
 
-      <div className="border-t border-border px-4 py-4 text-xs text-muted-foreground">
+      <div className="space-y-3 border-t border-border px-4 py-4 text-xs text-muted-foreground">
+        {siteId && (
+          <div>
+            <button
+              type="button"
+              onClick={publishSite}
+              disabled={publishing}
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-foreground px-3 text-sm font-medium text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Rocket className="size-4" />
+              {publishing ? 'Publishing...' : 'Publish site'}
+            </button>
+            {publishMessage && (
+              <p className="mt-2 text-xs text-muted-foreground">{publishMessage}</p>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <FileText className="size-4" />
           Changes save to the site draft only.
