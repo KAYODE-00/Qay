@@ -92,13 +92,15 @@ export async function POST(request: NextRequest) {
 
     const { data: existingProfile, error: profileLookupError } = await admin
       .from('qay_user_profiles')
-      .select('id')
+      .select('id, account_type')
       .eq('id', user.id)
       .maybeSingle();
 
     if (profileLookupError) {
       throw new Error(profileLookupError.message);
     }
+
+    const accountMode = existingProfile?.account_type === 'client' ? 'client' : 'developer';
 
     if (!existingProfile) {
       const { error: profileInsertError } = await admin
@@ -128,6 +130,12 @@ export async function POST(request: NextRequest) {
     return noCache({
       data: {
         siteId: invite.site_id,
+        accountMode: existingProfile ? accountMode : 'client',
+        redirectUrl: existingProfile?.account_type === 'client'
+          ? `/client/${invite.site_id}`
+          : existingProfile
+            ? `/dashboard/sites/${invite.site_id}/editor`
+            : `/client/${invite.site_id}`,
       },
     });
   } catch (error) {

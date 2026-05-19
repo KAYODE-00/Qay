@@ -35,7 +35,7 @@ export function PendingInvites({ invites }: PendingInvitesProps) {
         return;
       }
 
-      router.push(`/client/${payload.data.siteId}`);
+      router.push(payload.data.redirectUrl || `/client/${payload.data.siteId}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to accept invite');
