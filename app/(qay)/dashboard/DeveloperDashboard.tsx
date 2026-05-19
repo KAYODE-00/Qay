@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useMemo, useState, type ReactNode } from 'react';
-import { Bell, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Trash2, User, UserPlus } from 'lucide-react';
+import { Bell, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Trash2, UserPlus } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
 import type { QaySite } from '@/qay/types';
@@ -141,8 +141,8 @@ export function DeveloperDashboard({ initialSites, userEmail, pendingInvites = [
           <DashboardNavItem href="/dashboard/templates" label="Templates">
             <LayoutTemplate className="size-5" />
           </DashboardNavItem>
-          <DashboardNavItem href="/dashboard/profile" label="Profile">
-            <User className="size-5" />
+          <DashboardNavItem href="/dashboard/settings" label="Settings">
+            <Settings className="size-5" />
           </DashboardNavItem>
         </nav>
         <div className="flex size-11 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground" title={userEmail}>
@@ -182,9 +182,9 @@ export function DeveloperDashboard({ initialSites, userEmail, pendingInvites = [
               <Bell className="size-4" />
             </button>
             <a
-              href="/dashboard/profile"
-              aria-label="Profile"
-              title="Profile"
+              href="/dashboard/settings"
+              aria-label="Settings"
+              title="Settings"
               className="flex size-10 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
             >
               {initials}
