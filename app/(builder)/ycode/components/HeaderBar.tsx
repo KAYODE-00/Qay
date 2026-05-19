@@ -543,9 +543,6 @@ export default function HeaderBar({
         {/* Active Users */}
         <ActiveUsersInHeader />
 
-        {/* Invite User */}
-        <InviteUserButton siteId={currentQaySiteId} />
-
         {/* Save Status Indicator */}
         <div className="flex items-center justify-end w-16 text-xs text-zinc-500 dark:text-white/50">
           {isSaving ? (
@@ -658,6 +655,13 @@ export default function HeaderBar({
         <RailButton
           title="Localization" icon="globe"
           onClick={() => router.push(withCurrentSite('/ycode/localization'))}
+        />
+        <InviteUserButton
+          siteId={currentQaySiteId}
+          compact
+          contentSide="right"
+          contentAlign="start"
+          className="size-10 rounded-lg border border-transparent bg-transparent p-0 text-muted-foreground shadow-none transition hover:border-border hover:bg-accent hover:text-accent-foreground"
         />
       </div>
 

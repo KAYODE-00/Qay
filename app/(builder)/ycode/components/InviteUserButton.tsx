@@ -12,15 +12,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import Icon from '@/components/ui/icon';
 
 interface InviteUserButtonProps {
   className?: string;
   siteId?: string | null;
+  compact?: boolean;
+  contentSide?: 'top' | 'right' | 'bottom' | 'left';
+  contentAlign?: 'start' | 'center' | 'end';
 }
 
 export const InviteUserButton: React.FC<InviteUserButtonProps> = ({
   className = '',
   siteId,
+  compact = false,
+  contentSide,
+  contentAlign = 'end',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [email, setEmail] = useState('');
@@ -121,12 +128,14 @@ export const InviteUserButton: React.FC<InviteUserButtonProps> = ({
           size="sm"
           variant="secondary"
           className={className}
+          title="Invite"
+          aria-label="Invite"
         >
-          Invite
+          {compact ? <Icon name="email" className="size-4" /> : 'Invite'}
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-80" align="end">
+      <PopoverContent className="w-80" side={contentSide} align={contentAlign}>
         <div className="flex flex-col gap-4">
           <div className="space-y-2">
             <Label className="text-sm font-medium">
