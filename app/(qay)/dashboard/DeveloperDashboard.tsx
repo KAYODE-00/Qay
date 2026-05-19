@@ -1,16 +1,18 @@
 'use client';
 
-import { FormEvent, useMemo, useState, type ReactNode } from 'react';
+import { FormEvent, useState, type ReactNode } from 'react';
 import { Bell, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Trash2, UserPlus } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
 import type { QaySite } from '@/qay/types';
 import type { ClientPendingInvite } from '@/qay/lib/client-content';
 import { PendingInvites } from '@/qay/components/client/PendingInvites';
+import type { QayAccountProfile } from '@/qay/lib/account';
+import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
 
 type DashboardProps = {
   initialSites: QaySite[];
-  userEmail: string;
+  profile: QayAccountProfile;
   pendingInvites?: ClientPendingInvite[];
 };
 
@@ -56,18 +58,13 @@ function formatRelativeDate(value: string | null) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function DeveloperDashboard({ initialSites, userEmail, pendingInvites = [] }: DashboardProps) {
+export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] }: DashboardProps) {
   const [sites, setSites] = useState(initialSites);
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [siteName, setSiteName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const initials = useMemo(() => {
-    const label = userEmail || 'QAY';
-    return label.slice(0, 2).toUpperCase();
-  }, [userEmail]);
 
   function openEditor(siteId: string) {
     window.location.assign(`/dashboard/sites/${siteId}/editor`);
@@ -145,9 +142,7 @@ export function DeveloperDashboard({ initialSites, userEmail, pendingInvites = [
             <Settings className="size-5" />
           </DashboardNavItem>
         </nav>
-        <div className="flex size-11 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground" title={userEmail}>
-          {initials}
-        </div>
+        <AccountAvatar profile={profile} className="size-11" />
       </aside>
 
       <div className="pl-20">

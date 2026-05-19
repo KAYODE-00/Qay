@@ -2,6 +2,7 @@ import { requireDeveloper } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import type { QaySite } from '@/qay/types';
 import { TemplatesDashboardClient } from './TemplatesDashboardClient';
+import { getQayAccountProfile } from '@/qay/lib/account';
 
 export default async function DashboardTemplatesPage() {
   const user = await requireDeveloper();
@@ -20,7 +21,7 @@ export default async function DashboardTemplatesPage() {
   return (
     <TemplatesDashboardClient
       initialSites={(data ?? []) as QaySite[]}
-      userEmail={user.email ?? ''}
+      profile={await getQayAccountProfile(user)}
     />
   );
 }

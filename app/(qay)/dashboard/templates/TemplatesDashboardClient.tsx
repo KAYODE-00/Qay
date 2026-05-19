@@ -6,6 +6,8 @@ import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog'
 import { htmlToLayers } from '@/lib/html-layer-converter';
 import { QayLogo } from '@/qay/components/QayLogo';
 import type { QaySite } from '@/qay/types';
+import type { QayAccountProfile } from '@/qay/lib/account';
+import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
 
 type Template = {
   id: string;
@@ -24,7 +26,7 @@ type Category = {
 
 type Props = {
   initialSites: QaySite[];
-  userEmail: string;
+  profile: QayAccountProfile;
 };
 
 function DashboardNavItem({
@@ -55,7 +57,7 @@ function DashboardNavItem({
   );
 }
 
-export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
+export function TemplatesDashboardClient({ initialSites, profile }: Props) {
   const [sites, setSites] = useState(initialSites);
   const [selectedSiteId, setSelectedSiteId] = useState(initialSites[0]?.id ?? '');
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -71,8 +73,6 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const selectedSite = sites.find((site) => site.id === selectedSiteId) ?? null;
-  const initials = (userEmail || 'QAY').slice(0, 2).toUpperCase();
-
   useEffect(() => {
     async function loadTemplates() {
       try {
@@ -242,9 +242,7 @@ export function TemplatesDashboardClient({ initialSites, userEmail }: Props) {
             <Settings className="size-5" />
           </DashboardNavItem>
         </nav>
-        <div className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs font-medium text-white/80">
-          {initials}
-        </div>
+        <AccountAvatar profile={profile} className="size-11 border-white/10 bg-white/5 text-white/80" />
       </aside>
 
       <div className="pl-20">

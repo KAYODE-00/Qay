@@ -5,6 +5,7 @@ import { DeveloperDashboard } from './DeveloperDashboard';
 import { allowRuntimeQaySchemaChanges, isMissingQaySchemaError, qaySchemaPublicMessage, qaySchemaSetupMessage, runQayCoreMigration } from '@/qay/lib/schema';
 import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 import { getPendingClientInvites } from '@/qay/lib/client-content';
+import { getQayAccountProfile } from '@/qay/lib/account';
 
 function DashboardSetupNotice({ message }: { message: string }) {
   return (
@@ -62,11 +63,12 @@ export default async function DashboardPage() {
   }
 
   const pendingInvites = await getPendingClientInvites(user.email);
+  const profile = await getQayAccountProfile(user);
 
   return (
     <DeveloperDashboard
       initialSites={((data ?? []) as QaySite[]).map((site) => withResolvedQayLiveUrl(site))}
-      userEmail={user.email ?? ''}
+      profile={profile}
       pendingInvites={pendingInvites}
     />
   );

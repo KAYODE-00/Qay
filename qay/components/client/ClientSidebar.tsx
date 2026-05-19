@@ -5,10 +5,13 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { ArrowLeft, BarChart3, Database, FileText, Inbox, LayoutDashboard, PenSquare, Rocket, Settings } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
+import type { QayAccountProfile } from '@/qay/lib/account';
+import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
 
 type ClientSidebarProps = {
   siteId?: string;
   siteName?: string;
+  profile?: QayAccountProfile;
 };
 
 const navItems = [
@@ -19,7 +22,7 @@ const navItems = [
   { key: 'analytics', label: 'Analytics', icon: BarChart3, href: (siteId: string) => `/client/${siteId}/analytics` },
 ];
 
-export function ClientSidebar({ siteId, siteName }: ClientSidebarProps) {
+export function ClientSidebar({ siteId, siteName, profile }: ClientSidebarProps) {
   const pathname = usePathname();
   const [publishing, setPublishing] = useState(false);
   const [publishMessage, setPublishMessage] = useState<string | null>(null);
@@ -130,6 +133,15 @@ export function ClientSidebar({ siteId, siteName }: ClientSidebarProps) {
           <FileText className="size-4" />
           Changes save to the site draft only.
         </div>
+        {profile && (
+          <div className="flex items-center gap-2 border-t border-border pt-3">
+            <AccountAvatar profile={profile} className="size-9" />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-foreground">{profile.full_name || profile.email}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{profile.email}</p>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

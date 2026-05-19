@@ -4,6 +4,7 @@ import { requireDeveloper } from '@/qay/lib/auth-guard';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { getQayAccountProfile } from '@/qay/lib/account';
 import { AccountModeSettingsForm } from '@/qay/components/account/AccountSettingsForm';
+import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
 
 function NavItem({
   href,
@@ -36,7 +37,6 @@ function NavItem({
 export default async function DashboardAccountModePage() {
   const user = await requireDeveloper();
   const profile = await getQayAccountProfile(user);
-  const initials = (user.email || 'QAY').slice(0, 2).toUpperCase();
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -61,9 +61,7 @@ export default async function DashboardAccountModePage() {
             <Settings className="size-5" />
           </NavItem>
         </nav>
-        <div className="flex size-11 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground">
-          {initials}
-        </div>
+        <AccountAvatar profile={profile} className="size-11" />
       </aside>
 
       <div className="pl-20">
