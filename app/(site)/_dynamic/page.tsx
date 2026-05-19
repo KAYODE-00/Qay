@@ -59,7 +59,7 @@ export default async function DynamicHome({ searchParams }: DynamicHomeProps) {
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center p-8 flex flex-col items-center justify-center gap-2">
           <h1 className="text-xl font-semibold text-neutral-900">
-            Welcome to Ycode
+            Welcome to QAY
           </h1>
           <Link
             href="/ycode"

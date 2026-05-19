@@ -69,7 +69,7 @@ export default function UpdateNotification() {
             </svg>
             <div>
               <p className="font-semibold">
-                🎉 New Ycode update available!
+                New QAY update available!
               </p>
               <p className="text-sm text-white/75">
                 Version {updateInfo.latestVersion} is now available (you have {updateInfo.currentVersion})

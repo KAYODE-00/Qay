@@ -143,7 +143,7 @@ export default function McpPage() {
         </header>
 
         <p className="text-sm text-muted-foreground mb-6">
-          Connect AI assistants like Claude, Cursor, or Windsurf to your YCode project.
+          Connect AI assistants like Claude, Cursor, or Windsurf to your QAY project.
           Generate an MCP URL and paste it into your AI tool&apos;s connector settings.
         </p>
 
@@ -237,7 +237,7 @@ export default function McpPage() {
             <DialogHeader>
               <DialogTitle>Generate MCP URL</DialogTitle>
               <DialogDescription>
-                Create a unique MCP URL for connecting an AI assistant to your YCode project.
+                Create a unique MCP URL for connecting an AI assistant to your QAY project.
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -301,7 +301,7 @@ export default function McpPage() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground mt-3">
-                Keep this URL private. Anyone with this URL can access your YCode project through MCP.
+                Keep this URL private. Anyone with this URL can access your QAY project through MCP.
               </p>
             </div>
             <DialogFooter>

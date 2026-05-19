@@ -31,7 +31,7 @@ export function SiteIsolationNotice({
             <div className="flex items-start gap-3">
               <ShieldAlert className="mt-0.5 size-4 shrink-0" />
               <p>
-                This area is temporarily blocked inside QAY editor mode because the upstream Ycode implementation
+                This area is temporarily blocked inside QAY editor mode because the shared QAY implementation
                 still reads project-wide data. Blocking it here prevents one site from seeing another site&apos;s
                 integrations or shared configuration.
               </p>

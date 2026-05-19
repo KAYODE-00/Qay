@@ -470,11 +470,11 @@ export default function GeneralSettingsPage() {
 
                 <Field orientation="horizontal" className="flex-row-reverse col-span-2">
                   <FieldContent>
-                    <FieldLabel htmlFor="badge">Display the &ldquo;Made in Ycode&rdquo; badge</FieldLabel>
+                    <FieldLabel htmlFor="badge">Display the &ldquo;Made in QAY&rdquo; badge</FieldLabel>
                     <FieldDescription>
                       {isCloudVersion()
                         ? 'Upgrade to a project plan in order to disable the badge.'
-                        : 'Help support Ycode by displaying this badge on your website.'}
+                        : 'Help support QAY by displaying this badge on your website.'}
                     </FieldDescription>
                   </FieldContent>
                   <Switch
@@ -546,7 +546,7 @@ export default function GeneralSettingsPage() {
                     Google Analytics Measurement ID
                   </FieldLabel>
                   <FieldDescription>
-                    Seamlessly integrate Google Analytics into your Ycode site. As the site owner, you are responsible for ensuring your site complies with privacy regulations, such as GDPR, and handles data appropriately.
+                    Seamlessly integrate Google Analytics into your QAY site. As the site owner, you are responsible for ensuring your site complies with privacy regulations, such as GDPR, and handles data appropriately.
                   </FieldDescription>
                   <Input
                     id="google-analytics-measurement-id"
@@ -628,7 +628,7 @@ export default function GeneralSettingsPage() {
                   <Tabs value={activeSeoTab} onValueChange={handleSitemapTabChange}>
                     <TabsList className="w-full">
                       <TabsTrigger value="no-sitemap">No sitemap</TabsTrigger>
-                      <TabsTrigger value="ycode-sitemap">Ycode generated</TabsTrigger>
+                      <TabsTrigger value="ycode-sitemap">QAY generated</TabsTrigger>
                       <TabsTrigger value="custom-sitemap">Custom XML</TabsTrigger>
                     </TabsList>
 
