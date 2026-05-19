@@ -1,5 +1,5 @@
 import type { Page, PageFolder } from '@/types';
-import { createHmac, randomUUID } from 'crypto';
+import { createHmac } from 'crypto';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 /**
@@ -13,24 +13,32 @@ import { getSupabaseAdmin } from '@/lib/supabase-server';
 /** Cookie name for page authentication - exported for use in API routes */
 export const PAGE_AUTH_COOKIE_NAME = 'ycode_page_auth';
 
-const fallbackSecret = randomUUID();
 let hasWarnedMissingSecret = false;
 
 /**
  * Get the signing secret from environment.
- * Falls back to a per-process random value if PAGE_AUTH_SECRET is not set,
- * which means auth cookies won't persist across server restarts.
+ * Prefer a dedicated password-auth secret, then stable deployment secrets.
+ * The last fallback is deterministic so an accepted password unlocks the page
+ * even when the API route and page render run in different server instances.
  */
 function getSigningSecret(): string {
-  const secret = process.env.PAGE_AUTH_SECRET;
-  if (!secret) {
-    if (!hasWarnedMissingSecret && process.env.NODE_ENV === 'production') {
-      console.warn('[page-auth] PAGE_AUTH_SECRET is not set. Page password protection is using a temporary secret that resets on each deploy. Set PAGE_AUTH_SECRET in your environment variables (generate with: openssl rand -hex 32).');
-      hasWarnedMissingSecret = true;
-    }
-    return fallbackSecret;
+  const secret =
+    process.env.PAGE_AUTH_SECRET ||
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_CONNECTION_URL;
+
+  if (secret) {
+    return secret;
   }
-  return secret;
+
+  if (!hasWarnedMissingSecret && process.env.NODE_ENV === 'production') {
+    console.warn('[page-auth] PAGE_AUTH_SECRET is not set. Page password protection is using a stable fallback. Set PAGE_AUTH_SECRET in production for stronger cookie signing.');
+    hasWarnedMissingSecret = true;
+  }
+
+  return 'qay-page-auth-stable-fallback';
 }
 
 /**
