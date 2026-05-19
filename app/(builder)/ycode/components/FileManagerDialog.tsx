@@ -45,6 +45,7 @@ import { Separator } from '@/components/ui/separator';
 import Icon from '@/components/ui/icon';
 import { cn } from '@/lib/utils';
 import { assetFoldersApi, assetsApi, uploadFileApi } from '@/lib/api';
+import { appendQayEditorSiteParam } from '@/qay/lib/editor-site';
 import type { AssetFolder, Asset } from '@/types';
 import type { AssetUsageResult, CmsItemUsageEntry, FieldDefaultUsageEntry } from '@/lib/asset-usage-utils';
 import { getAcceptString, getAssetIcon, getAssetProxyUrl, getOptimizedImageUrl, isAssetOfType, matchesCategoryFilter, normalizeCategoryFilter } from '@/lib/asset-utils';
@@ -80,11 +81,26 @@ import { fetchRemixIcons, type RemixIcon, type RemixIconCategory } from '@/lib/r
 const VIRTUAL_LIBRARIES_ID = '__libraries__';
 const VIRTUAL_ICONS_ID = '__libraries-icons__';
 const VIRTUAL_REMIX_ID = '__libraries-icons-remix__';
+const VIRTUAL_STOCK_ID = '__libraries-stock__';
 const REMIX_ICONS_PER_PAGE = 100;
 
 /** All virtual folder IDs */
-const VIRTUAL_FOLDER_IDS = new Set([VIRTUAL_LIBRARIES_ID, VIRTUAL_ICONS_ID, VIRTUAL_REMIX_ID]);
+const VIRTUAL_FOLDER_IDS = new Set([VIRTUAL_LIBRARIES_ID, VIRTUAL_ICONS_ID, VIRTUAL_REMIX_ID, VIRTUAL_STOCK_ID]);
 const isVirtualFolder = (id: string | null): boolean => id !== null && VIRTUAL_FOLDER_IDS.has(id);
+
+type StockProvider = 'all' | 'unsplash' | 'istock';
+
+interface StockImage {
+  id: string;
+  provider: 'unsplash' | 'istock';
+  title: string;
+  description?: string | null;
+  thumbnailUrl: string;
+  imageUrl: string;
+  width?: number | null;
+  height?: number | null;
+  author?: string | null;
+}
 
 interface FileManagerDialogProps {
   open: boolean;
@@ -597,6 +613,14 @@ export default function FileManagerDialog({
   const remixLoadMoreRef = useRef<HTMLDivElement>(null);
 
   const isRemixIconsView = selectedFolderId === VIRTUAL_REMIX_ID;
+  const isStockImagesView = selectedFolderId === VIRTUAL_STOCK_ID;
+
+  // Stock image library state
+  const [stockImages, setStockImages] = useState<StockImage[]>([]);
+  const [stockProvider, setStockProvider] = useState<StockProvider>('all');
+  const [stockProviders, setStockProviders] = useState<{ unsplash: boolean; istock: boolean }>({ unsplash: false, istock: false });
+  const [isLoadingStockImages, setIsLoadingStockImages] = useState(false);
+  const [importingStockImageId, setImportingStockImageId] = useState<string | null>(null);
 
   // Get folders and store actions
   const folders = useAssetsStore((state) => state.folders);
@@ -759,6 +783,83 @@ export default function FileManagerDialog({
     setEditAssetContent(icon.svg);
     setShowEditAssetDialog(true);
   }, []);
+
+  const loadStockImages = useCallback(async () => {
+    if (!isStockImagesView) return;
+
+    const query = debouncedSearch.trim();
+    if (!query) {
+      setStockImages([]);
+      return;
+    }
+
+    setIsLoadingStockImages(true);
+    try {
+      const params = new URLSearchParams({
+        query,
+        provider: stockProvider,
+        page: '1',
+        limit: '36',
+      });
+      const response = await fetch(appendQayEditorSiteParam(`/ycode/api/assets/stock?${params.toString()}`));
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to search stock images');
+      }
+
+      setStockImages(result.data || []);
+      setStockProviders(result.providers || { unsplash: false, istock: false });
+    } catch (error) {
+      console.error('Failed to search stock images:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to search stock images');
+      setStockImages([]);
+    } finally {
+      setIsLoadingStockImages(false);
+    }
+  }, [isStockImagesView, debouncedSearch, stockProvider]);
+
+  useEffect(() => {
+    loadStockImages();
+  }, [loadStockImages]);
+
+  const handleStockImageClick = useCallback(async (image: StockImage) => {
+    if (importingStockImageId) return;
+
+    setImportingStockImageId(`${image.provider}:${image.id}`);
+    try {
+      const response = await fetch(appendQayEditorSiteParam('/ycode/api/assets/stock'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: image.provider,
+          imageUrl: image.imageUrl,
+          thumbnailUrl: image.thumbnailUrl,
+          title: image.title,
+          width: image.width,
+          height: image.height,
+          author: image.author,
+          assetFolderId: null,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add stock image');
+      }
+
+      const asset = result.data as Asset;
+      addAsset(asset);
+      setAssets(prev => [asset, ...prev.filter((item) => item.id !== asset.id)]);
+      toast.success('Image added to media');
+      onAssetSelect?.(asset);
+    } catch (error) {
+      console.error('Failed to add stock image:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to add stock image');
+    } finally {
+      setImportingStockImageId(null);
+    }
+  }, [addAsset, importingStockImageId, onAssetSelect]);
 
   // Load assets when folder, search, or category changes
   const loadAssets = useCallback(async (page: number, reset: boolean = false) => {
@@ -2117,6 +2218,36 @@ export default function FileManagerDialog({
                           </span>
                         </div>
 
+                        {/* Stock images (child of Libraries) */}
+                        {!isLibrariesCollapsed && (() => {
+                          const isStockSelected = selectedFolderId === VIRTUAL_STOCK_ID;
+
+                          return (
+                            <div
+                              className={cn(
+                                'group relative flex items-center h-8 outline-none focus:outline-none rounded-lg cursor-pointer select-none',
+                                'hover:bg-secondary/50',
+                                isStockSelected && 'bg-primary text-primary-foreground hover:bg-primary',
+                                !isStockSelected && 'text-secondary-foreground/80 dark:text-muted-foreground'
+                              )}
+                              style={{ paddingLeft: '22px' }}
+                              onClick={() => setSelectedFolderId(VIRTUAL_STOCK_ID)}
+                            >
+                              <div className={cn('absolute z-10 top-0 bottom-0 w-px', isStockSelected ? 'bg-white/30' : 'bg-white/10')} style={{ left: '16px' }} />
+                              <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                                <div className="ml-px w-1.5 h-px bg-white opacity-0" />
+                              </div>
+                              <Icon
+                                name="image"
+                                className={`size-3 ml-1 mr-2 ${isStockSelected ? 'opacity-90' : 'opacity-50'}`}
+                              />
+                              <span className="grow text-xs font-medium overflow-hidden text-ellipsis whitespace-nowrap pointer-events-none">
+                                Stock images
+                              </span>
+                            </div>
+                          );
+                        })()}
+
                         {/* Icons (child of Libraries) */}
                         {!isLibrariesCollapsed && (() => {
                           const isIconsCollapsed = collapsedIds.has(VIRTUAL_ICONS_ID);
@@ -2224,6 +2355,12 @@ export default function FileManagerDialog({
                   </FileGridHeader>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-4">
                     <FileGridItem
+                      id={VIRTUAL_STOCK_ID}
+                      name="Stock images"
+                      type="folder"
+                      onClick={() => setSelectedFolderId(VIRTUAL_STOCK_ID)}
+                    />
+                    <FileGridItem
                       id={VIRTUAL_ICONS_ID}
                       name="Icons"
                       type="folder"
@@ -2238,6 +2375,118 @@ export default function FileManagerDialog({
                       }}
                     />
                   </div>
+                </>
+              ) : isStockImagesView ? (
+                <>
+                  <FileGridHeader isSticky>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <button
+                        onClick={() => setSelectedFolderId(VIRTUAL_LIBRARIES_ID)}
+                        className="hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        Libraries
+                      </button>
+                      <Icon name="chevronRight" className="size-2.5 opacity-50" />
+                      <span className="text-foreground font-medium">Stock images</span>
+                      {debouncedSearch.trim() && (
+                        <>
+                          <Icon name="chevronRight" className="size-2.5 opacity-50" />
+                          <span className="text-muted-foreground font-medium">
+                            &quot;{debouncedSearch}&quot;
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {(stockProviders.unsplash || stockProviders.istock) && (
+                        <span className="text-xs text-muted-foreground">
+                          {stockImages.length} {stockImages.length === 1 ? 'image' : 'images'}
+                        </span>
+                      )}
+                      <Select value={stockProvider} onValueChange={(value) => setStockProvider(value as StockProvider)}>
+                        <SelectTrigger className="h-7 text-xs w-32">
+                          <SelectValue placeholder="Provider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All sources</SelectItem>
+                          <SelectItem value="unsplash">Unsplash</SelectItem>
+                          <SelectItem value="istock">iStock</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </FileGridHeader>
+
+                  {!debouncedSearch.trim() ? (
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex-1 w-full flex-col flex gap-1 items-center justify-center text-center">
+                        <div>Search stock images</div>
+                        <div className="text-muted-foreground">
+                          Type a keyword above to search Unsplash and iStock.
+                        </div>
+                      </div>
+                      <div className="flex-1" />
+                    </div>
+                  ) : isLoadingStockImages ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <Spinner />
+                    </div>
+                  ) : !stockProviders.unsplash && !stockProviders.istock ? (
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex-1 w-full flex-col flex gap-1 items-center justify-center text-center">
+                        <div>Stock search is not connected</div>
+                        <div className="text-muted-foreground">
+                          Add UNSPLASH_ACCESS_KEY or ISTOCK_API_KEY to enable it.
+                        </div>
+                      </div>
+                      <div className="flex-1" />
+                    </div>
+                  ) : stockImages.length === 0 ? (
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex-1 w-full flex-col flex gap-1 items-center justify-center">
+                        <div>No stock images found</div>
+                        <div className="text-muted-foreground">Try a different keyword or source.</div>
+                      </div>
+                      <div className="flex-1" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-4">
+                      {stockImages.map((image) => {
+                        const importId = `${image.provider}:${image.id}`;
+                        const isImporting = importingStockImageId === importId;
+
+                        return (
+                          <div key={importId} className="flex flex-col gap-1.5 group">
+                            <button
+                              type="button"
+                              className="relative aspect-square bg-secondary/30 rounded-md flex items-center justify-center overflow-hidden hover:bg-secondary/60 cursor-pointer disabled:cursor-wait"
+                              onClick={() => handleStockImageClick(image)}
+                              disabled={Boolean(importingStockImageId)}
+                              title={`Add ${image.title}`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                className="relative w-full h-full object-cover pointer-events-none rounded-md z-10"
+                                src={image.thumbnailUrl}
+                                alt={image.title}
+                                loading="lazy"
+                              />
+                              <div className="absolute left-1.5 top-1.5 z-20 rounded bg-background/85 px-1.5 py-0.5 text-[10px] font-medium capitalize text-foreground shadow-sm">
+                                {image.provider}
+                              </div>
+                              {isImporting && (
+                                <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+                                  <Spinner className="size-8" />
+                                </div>
+                              )}
+                            </button>
+                            <span className="truncate max-w-full text-xs opacity-60 text-center" title={image.title}>
+                              {image.title}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               ) : selectedFolderId === VIRTUAL_ICONS_ID ? (
                 <>
