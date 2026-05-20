@@ -693,6 +693,10 @@ export default function HeaderBar({
 
       <div className="flex flex-col items-center gap-2">
         <RailButton
+          title="Upgrade" icon="zap"
+          onClick={() => router.push('/pricing')}
+        />
+        <RailButton
           title="Keyboard shortcuts" icon="code"
           onClick={() => setKeyboardShortcutsOpen(true)}
         />
