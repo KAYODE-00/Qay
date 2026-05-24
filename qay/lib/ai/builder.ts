@@ -248,6 +248,50 @@ export function normalizeAiLayers(value: unknown): Layer[] {
   return layers;
 }
 
+function getLayerText(layer: Layer): string[] {
+  const variables = layer.variables as Record<string, unknown> | undefined;
+  const textVariable = variables?.text;
+  const textContent =
+    isRecord(textVariable) && isRecord(textVariable.data) && typeof textVariable.data.content === 'string'
+      ? textVariable.data.content
+      : '';
+
+  return [
+    textContent,
+    ...(Array.isArray(layer.children) ? layer.children.flatMap((child) => getLayerText(child)) : []),
+  ].filter(Boolean);
+}
+
+function normalizeComparisonText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[#*_`>"'’“”.,:;!?()[\]{}-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function assertUsableAiLayers(layers: Layer[], userPrompt: string, mode: AiBuilderMode) {
+  const promptText = normalizeComparisonText(userPrompt);
+  const layerTexts = layers.flatMap((layer) => getLayerText(layer));
+  const combinedText = normalizeComparisonText(layerTexts.join(' '));
+
+  if (promptText.length > 300 && combinedText.includes(promptText.slice(0, 260))) {
+    throw new Error('AI echoed the prompt instead of returning a usable design.');
+  }
+
+  if (mode === 'selected') return;
+
+  const sectionLikeCount = layers
+    .flatMap(function flatten(layer): Layer[] {
+      return [layer, ...(Array.isArray(layer.children) ? layer.children.flatMap(flatten) : [])];
+    })
+    .filter((layer) => ['nav', 'section', 'footer'].includes(layer.name)).length;
+
+  if (sectionLikeCount < 2 || layerTexts.length < 4) {
+    throw new Error('AI response was not a usable design. Please try again.');
+  }
+}
+
 function buildPrompt({ prompt, mode = 'page', selectedLayers = [] }: GenerateAiLayersInput) {
   if (mode === 'selected') {
     return `Redesign the selected Ycode layer(s) below based on this instruction:
@@ -277,12 +321,17 @@ Return only the final valid JSON layer array.`;
 }
 
 export async function generateQayAiLayers(input: GenerateAiLayersInput): Promise<GenerateAiLayersResult> {
-  const providerResult = await callWithFallbackDetailed(
+  const providerResult = await callWithFallbackDetailed<Layer[]>(
     buildPrompt(input),
-    QAY_AI_BUILDER_SYSTEM_PROMPT
+    QAY_AI_BUILDER_SYSTEM_PROMPT,
+    (text) => {
+      const parsed = extractJsonArray(text);
+      const layers = normalizeAiLayers(parsed);
+      assertUsableAiLayers(layers, input.prompt, input.mode || 'page');
+      return layers;
+    }
   );
-  const parsed = extractJsonArray(providerResult.text);
-  const layers = normalizeAiLayers(parsed);
+  const layers = providerResult.value || normalizeAiLayers(extractJsonArray(providerResult.text));
 
   return {
     layers,
