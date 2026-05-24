@@ -19,6 +19,7 @@ type GenerateAiLayersResult = {
 
 const ALLOWED_LAYER_NAMES = new Set([
   'div',
+  'heading',
   'text',
   'richText',
   'image',
@@ -62,6 +63,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function inferTag(name: string) {
+  if (name === 'heading') return 'h2';
   if (name === 'text') return 'p';
   if (name === 'button') return 'button';
   if (name === 'image') return 'img';
@@ -118,7 +120,7 @@ function normalizeVariables(value: unknown, layerName: string) {
     variables.text = text;
   }
 
-  if (!text && (layerName === 'text' || layerName === 'button')) {
+  if (!text && (layerName === 'heading' || layerName === 'text' || layerName === 'button' || layerName === 'richText')) {
     variables.text = createDynamicTextVariable(layerName === 'button' ? 'Button' : 'Text');
   }
 
@@ -135,6 +137,18 @@ function normalizeVariables(value: unknown, layerName: string) {
   return variables;
 }
 
+function shouldEnableTextEditing(layerName: string, settings: Record<string, unknown>) {
+  const tag = toStringValue(settings.tag).toLowerCase();
+
+  return (
+    layerName === 'heading' ||
+    layerName === 'text' ||
+    layerName === 'button' ||
+    layerName === 'richText' ||
+    ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'a', 'button'].includes(tag)
+  );
+}
+
 function normalizeLayer(input: unknown, usedIds: Set<string>): Layer {
   const raw = isRecord(input) ? input : {};
   const rawName = toStringValue(raw.name, 'div');
@@ -145,21 +159,27 @@ function normalizeLayer(input: unknown, usedIds: Set<string>): Layer {
 
   const settings = sanitizePlainObject(raw.settings) || {};
   const attributes = sanitizePlainObject(raw.attributes);
+  const restrictions = sanitizePlainObject(raw.restrictions) || {};
   const children = Array.isArray(raw.children)
     ? raw.children.map((child) => normalizeLayer(child, usedIds))
     : undefined;
+  const normalizedSettings = {
+    tag: toStringValue((settings as { tag?: unknown }).tag, inferTag(name)),
+    ...settings,
+  };
 
   return {
     id: safeId,
     name,
     customName: toStringValue(raw.customName) || undefined,
-    settings: {
-      tag: toStringValue((settings as { tag?: unknown }).tag, inferTag(name)),
-      ...settings,
-    },
+    settings: normalizedSettings,
     attributes,
     classes: sanitizeClasses(raw.classes),
     design: sanitizePlainObject(raw.design),
+    restrictions: {
+      ...restrictions,
+      ...(shouldEnableTextEditing(name, normalizedSettings) ? { editText: true } : {}),
+    },
     variables: normalizeVariables(raw.variables, name) as Layer['variables'],
     children,
   };
