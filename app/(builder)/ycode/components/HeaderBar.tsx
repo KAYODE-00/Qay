@@ -36,6 +36,7 @@ import { readQayEditorSiteIdFromBrowser, readQayEditorSiteSlugFromBrowser } from
 import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 import { getQaySiteBaseUrl } from '@/qay/lib/site-url';
 import type { QaySite } from '@/qay/types';
+import AiBuilderPanel from '@/qay/components/AiBuilderPanel';
 
 interface HeaderBarProps {
   user: User | null;
@@ -195,6 +196,7 @@ export default function HeaderBar({
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [currentQaySiteSlug, setCurrentQaySiteSlug] = useState<string | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [isAiBuilderOpen, setIsAiBuilderOpen] = useState(false);
 
   // Get current host after mount
   useEffect(() => {
@@ -659,6 +661,11 @@ export default function HeaderBar({
           title="Forms" icon="form"
           active={activeNavButton === 'forms'} onClick={goToForms}
         />
+        <RailButton
+          title="AI Builder" icon="zap"
+          active={isAiBuilderOpen}
+          onClick={() => setIsAiBuilderOpen((current) => !current)}
+        />
 
         <div className="my-2 h-px w-8 bg-border" />
 
@@ -725,6 +732,10 @@ export default function HeaderBar({
     <BackupRestoreDialog
       open={showTransferDialog}
       onOpenChange={setShowTransferDialog}
+    />
+    <AiBuilderPanel
+      open={isAiBuilderOpen}
+      onOpenChange={setIsAiBuilderOpen}
     />
     </>
   );
