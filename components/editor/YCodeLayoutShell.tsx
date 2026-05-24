@@ -22,6 +22,8 @@ import { usePagesStore, resetPagesStoreTransientState } from '@/stores/usePagesS
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useVersionsStore } from '@/stores/useVersionsStore';
 
+let lastEditorSiteIdForStoreReset: string | null | undefined;
+
 function YCodeLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -37,9 +39,16 @@ function YCodeLayoutInner({ children }: { children: React.ReactNode }) {
   }, [initialize]);
 
   useEffect(() => {
-    if (previousQaySiteId.current === qaySiteId) return;
+    if (
+      previousQaySiteId.current === qaySiteId ||
+      (lastEditorSiteIdForStoreReset !== undefined && lastEditorSiteIdForStoreReset === qaySiteId)
+    ) {
+      previousQaySiteId.current = qaySiteId;
+      return;
+    }
 
     previousQaySiteId.current = qaySiteId;
+    lastEditorSiteIdForStoreReset = qaySiteId;
     resetPagesStoreTransientState();
     Object.values(useComponentsStore.getState().saveTimeouts).forEach((timeoutId) => clearTimeout(timeoutId));
     usePagesStore.setState({
