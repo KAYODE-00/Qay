@@ -60,7 +60,7 @@ async function findOrCreateImportPage(siteId: string) {
     const slug = isFirstSitePage ? 'index' : `import-${Date.now().toString(36)}`;
     const [page] = await knex('pages')
       .insert({
-        name: 'Imported HTML',
+        name: isFirstSitePage ? 'Homepage' : 'Imported HTML',
         slug,
         order: 0,
         depth: 0,
