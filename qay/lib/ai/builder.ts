@@ -270,12 +270,42 @@ function normalizeComparisonText(value: string) {
     .trim();
 }
 
+function hasInstructionLeak(value: string) {
+  const normalized = normalizeComparisonText(value);
+  const blockedPhrases = [
+    'act as an elite frontend engineer',
+    'visual aesthetic guidelines',
+    'core architecture sections',
+    'technical engineering requirements',
+    'build a high level production ready',
+    'theme minimalist ultra high contrast',
+    'placeholder project a',
+    'placeholder project b',
+    'ensure the layout is flawlessly responsive',
+    'the entire template should be self contained',
+  ];
+
+  return blockedPhrases.some((phrase) => normalized.includes(phrase));
+}
+
+function promptOverlapScore(promptText: string, combinedText: string) {
+  const promptWords = Array.from(new Set(promptText.split(' ').filter((word) => word.length > 5)));
+  if (promptWords.length === 0) return 0;
+
+  const matchedWords = promptWords.filter((word) => combinedText.includes(word));
+  return matchedWords.length / promptWords.length;
+}
+
 function assertUsableAiLayers(layers: Layer[], userPrompt: string, mode: AiBuilderMode) {
   const promptText = normalizeComparisonText(userPrompt);
   const layerTexts = layers.flatMap((layer) => getLayerText(layer));
   const combinedText = normalizeComparisonText(layerTexts.join(' '));
 
-  if (promptText.length > 300 && combinedText.includes(promptText.slice(0, 260))) {
+  if (
+    hasInstructionLeak(layerTexts.join(' ')) ||
+    (promptText.length > 300 && combinedText.includes(promptText.slice(0, 180))) ||
+    (promptText.length > 500 && promptOverlapScore(promptText, combinedText) > 0.62)
+  ) {
     throw new Error('AI echoed the prompt instead of returning a usable design.');
   }
 
