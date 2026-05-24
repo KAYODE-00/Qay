@@ -109,7 +109,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
         const aiPayload = await aiResponse.json();
 
         if (!aiResponse.ok || !aiPayload.data?.layers) {
-          setError(aiPayload.error || 'QAY could not build this site.');
+          setError(aiPayload.error || 'We could not build this site.');
           return;
         }
 
@@ -122,7 +122,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
         const applyPayload = await applyResponse.json();
 
         if (!applyResponse.ok) {
-          setError(applyPayload.error || 'QAY created the site but could not apply the AI design.');
+          setError(applyPayload.error || 'The site was created, but the design could not be applied.');
           return;
         }
       }
@@ -376,7 +376,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
                   {creationMode === 'ai' ? 'Build with AI' : 'Create new site'}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {creationMode === 'ai' ? 'Describe the site and QAY will draft the first page.' : 'Each site opens in its own editor.'}
+                  {creationMode === 'ai' ? 'Describe the site and we’ll draft the first page.' : 'Start with a blank site and customize it your way.'}
                 </p>
               </div>
               <button
@@ -418,7 +418,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
 
               {creationMode === 'ai' && (
                 <label className="block space-y-2 text-sm text-muted-foreground">
-                  <span>What should QAY build?</span>
+                  <span>What should we build?</span>
                   <textarea
                     value={aiPrompt}
                     onChange={(event) => setAiPrompt(event.target.value)}
@@ -431,7 +431,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
               )}
 
               <p className="text-sm text-muted-foreground">
-                {creationMode === 'ai' ? 'You can refine every layer in the editor after QAY creates the draft.' : 'QAY will create a short site URL automatically.'}
+                {creationMode === 'ai' ? 'You can refine the layout and content after the first draft is ready.' : 'A short site URL will be created automatically.'}
               </p>
 
               {creationStatus && <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">{creationStatus}</p>}

@@ -38,7 +38,7 @@ export default async function SiteSettingsPage({ params }: PageProps) {
 
         <section className="mt-8 rounded-lg border border-white/10 bg-white/[0.03] p-6">
           <h1 className="text-2xl font-semibold tracking-normal">{site.name}</h1>
-          <p className="mt-2 text-sm text-white/55">Site settings are managed through QAY APIs.</p>
+          <p className="mt-2 text-sm text-white/55">Manage your site details, publishing, and domain options.</p>
 
           <dl className="mt-8 grid gap-4 sm:grid-cols-2">
             <div className="rounded-md border border-white/10 bg-black p-4">

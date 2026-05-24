@@ -176,7 +176,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       const body = (await response.json()) as GenerateResponse;
 
       if (!response.ok || !body.data) {
-        throw new Error(body.error || 'QAY could not generate this design.');
+        throw new Error(body.error || 'We could not generate this design.');
       }
 
       applyGeneratedLayers(body.data.layers);
@@ -188,7 +188,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         createdAt: new Date().toISOString(),
       });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'QAY could not generate this design.');
+      setError(caught instanceof Error ? caught.message : 'We could not generate this design.');
       setStatus('');
     } finally {
       setIsGenerating(false);

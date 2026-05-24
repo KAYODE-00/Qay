@@ -11,8 +11,8 @@ function DashboardSetupNotice({ message }: { message: string }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#0a0a0a] px-6 text-white">
       <section className="w-full max-w-xl rounded-lg border border-white/10 bg-white/[0.03] p-6">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/45">QAY setup</p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-normal">Database setup needs attention</h1>
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/45">QAY</p>
+        <h1 className="mt-3 text-2xl font-semibold tracking-normal">Dashboard is almost ready</h1>
         <p className="mt-3 text-sm leading-6 text-white/65">{message}</p>
       </section>
     </main>
@@ -26,7 +26,8 @@ export default async function DashboardPage() {
   try {
     supabase = getQayAdmin() as any;
   } catch (error) {
-    return <DashboardSetupNotice message={error instanceof Error ? error.message : 'QAY could not read Supabase configuration.'} />;
+    console.error('QAY dashboard configuration failed:', error);
+    return <DashboardSetupNotice message="We could not load your dashboard right now. Please try again in a moment." />;
   }
 
   let { data, error } = await supabase
@@ -59,7 +60,8 @@ export default async function DashboardPage() {
   }
 
   if (error) {
-    return <DashboardSetupNotice message={error.message} />;
+    console.error('QAY dashboard load failed:', error.message);
+    return <DashboardSetupNotice message="We could not load your dashboard right now. Please try again in a moment." />;
   }
 
   const pendingInvites = await getPendingClientInvites(user.email);
