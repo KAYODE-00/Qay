@@ -1,7 +1,8 @@
-type ProviderResult = {
+type ProviderResult<T = unknown> = {
   text: string;
   provider: string;
   model: string;
+  value?: T;
 };
 
 type AiProvider = {
@@ -232,12 +233,20 @@ function canTryNextProvider(error: unknown) {
     message.includes('upgrade') ||
     message.includes('not found') ||
     message.includes('not supported') ||
+    message.includes('did not contain a json') ||
+    message.includes('invalid layer json') ||
+    message.includes('echoed the prompt') ||
+    message.includes('not a usable design') ||
     message.includes('overloaded') ||
     message.includes('temporarily unavailable')
   );
 }
 
-export async function callWithFallbackDetailed(prompt: string, system: string): Promise<ProviderResult> {
+export async function callWithFallbackDetailed<T = unknown>(
+  prompt: string,
+  system: string,
+  validate?: (text: string) => T
+): Promise<ProviderResult<T>> {
   const available = PROVIDERS.filter((provider) => provider.available());
   const failures: string[] = [];
 
@@ -245,8 +254,9 @@ export async function callWithFallbackDetailed(prompt: string, system: string): 
     try {
       console.log(`[AI] Trying ${provider.name}...`);
       const text = await provider.call(prompt, system);
+      const value = validate ? validate(text) : undefined;
       console.log(`[AI] Success with ${provider.name}`);
-      return { text, provider: provider.name, model: provider.model };
+      return { text, provider: provider.name, model: provider.model, value };
     } catch (error) {
       failures.push(`${provider.name}: ${getErrorMessage(error)}`);
 
