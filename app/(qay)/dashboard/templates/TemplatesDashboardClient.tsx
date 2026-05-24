@@ -413,7 +413,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                   {selectedTemplate ? 'Create project from template' : 'Create site'}
                 </h2>
                 <p className="mt-1 text-sm text-white/55">
-                  {selectedTemplate ? `QAY will clone ${selectedTemplate.name} into a new dashboard project.` : 'Create a site for HTML imports.'}
+                  {selectedTemplate ? `We’ll start a fresh site from ${selectedTemplate.name}.` : 'Create a new site for your import.'}
                 </p>
               </div>
               <button
@@ -439,7 +439,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                   className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
                 />
               </label>
-              <p className="text-sm text-white/55">QAY will create a short site URL automatically.</p>
+              <p className="text-sm text-white/55">A short site URL will be created automatically.</p>
               <button
                 type="submit"
                 disabled={isApplying}
@@ -464,7 +464,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold tracking-normal">Name imported site</h2>
-                <p className="mt-1 text-sm text-white/55">QAY will create a separate project for this HTML import.</p>
+                <p className="mt-1 text-sm text-white/55">Your imported site will open as a fresh site.</p>
               </div>
               <button
                 type="button"

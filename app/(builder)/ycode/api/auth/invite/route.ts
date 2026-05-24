@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const { email, siteId, role = 'client' } = body;
 
     if (!email || !siteId) {
-      return noCache({ error: 'Email and site ID are required' }, 400);
+      return noCache({ error: 'Email and site are required' }, 400);
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
