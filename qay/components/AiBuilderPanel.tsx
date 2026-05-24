@@ -88,6 +88,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
   const [mode, setMode] = useState<AiMode>('selected');
   const [prompt, setPrompt] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -266,26 +267,36 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
 
         {history.length > 0 ? (
           <div className="space-y-2">
-            <div className="text-xs font-medium text-muted-foreground">Site history</div>
-            <div className="space-y-2">
-              {history.map((entry) => (
-                <button
-                  type="button"
-                  key={`${entry.createdAt}-${entry.mode}-${entry.prompt}`}
-                  onClick={() => {
-                    setPrompt(entry.prompt);
-                    setMode(entry.mode);
-                  }}
-                  className="w-full rounded-lg border border-border px-3 py-2 text-left text-xs transition hover:bg-accent hover:text-accent-foreground"
-                >
-                  <div className="line-clamp-2 text-foreground">{entry.prompt}</div>
-                  <div className="mt-1 flex items-center gap-2 text-muted-foreground">
-                    <span>{entry.mode === 'selected' ? 'Selected' : 'Page'}</span>
-                    <span>{formatHistoryDate(entry.createdAt)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsHistoryOpen((current) => !current)}
+              className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+            >
+              <span>Site history</span>
+              <Icon name={isHistoryOpen ? 'chevronUp' : 'chevronDown'} className="size-3" />
+            </button>
+
+            {isHistoryOpen ? (
+              <div className="space-y-2">
+                {history.map((entry) => (
+                  <button
+                    type="button"
+                    key={`${entry.createdAt}-${entry.mode}-${entry.prompt}`}
+                    onClick={() => {
+                      setPrompt(entry.prompt);
+                      setMode(entry.mode);
+                    }}
+                    className="w-full rounded-lg border border-border px-3 py-2 text-left text-xs transition hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <div className="line-clamp-2 text-foreground">{entry.prompt}</div>
+                    <div className="mt-1 flex items-center gap-2 text-muted-foreground">
+                      <span>{entry.mode === 'selected' ? 'Selected' : 'Page'}</span>
+                      <span>{formatHistoryDate(entry.createdAt)}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
