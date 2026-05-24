@@ -66,7 +66,10 @@ export function TemplatesDashboardClient({ profile }: Props) {
   const [isApplying, setIsApplying] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isImportNameOpen, setIsImportNameOpen] = useState(false);
   const [siteName, setSiteName] = useState('');
+  const [importSiteName, setImportSiteName] = useState('');
+  const [pendingImportHtml, setPendingImportHtml] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -175,20 +178,31 @@ export function TemplatesDashboardClient({ profile }: Props) {
     }
   }
 
-  async function handleImportHtml(html: string) {
+  function handleImportHtml(html: string) {
+    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+    const importedName = titleMatch?.[1]?.replace(/\s+/g, ' ').trim() || 'Imported site';
+    setPendingImportHtml(html);
+    setImportSiteName(importedName);
+    setError(null);
+    setNotice(null);
+    setIsImportNameOpen(true);
+  }
+
+  async function importHtmlIntoNewSite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setIsApplying(true);
     setError(null);
     setNotice(null);
 
     try {
+      const html = pendingImportHtml;
       const layers = htmlToLayers(html);
 
       if (layers.length === 0) {
         throw new Error('No valid HTML elements found');
       }
 
-      const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-      const importedName = titleMatch?.[1]?.replace(/\s+/g, ' ').trim() || 'Imported HTML';
+      const importedName = importSiteName.trim() || 'Imported site';
       const siteResponse = await fetch('/api/qay/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -213,6 +227,9 @@ export function TemplatesDashboardClient({ profile }: Props) {
         throw new Error(payload.error || 'Failed to import HTML');
       }
 
+      setIsImportNameOpen(false);
+      setPendingImportHtml('');
+      setImportSiteName('');
       window.location.assign(`/dashboard/sites/${site.id}/editor`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import HTML');
@@ -440,6 +457,49 @@ export function TemplatesDashboardClient({ profile }: Props) {
         onOpenChange={setIsImportOpen}
         onImport={handleImportHtml}
       />
+
+      {isImportNameOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <form onSubmit={importHtmlIntoNewSite} className="w-full max-w-md rounded-lg border border-white/10 bg-[#101010] p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold tracking-normal">Name imported site</h2>
+                <p className="mt-1 text-sm text-white/55">QAY will create a separate project for this HTML import.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImportNameOpen(false);
+                  setPendingImportHtml('');
+                  setImportSiteName('');
+                }}
+                className="rounded-md px-2 py-1 text-sm text-white/50 hover:bg-white/5 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <label className="block space-y-2 text-sm text-white/75">
+                <span>Site name</span>
+                <input
+                  value={importSiteName}
+                  onChange={(event) => setImportSiteName(event.target.value)}
+                  required
+                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={isApplying}
+                className="h-11 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isApplying ? 'Importing...' : 'Import and open editor'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       </div>
     </main>
   );
