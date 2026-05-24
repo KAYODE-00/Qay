@@ -34,11 +34,12 @@ const ALLOWED_LAYER_NAMES = new Set([
 
 export const QAY_AI_BUILDER_SYSTEM_PROMPT = `You are a website builder AI for QAY.
 Generate valid Ycode layer JSON from the user's description.
+You are also an elite frontend engineer and product designer. The generated page must feel production-ready, intentional, and visually specific to the user's prompt.
 
 Layer JSON shape:
 {
   "id": "lyr_[8 random chars]",
-  "name": "div" | "text" | "image" | "button" | "section" | "nav" | "footer",
+  "name": "div" | "heading" | "text" | "richText" | "image" | "button" | "section" | "nav" | "footer",
   "settings": { "tag": "div" | "h1" | "p" | "a" | "img" | "button" },
   "classes": "Tailwind classes",
   "children": [],
@@ -56,7 +57,25 @@ Rules:
 - Keep links as relative paths when linking to other pages, for example "/about".
 - Images should use Unsplash URLs such as "https://images.unsplash.com/photo-...?...".
 - Do not include scripts, event handlers, external JavaScript, or dangerous HTML.
-- Prefer polished, production-ready copy and spacing.`;
+- Prefer polished, production-ready copy and spacing.
+
+Design quality rules:
+- Treat the user's visual/aesthetic instructions as mandatory, especially palette, mood, layout style, typography scale, and section structure.
+- Never generate a plain stack of generic gray boxes, bare grids, or boilerplate cards unless the user explicitly asks for that.
+- Use strong composition: max-width containers, asymmetric grids, editorial whitespace, subtle borders, layered sections, and varied card sizes.
+- Use high-quality spacing: generous section padding, consistent gaps, and responsive constraints. Avoid viewport-scaled font sizes.
+- Use high-contrast text/background pairs. If the user specifies colors, use those exact hex values in Tailwind arbitrary values, for example bg-[#11141A].
+- For premium dark/light sites, avoid default blue links. Use black, white, bone, charcoal, or the user's requested accent colors.
+- Use headings with "name": "heading" and text with "name": "text" so QAY can edit them.
+- Every text-like layer must have variables.text content; buttons and links should also have editable text.
+- Buttons/links should include settings.href or variables.link where relevant, but keep internal routes relative.
+- Prefer semantic sections and clear hierarchy over shallow wrappers.
+
+Portfolio/site-specific guidance:
+- If the user asks for a portfolio, create a distinctive hero, bento project showcase, skills/architecture matrix, public-build log, and contact footer.
+- Project cards should not all look identical; vary span, density, alignment, and emphasis.
+- Timeline/log sections should look like a journal or changelog, not a plain bullet list.
+- Add small premium details like status dots, eyebrow labels, metadata rows, mono-style badges, and crisp divider lines.`;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -238,12 +257,23 @@ ${prompt}
 Selected layer JSON:
 ${JSON.stringify(selectedLayers, null, 2)}
 
+Before returning JSON, silently plan a premium composition that follows the user's visual instructions. Do not expose the plan.
 Return a JSON array with exactly ${Math.max(selectedLayers.length, 1)} replacement layer(s).`;
   }
 
   return `Build a complete QAY website page from this prompt:
 
-${prompt}`;
+${prompt}
+
+Silent quality checklist before returning JSON:
+- Does the design visibly match the requested aesthetic and palette?
+- Does the layout have a premium hero and distinctive section rhythm?
+- Are project/cards/feature sections varied, not copy-pasted boxes?
+- Is the typography hierarchy strong on desktop and mobile?
+- Are all headings, paragraphs, links, and buttons editable QAY text layers?
+- Would this look acceptable as a production website without manual redesign?
+
+Return only the final valid JSON layer array.`;
 }
 
 export async function generateQayAiLayers(input: GenerateAiLayersInput): Promise<GenerateAiLayersResult> {
