@@ -379,6 +379,10 @@ async function getAccessibleSite(siteId: string, userId: string): Promise<Client
   }
 
   if (ownedSite) {
+    if (ownedSite.publish_status !== 'published') {
+      return null;
+    }
+
     return { ...withResolvedQayLiveUrl(ownedSite), access_role: 'owner' };
   }
 
@@ -407,7 +411,11 @@ async function getAccessibleSite(siteId: string, userId: string): Promise<Client
     throw new Error(siteError.message);
   }
 
-  return site ? { ...withResolvedQayLiveUrl(site), access_role: 'member' } : null;
+  if (!site || site.publish_status !== 'published') {
+    return null;
+  }
+
+  return { ...withResolvedQayLiveUrl(site), access_role: 'member' };
 }
 
 export async function getClientAccessibleSites(userId: string): Promise<ClientAccessibleSite[]> {
@@ -418,6 +426,7 @@ export async function getClientAccessibleSites(userId: string): Promise<ClientAc
       .from('qay_sites')
       .select('id, name, slug, custom_domain, domain_verified, publish_status, thumbnail_url, updated_at, live_url')
       .eq('owner_id', userId)
+      .eq('publish_status', 'published')
       .order('updated_at', { ascending: false }),
     supabase
       .from('qay_site_members')
@@ -441,6 +450,7 @@ export async function getClientAccessibleSites(userId: string): Promise<ClientAc
       .from('qay_sites')
       .select('id, name, slug, custom_domain, domain_verified, publish_status, thumbnail_url, updated_at, live_url')
       .in('id', memberSiteIds)
+      .eq('publish_status', 'published')
       .order('updated_at', { ascending: false });
 
     if (error) {
