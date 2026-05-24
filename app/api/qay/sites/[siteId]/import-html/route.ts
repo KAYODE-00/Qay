@@ -50,19 +50,21 @@ async function findOrCreateImportPage(siteId: string) {
       .orderBy('is_index', 'desc')
       .orderBy('created_at', 'asc');
 
-    const existing = pages.find((page) => page.settings?.qay_site_id === siteId);
+    const sitePages = pages.filter((page) => page.settings?.qay_site_id === siteId);
+    const existing = sitePages[0];
     if (existing) {
       return existing.id as string;
     }
 
-    const slug = `import-${Date.now().toString(36)}`;
+    const isFirstSitePage = sitePages.length === 0;
+    const slug = isFirstSitePage ? 'index' : `import-${Date.now().toString(36)}`;
     const [page] = await knex('pages')
       .insert({
         name: 'Imported HTML',
         slug,
         order: 0,
         depth: 0,
-        is_index: false,
+        is_index: isFirstSitePage,
         is_dynamic: false,
         error_page: null,
         settings: { qay_site_id: siteId },

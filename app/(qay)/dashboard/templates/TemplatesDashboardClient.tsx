@@ -57,9 +57,7 @@ function DashboardNavItem({
   );
 }
 
-export function TemplatesDashboardClient({ initialSites, profile }: Props) {
-  const [sites, setSites] = useState(initialSites);
-  const [selectedSiteId, setSelectedSiteId] = useState(initialSites[0]?.id ?? '');
+export function TemplatesDashboardClient({ profile }: Props) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -72,7 +70,6 @@ export function TemplatesDashboardClient({ initialSites, profile }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedSite = sites.find((site) => site.id === selectedSiteId) ?? null;
   useEffect(() => {
     async function loadTemplates() {
       try {
@@ -164,8 +161,6 @@ export function TemplatesDashboardClient({ initialSites, profile }: Props) {
       }
 
       const site = payload.data as QaySite;
-      setSites((current) => [site, ...current]);
-      setSelectedSiteId(site.id);
       setIsCreateOpen(false);
       setSiteName('');
 
@@ -181,12 +176,6 @@ export function TemplatesDashboardClient({ initialSites, profile }: Props) {
   }
 
   async function handleImportHtml(html: string) {
-    if (!selectedSite) {
-      setNotice('Create or select a site before importing HTML.');
-      setIsCreateOpen(true);
-      return;
-    }
-
     setIsApplying(true);
     setError(null);
     setNotice(null);
@@ -198,7 +187,22 @@ export function TemplatesDashboardClient({ initialSites, profile }: Props) {
         throw new Error('No valid HTML elements found');
       }
 
-      const response = await fetch(`/api/qay/sites/${selectedSite.id}/import-html`, {
+      const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+      const importedName = titleMatch?.[1]?.replace(/\s+/g, ' ').trim() || 'Imported HTML';
+      const siteResponse = await fetch('/api/qay/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: importedName, skipDefaultPages: true }),
+      });
+      const sitePayload = await siteResponse.json();
+
+      if (!siteResponse.ok) {
+        throw new Error(sitePayload.error || 'Unable to create site for import');
+      }
+
+      const site = sitePayload.data as QaySite;
+
+      const response = await fetch(`/api/qay/sites/${site.id}/import-html`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ layers }),
@@ -209,7 +213,7 @@ export function TemplatesDashboardClient({ initialSites, profile }: Props) {
         throw new Error(payload.error || 'Failed to import HTML');
       }
 
-      window.location.assign(`/dashboard/sites/${selectedSite.id}/editor`);
+      window.location.assign(`/dashboard/sites/${site.id}/editor`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import HTML');
     } finally {
@@ -273,23 +277,11 @@ export function TemplatesDashboardClient({ initialSites, profile }: Props) {
           <div>
             <h1 className="text-3xl font-semibold tracking-normal">Templates</h1>
             <p className="mt-2 max-w-2xl text-sm text-white/55">
-              Clone a template into a new QAY project or import HTML into an existing site.
+              Clone a template or import pasted HTML into a new QAY project.
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <select
-              value={selectedSiteId}
-              onChange={(event) => setSelectedSiteId(event.target.value)}
-              className="h-10 min-w-56 rounded-md border border-white/15 bg-black px-3 text-sm text-white outline-none focus:border-white"
-            >
-              <option value="">Select site</option>
-              {sites.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name}
-                </option>
-              ))}
-            </select>
             <button
               type="button"
               onClick={() => setIsCreateOpen(true)}
