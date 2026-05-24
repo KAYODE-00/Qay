@@ -44,6 +44,10 @@ function collectGeminiText(parts: Array<{ text?: string }> | undefined) {
   return (parts || []).map((part) => part.text || '').join('\n').trim();
 }
 
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/free';
+
 export const PROVIDERS: AiProvider[] = [
   {
     name: 'claude',
@@ -111,7 +115,7 @@ export const PROVIDERS: AiProvider[] = [
   },
   {
     name: 'groq',
-    model: 'llama-3.3-70b-versatile',
+    model: GROQ_MODEL,
     apiKey: process.env.GROQ_API_KEY,
     available: () => Boolean(process.env.GROQ_API_KEY),
     call: async (prompt: string, system: string) => {
@@ -122,7 +126,7 @@ export const PROVIDERS: AiProvider[] = [
           authorization: `Bearer ${process.env.GROQ_API_KEY || ''}`,
         },
         body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
+          model: GROQ_MODEL,
           temperature: 0.35,
           messages: [
             { role: 'system', content: system },
@@ -140,13 +144,45 @@ export const PROVIDERS: AiProvider[] = [
     },
   },
   {
+    name: 'openrouter',
+    model: OPENROUTER_MODEL,
+    apiKey: process.env.OPENROUTER_API_KEY,
+    available: () => Boolean(process.env.OPENROUTER_API_KEY),
+    call: async (prompt: string, system: string) => {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ''}`,
+          'http-referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://qay.app',
+          'x-title': 'QAY AI Builder',
+        },
+        body: JSON.stringify({
+          model: OPENROUTER_MODEL,
+          temperature: 0.35,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt },
+          ],
+        }),
+      });
+
+      await assertOk(response);
+      const body = await readJsonResponse(response);
+      const text = body?.choices?.[0]?.message?.content?.trim();
+
+      if (!text) throw new Error('OpenRouter returned an empty response.');
+      return text;
+    },
+  },
+  {
     name: 'gemini',
-    model: 'gemini-1.5-pro',
+    model: GEMINI_MODEL,
     apiKey: process.env.GEMINI_API_KEY,
     available: () => Boolean(process.env.GEMINI_API_KEY),
     call: async (prompt: string, system: string) => {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY || '')}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY || '')}`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -194,6 +230,8 @@ function canTryNextProvider(error: unknown) {
     message.includes('insufficient') ||
     message.includes('too low') ||
     message.includes('upgrade') ||
+    message.includes('not found') ||
+    message.includes('not supported') ||
     message.includes('overloaded') ||
     message.includes('temporarily unavailable')
   );
@@ -222,7 +260,7 @@ export async function callWithFallbackDetailed(prompt: string, system: string): 
   }
 
   if (available.length === 0) {
-    throw new Error('No AI provider is configured. Add an Anthropic, OpenAI, Groq, or Gemini API key.');
+    throw new Error('No AI provider is configured. Add an Anthropic, OpenAI, Groq, OpenRouter, or Gemini API key.');
   }
 
   throw new Error(`All AI providers failed or are rate limited. ${failures.join(' | ')}`);
