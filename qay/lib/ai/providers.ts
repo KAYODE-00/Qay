@@ -110,6 +110,36 @@ export const PROVIDERS: AiProvider[] = [
     },
   },
   {
+    name: 'groq',
+    model: 'llama-3.3-70b-versatile',
+    apiKey: process.env.GROQ_API_KEY,
+    available: () => Boolean(process.env.GROQ_API_KEY),
+    call: async (prompt: string, system: string) => {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${process.env.GROQ_API_KEY || ''}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          temperature: 0.35,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt },
+          ],
+        }),
+      });
+
+      await assertOk(response);
+      const body = await readJsonResponse(response);
+      const text = body?.choices?.[0]?.message?.content?.trim();
+
+      if (!text) throw new Error('Groq returned an empty response.');
+      return text;
+    },
+  },
+  {
     name: 'gemini',
     model: 'gemini-1.5-pro',
     apiKey: process.env.GEMINI_API_KEY,
@@ -157,6 +187,13 @@ function canTryNextProvider(error: unknown) {
     status === 503 ||
     message.includes('rate') ||
     message.includes('quota') ||
+    message.includes('credit') ||
+    message.includes('balance') ||
+    message.includes('billing') ||
+    message.includes('payment') ||
+    message.includes('insufficient') ||
+    message.includes('too low') ||
+    message.includes('upgrade') ||
     message.includes('overloaded') ||
     message.includes('temporarily unavailable')
   );
@@ -185,7 +222,7 @@ export async function callWithFallbackDetailed(prompt: string, system: string): 
   }
 
   if (available.length === 0) {
-    throw new Error('No AI provider is configured. Add an Anthropic, OpenAI, or Gemini API key.');
+    throw new Error('No AI provider is configured. Add an Anthropic, OpenAI, Groq, or Gemini API key.');
   }
 
   throw new Error(`All AI providers failed or are rate limited. ${failures.join(' | ')}`);
