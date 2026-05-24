@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState, type ReactNode } from 'react';
-import { Bell, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Trash2, UserPlus } from 'lucide-react';
+import { Bell, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Sparkles, Trash2, UserPlus } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
 import type { QaySite } from '@/qay/types';
@@ -62,7 +62,10 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
   const [sites, setSites] = useState(initialSites);
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [creationMode, setCreationMode] = useState<'blank' | 'ai'>('blank');
   const [siteName, setSiteName] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [creationStatus, setCreationStatus] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,8 +77,16 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
     event.preventDefault();
     setIsCreating(true);
     setError(null);
+    setCreationStatus(creationMode === 'ai' ? 'Creating site...' : '');
 
     try {
+      const prompt = aiPrompt.trim();
+
+      if (creationMode === 'ai' && !prompt) {
+        setError('Describe the site you want QAY to build.');
+        return;
+      }
+
       const response = await fetch('/api/qay/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -88,11 +99,40 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
         return;
       }
 
+      if (creationMode === 'ai') {
+        setCreationStatus('Building with AI...');
+        const aiResponse = await fetch('/api/qay/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, mode: 'page' }),
+        });
+        const aiPayload = await aiResponse.json();
+
+        if (!aiResponse.ok || !aiPayload.data?.layers) {
+          setError(aiPayload.error || 'QAY could not build this site.');
+          return;
+        }
+
+        setCreationStatus('Preparing editor...');
+        const applyResponse = await fetch(`/api/qay/ai/sites/${payload.data.id}/apply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ layers: aiPayload.data.layers }),
+        });
+        const applyPayload = await applyResponse.json();
+
+        if (!applyResponse.ok) {
+          setError(applyPayload.error || 'QAY created the site but could not apply the AI design.');
+          return;
+        }
+      }
+
       window.location.assign(`/dashboard/sites/${payload.data.id}/editor`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create site');
     } finally {
       setIsCreating(false);
+      setCreationStatus('');
     }
   }
 
@@ -162,7 +202,21 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
             </a>
             <button
               type="button"
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setCreationMode('ai');
+                setIsModalOpen(true);
+              }}
+              className="hidden h-10 items-center gap-2 rounded-md border border-border px-4 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground sm:inline-flex"
+            >
+              <Sparkles className="size-4" />
+              Build with AI
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCreationMode('blank');
+                setIsModalOpen(true);
+              }}
               className="inline-flex h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90"
             >
               <Plus className="size-4" />
@@ -301,7 +355,10 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
 
           <button
             type="button"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setCreationMode('blank');
+              setIsModalOpen(true);
+            }}
             className="flex min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
           >
             <Plus className="mb-3 size-6" />
@@ -315,8 +372,12 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
           <form onSubmit={createSite} className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold tracking-normal">Create new site</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Each site opens in its own editor.</p>
+                <h2 className="text-xl font-semibold tracking-normal">
+                  {creationMode === 'ai' ? 'Build with AI' : 'Create new site'}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {creationMode === 'ai' ? 'Describe the site and QAY will draft the first page.' : 'Each site opens in its own editor.'}
+                </p>
               </div>
               <button
                 type="button"
@@ -328,6 +389,23 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
             </div>
 
             <div className="mt-6 space-y-4">
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-muted/40 p-1">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode('blank')}
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition ${creationMode === 'blank' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Blank
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreationMode('ai')}
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition ${creationMode === 'ai' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  AI
+                </button>
+              </div>
+
               <label className="block space-y-2 text-sm text-muted-foreground">
                 <span>Site name</span>
                 <input
@@ -338,7 +416,25 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
                 />
               </label>
 
-              <p className="text-sm text-muted-foreground">QAY will create a short site URL automatically.</p>
+              {creationMode === 'ai' && (
+                <label className="block space-y-2 text-sm text-muted-foreground">
+                  <span>What should QAY build?</span>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(event) => setAiPrompt(event.target.value)}
+                    required={creationMode === 'ai'}
+                    rows={5}
+                    placeholder="A premium landing page for a fitness coach with booking, testimonials, pricing, and a bold hero..."
+                    className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-foreground outline-none transition focus:border-ring"
+                  />
+                </label>
+              )}
+
+              <p className="text-sm text-muted-foreground">
+                {creationMode === 'ai' ? 'You can refine every layer in the editor after QAY creates the draft.' : 'QAY will create a short site URL automatically.'}
+              </p>
+
+              {creationStatus && <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">{creationStatus}</p>}
 
               {error && <p className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
 
@@ -347,7 +443,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
                 disabled={isCreating}
                 className="h-11 w-full rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isCreating ? 'Creating...' : 'Create and open editor'}
+                {isCreating ? (creationMode === 'ai' ? 'Building...' : 'Creating...') : creationMode === 'ai' ? 'Build and open editor' : 'Create and open editor'}
               </button>
             </div>
           </form>
