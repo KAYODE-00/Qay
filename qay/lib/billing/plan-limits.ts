@@ -19,8 +19,8 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     price: 0,
     currency: 'USD',
     interval: 'month',
-    siteLimit: 1,
-    features: ['1 site', 'QAY editor', 'CMS basics'],
+    siteLimit: Number.MAX_SAFE_INTEGER,
+    features: ['Unlimited sites', 'QAY editor', 'CMS basics'],
   },
   pro: {
     key: 'pro',
