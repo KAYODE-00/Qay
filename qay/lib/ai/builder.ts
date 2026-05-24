@@ -245,6 +245,10 @@ export function normalizeAiLayers(value: unknown): Layer[] {
     throw new Error('AI response did not include any layers.');
   }
 
+  if (hasInstructionLeak(layers.flatMap((layer) => getLayerText(layer)).join(' '))) {
+    throw new Error('AI echoed the prompt instead of returning a usable design.');
+  }
+
   return layers;
 }
 
@@ -265,6 +269,10 @@ function getLayerText(layer: Layer): string[] {
 function normalizeComparisonText(value: string) {
   return value
     .toLowerCase()
+    .replace(/&amp;/g, ' and ')
+    .replace(/&quot;|&#034;|&#34;/g, ' ')
+    .replace(/&#039;|&#39;|&apos;/g, ' ')
+    .replace(/&nbsp;/g, ' ')
     .replace(/[#*_`>"'’“”.,:;!?()[\]{}-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -274,8 +282,11 @@ function hasInstructionLeak(value: string) {
   const normalized = normalizeComparisonText(value);
   const blockedPhrases = [
     'act as an elite frontend engineer',
+    'visual and aesthetic guidelines',
     'visual aesthetic guidelines',
+    'core architecture and sections',
     'core architecture sections',
+    'technical and engineering requirements',
     'technical engineering requirements',
     'build a high level production ready',
     'theme minimalist ultra high contrast',
