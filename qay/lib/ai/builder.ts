@@ -194,7 +194,24 @@ function extractJsonArray(text: string) {
     throw new Error('AI response did not contain a JSON layer array.');
   }
 
-  return JSON.parse(trimmed.slice(start, end + 1));
+  const json = trimmed.slice(start, end + 1);
+
+  try {
+    return JSON.parse(json);
+  } catch (strictError) {
+    const repaired = json
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/([{,]\s*)([A-Za-z_$][\w$-]*)(\s*:)/g, '$1"$2"$3')
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'");
+
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      const message = strictError instanceof Error ? strictError.message : 'Invalid JSON';
+      throw new Error(`AI returned invalid layer JSON. Please try again. Details: ${message}`);
+    }
+  }
 }
 
 export function normalizeAiLayers(value: unknown): Layer[] {
