@@ -19,7 +19,6 @@ type AiMode = 'selected' | 'page';
 type HistoryEntry = {
   prompt: string;
   mode: AiMode;
-  provider?: string;
   createdAt: string;
 };
 
@@ -180,11 +179,11 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       }
 
       applyGeneratedLayers(body.data.layers);
-      setStatus(`Applied with ${body.data.provider}.`);
+      setStatus('Applied.');
+      setPrompt('');
       addHistory({
         prompt: trimmedPrompt,
         mode,
-        provider: body.data.provider,
         createdAt: new Date().toISOString(),
       });
     } catch (caught) {
@@ -283,7 +282,6 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
                   <div className="mt-1 flex items-center gap-2 text-muted-foreground">
                     <span>{entry.mode === 'selected' ? 'Selected' : 'Page'}</span>
                     <span>{formatHistoryDate(entry.createdAt)}</span>
-                    {entry.provider ? <span>{entry.provider}</span> : null}
                   </div>
                 </button>
               ))}
