@@ -20,6 +20,7 @@ import { getItemsWithValues, getItemsWithValuesByIds } from '@/lib/repositories/
 import { getFieldsByCollectionId } from '@/lib/repositories/collectionFieldRepository';
 import { REF_PAGE_PREFIX, REF_COLLECTION_PREFIX, isCollectionItemKeyword } from '@/lib/link-utils';
 import { getClassesString } from '@/lib/layer-utils';
+import { layersContainPromptLeak } from '@/qay/lib/ai/prompt-leak';
 import type { Layer, Component, Page, CollectionItemWithValues, CollectionField, Locale, PageFolder } from '@/types';
 
 interface PageLinkRef { collection_item_id: string; page_id: string }
@@ -252,7 +253,13 @@ export default async function PageRenderer({
   const is401Page = page.error_page === 401;
   // Layers are always pre-resolved by the caller (page-fetcher).
   // Components are passed through for rich-text embedded component rendering in LayerRenderer.
-  const resolvedLayers = layers || [];
+  const resolvedLayers = layersContainPromptLeak(layers || [])
+    ? []
+    : layers || [];
+
+  if (resolvedLayers.length === 0 && layers?.length) {
+    console.error('[PageRenderer] Blocked prompt text from rendering as page content.', { pageId: page.id });
+  }
 
   // Single tree traversal — derive both sets from the flat list
   const allPageLinks = collectLayerPageLinks(resolvedLayers);

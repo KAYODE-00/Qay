@@ -3,6 +3,7 @@ import type { PageLayers, Layer } from '../../types';
 import { generatePageLayersHash } from '../hash-utils';
 import { deleteTranslationsInBulk, markTranslationsIncomplete } from '@/lib/repositories/translationRepository';
 import { extractLayerContentMap } from '../localisation-utils';
+import { layersContainPromptLeak } from '@/qay/lib/ai/prompt-leak';
 
 /**
  * Get layers by page_id with optional is_published filter
@@ -118,6 +119,10 @@ export async function upsertDraftLayers(
 
   if (!client) {
     throw new Error('Supabase not configured');
+  }
+
+  if (layersContainPromptLeak(layers)) {
+    throw new Error('Unable to save this design because it contains the original prompt instead of page content.');
   }
 
   // Check if draft exists
