@@ -1,4 +1,4 @@
-import type { Layer } from '@/types';
+import type { Breakpoint, InteractionApplyStyles, InteractionTween, Layer, LayerInteraction, TweenProperties } from '@/types';
 import { generateId } from '@/lib/utils';
 import { createDynamicTextVariable, createStaticTextVariable } from '@/lib/variable-utils';
 import { callWithFallbackDetailed } from '@/qay/lib/ai/providers';
@@ -33,9 +33,15 @@ const ALLOWED_LAYER_NAMES = new Set([
   'video',
 ]);
 
+type AiInteractionTrigger = LayerInteraction['trigger'];
+
+const ALLOWED_INTERACTION_TRIGGERS = new Set<AiInteractionTrigger>(['click', 'hover', 'scroll-into-view', 'while-scrolling', 'load']);
+const ALLOWED_TWEEN_KEYS = new Set(['x', 'y', 'rotation', 'scale', 'skewX', 'skewY', 'autoAlpha', 'display', 'width', 'height']);
+const ALLOWED_BREAKPOINTS = new Set(['mobile', 'tablet', 'desktop']);
+
 export const QAY_AI_BUILDER_SYSTEM_PROMPT = `You are a website builder AI for QAY.
 Generate valid Ycode layer JSON from the user's description.
-You are also an elite frontend engineer and product designer. The generated page must feel production-ready, intentional, and visually specific to the user's prompt.
+You are also an elite frontend engineer, brand designer, and motion designer. The generated page must feel production-ready, intentional, and visually specific to the user's prompt.
 
 Layer JSON shape:
 {
@@ -46,7 +52,8 @@ Layer JSON shape:
   "children": [],
   "variables": {
     "text": { "type": "dynamic_text", "data": { "content": "text here" } }
-  }
+  },
+  "interactions": []
 }
 
 Rules:
@@ -59,11 +66,14 @@ Rules:
 - Images should use Unsplash URLs such as "https://images.unsplash.com/photo-...?...".
 - Do not include scripts, event handlers, external JavaScript, or dangerous HTML.
 - Prefer polished, production-ready copy and spacing.
+- Add tasteful interactions where useful. Use Ycode's interactions array only, never JavaScript.
 
 Design quality rules:
 - Treat the user's visual/aesthetic instructions as mandatory, especially palette, mood, layout style, typography scale, and section structure.
 - Never generate a plain stack of generic gray boxes, bare grids, or boilerplate cards unless the user explicitly asks for that.
 - Use strong composition: max-width containers, asymmetric grids, editorial whitespace, subtle borders, layered sections, and varied card sizes.
+- Use real hierarchy and art direction: oversized hero type, precise max-widths, purposeful negative space, alternating section rhythms, and cards that differ in span/scale.
+- Prefer premium palettes with exact arbitrary Tailwind colors such as bg-[#11141A], text-[#F6F3ED], border-white/10, and bg-white/5 when requested.
 - Use high-quality spacing: generous section padding, consistent gaps, and responsive constraints. Avoid viewport-scaled font sizes.
 - Use high-contrast text/background pairs. If the user specifies colors, use those exact hex values in Tailwind arbitrary values, for example bg-[#11141A].
 - For premium dark/light sites, avoid default blue links. Use black, white, bone, charcoal, or the user's requested accent colors.
@@ -71,6 +81,37 @@ Design quality rules:
 - Every text-like layer must have variables.text content; buttons and links should also have editable text.
 - Buttons/links should include settings.href or variables.link where relevant, but keep internal routes relative.
 - Prefer semantic sections and clear hierarchy over shallow wrappers.
+
+Interaction JSON:
+{
+  "id": "int_[8 random chars]",
+  "trigger": "load" | "hover" | "scroll-into-view" | "while-scrolling" | "click",
+  "timeline": {
+    "breakpoints": ["mobile", "tablet", "desktop"],
+    "repeat": 0,
+    "yoyo": false,
+    "scrollStart": "top 80%",
+    "toggleActions": "play none none none"
+  },
+  "tweens": [{
+    "id": "anm_[8 random chars]",
+    "layer_id": "target layer id",
+    "position": 0,
+    "duration": 0.6,
+    "ease": "power2.out",
+    "from": { "y": "24px", "autoAlpha": "0" },
+    "to": { "y": "0px", "autoAlpha": "100" },
+    "apply_styles": { "y": "on-load", "autoAlpha": "on-load" }
+  }]
+}
+
+Interaction rules:
+- Add load or scroll-into-view interactions to hero headings, major cards, and timeline rows.
+- Add hover interactions to buttons/cards sparingly with small scale or y movement.
+- Use only safe tween keys: x, y, rotation, scale, skewX, skewY, autoAlpha, display, width, height.
+- Target existing layer ids only. If unsure, target the layer that owns the interaction.
+- Keep motion subtle and premium: 0.35s to 0.8s, power1.out or power2.out, y 12px-40px, autoAlpha 0 to 100.
+- Do not animate every single layer.
 
 Portfolio/site-specific guidance:
 - If the user asks for a portfolio, create a distinctive hero, bento project showcase, skills/architecture matrix, public-build log, and contact footer.
@@ -115,6 +156,119 @@ function sanitizePlainObject(value: unknown) {
       return true;
     })
   );
+}
+
+function collectLayerIdsFromRaw(input: unknown, ids = new Set<string>()) {
+  if (!isRecord(input)) return ids;
+
+  const id = toStringValue(input.id).trim();
+  if (id) ids.add(id);
+
+  if (Array.isArray(input.children)) {
+    input.children.forEach((child) => collectLayerIdsFromRaw(child, ids));
+  }
+
+  return ids;
+}
+
+function sanitizeTweenProperties(value: unknown): TweenProperties {
+  if (!isRecord(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([key, entry]) =>
+      ALLOWED_TWEEN_KEYS.has(key) &&
+      (typeof entry === 'string' || entry === null)
+    )
+  ) as TweenProperties;
+}
+
+function sanitizeApplyStyles(value: unknown): InteractionApplyStyles {
+  if (!isRecord(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([key, entry]) =>
+      ALLOWED_TWEEN_KEYS.has(key) &&
+      (entry === 'on-load' || entry === 'on-trigger')
+    )
+  ) as InteractionApplyStyles;
+}
+
+function sanitizeSplitText(value: unknown): InteractionTween['splitText'] {
+  if (!isRecord(value)) return undefined;
+  const type = toStringValue(value.type);
+  if (type !== 'chars' && type !== 'words' && type !== 'lines') return undefined;
+  const stagger = isRecord(value.stagger) && typeof value.stagger.amount === 'number'
+    ? { amount: value.stagger.amount }
+    : { amount: 0.35 };
+
+  return { type, stagger };
+}
+
+function sanitizeTimeline(value: unknown, trigger: AiInteractionTrigger) {
+  const raw = isRecord(value) ? value : {};
+  const breakpoints = Array.isArray(raw.breakpoints)
+    ? raw.breakpoints.filter((breakpoint): breakpoint is Breakpoint =>
+      typeof breakpoint === 'string' && ALLOWED_BREAKPOINTS.has(breakpoint)
+    )
+    : (['mobile', 'tablet', 'desktop'] as Breakpoint[]);
+
+  return {
+    breakpoints: breakpoints.length ? breakpoints : (['mobile', 'tablet', 'desktop'] as Breakpoint[]),
+    repeat: typeof raw.repeat === 'number' ? raw.repeat : 0,
+    yoyo: typeof raw.yoyo === 'boolean' ? raw.yoyo : false,
+    ...(trigger === 'scroll-into-view' || trigger === 'while-scrolling'
+      ? { scrollStart: toStringValue(raw.scrollStart, trigger === 'while-scrolling' ? 'top bottom' : 'top 80%') }
+      : {}),
+    ...(trigger === 'scroll-into-view'
+      ? { toggleActions: toStringValue(raw.toggleActions, 'play none none none') }
+      : {}),
+    ...(trigger === 'while-scrolling'
+      ? {
+        scrollEnd: toStringValue(raw.scrollEnd, 'bottom top'),
+        scrub: typeof raw.scrub === 'number' || typeof raw.scrub === 'boolean' ? raw.scrub : 1,
+      }
+      : {}),
+  };
+}
+
+function sanitizeInteractions(value: unknown, ownerLayerId: string, validLayerIds: Set<string>) {
+  if (!Array.isArray(value)) return undefined;
+
+  const interactions = value
+    .filter(isRecord)
+    .map((rawInteraction) => {
+      const trigger = toStringValue(rawInteraction.trigger, 'scroll-into-view');
+      const safeTrigger: AiInteractionTrigger = ALLOWED_INTERACTION_TRIGGERS.has(trigger as AiInteractionTrigger)
+        ? trigger as AiInteractionTrigger
+        : 'scroll-into-view';
+      const tweens = Array.isArray(rawInteraction.tweens)
+        ? rawInteraction.tweens.filter(isRecord).map((rawTween): InteractionTween => {
+          const rawLayerId = toStringValue(rawTween.layer_id, ownerLayerId);
+          const layerId = validLayerIds.has(rawLayerId) ? rawLayerId : ownerLayerId;
+
+          return {
+            id: toStringValue(rawTween.id).trim() || generateId('anm'),
+            layer_id: layerId,
+            position: typeof rawTween.position === 'number' || typeof rawTween.position === 'string' ? rawTween.position : 0,
+            duration: typeof rawTween.duration === 'number' ? Math.min(Math.max(rawTween.duration, 0.1), 3) : 0.6,
+            ease: toStringValue(rawTween.ease, 'power2.out'),
+            from: sanitizeTweenProperties(rawTween.from),
+            to: sanitizeTweenProperties(rawTween.to),
+            apply_styles: sanitizeApplyStyles(rawTween.apply_styles),
+            ...(sanitizeSplitText(rawTween.splitText) ? { splitText: sanitizeSplitText(rawTween.splitText) } : {}),
+          };
+        }) : [];
+
+      return {
+        id: toStringValue(rawInteraction.id).trim() || generateId('int'),
+        trigger: safeTrigger,
+        timeline: sanitizeTimeline(rawInteraction.timeline, safeTrigger),
+        tweens,
+      };
+    })
+    .filter((interaction) => interaction.tweens.length > 0);
+
+  return interactions.length > 0 ? interactions : undefined;
 }
 
 function normalizeTextVariable(value: unknown) {
@@ -169,7 +323,7 @@ function shouldEnableTextEditing(layerName: string, settings: Record<string, unk
   );
 }
 
-function normalizeLayer(input: unknown, usedIds: Set<string>): Layer {
+function normalizeLayer(input: unknown, usedIds: Set<string>, validLayerIds: Set<string>): Layer {
   const raw = isRecord(input) ? input : {};
   const rawName = toStringValue(raw.name, 'div');
   const name = ALLOWED_LAYER_NAMES.has(rawName) ? rawName : 'div';
@@ -181,7 +335,7 @@ function normalizeLayer(input: unknown, usedIds: Set<string>): Layer {
   const attributes = sanitizePlainObject(raw.attributes);
   const restrictions = sanitizePlainObject(raw.restrictions) || {};
   const children = Array.isArray(raw.children)
-    ? raw.children.map((child) => normalizeLayer(child, usedIds))
+    ? raw.children.map((child) => normalizeLayer(child, usedIds, validLayerIds))
     : undefined;
   const normalizedSettings = {
     tag: toStringValue((settings as { tag?: unknown }).tag, inferTag(name)),
@@ -201,6 +355,7 @@ function normalizeLayer(input: unknown, usedIds: Set<string>): Layer {
       ...(shouldEnableTextEditing(name, normalizedSettings) ? { editText: true } : {}),
     },
     variables: normalizeVariables(raw.variables, name) as Layer['variables'],
+    interactions: sanitizeInteractions(raw.interactions, safeId, validLayerIds),
     children,
   };
 }
@@ -240,7 +395,8 @@ export function normalizeAiLayers(value: unknown): Layer[] {
   }
 
   const usedIds = new Set<string>();
-  const layers = value.map((layer) => normalizeLayer(layer, usedIds));
+  const validLayerIds = value.reduce((ids, layer) => collectLayerIdsFromRaw(layer, ids), new Set<string>());
+  const layers = value.map((layer) => normalizeLayer(layer, usedIds, validLayerIds));
 
   if (layers.length === 0) {
     throw new Error('AI response did not include any layers.');
@@ -285,6 +441,78 @@ function promptOverlapScore(promptText: string, combinedText: string) {
 
   const matchedWords = promptWords.filter((word) => combinedText.includes(word));
   return matchedWords.length / promptWords.length;
+}
+
+function hasAnyInteractions(layers: Layer[]): boolean {
+  return layers.some((layer) => Boolean(layer.interactions?.length) || (layer.children ? hasAnyInteractions(layer.children) : false));
+}
+
+function addDefaultInteractions(layers: Layer[]) {
+  let entranceCount = 0;
+
+  const enhance = (layer: Layer, depth = 0): Layer => {
+    const children = layer.children?.map((child) => enhance(child, depth + 1));
+    const shouldAnimateEntrance =
+      entranceCount < 8 &&
+      depth > 0 &&
+      ['heading', 'text', 'section', 'div', 'footer'].includes(layer.name);
+    const shouldAnimateHover = layer.name === 'button' || layer.name === 'link';
+    const interactions: LayerInteraction[] = [...(layer.interactions || [])];
+
+    if (shouldAnimateEntrance) {
+      entranceCount += 1;
+      interactions.push({
+        id: generateId('int'),
+        trigger: entranceCount <= 2 ? 'load' : 'scroll-into-view',
+        timeline: {
+          breakpoints: ['mobile', 'tablet', 'desktop'],
+          repeat: 0,
+          yoyo: false,
+          ...(entranceCount > 2 ? { scrollStart: 'top 85%', toggleActions: 'play none none none' } : {}),
+        },
+        tweens: [{
+          id: generateId('anm'),
+          layer_id: layer.id,
+          position: 0,
+          duration: layer.name === 'heading' ? 0.75 : 0.55,
+          ease: 'power2.out',
+          from: { y: layer.name === 'heading' ? '32px' : '20px', autoAlpha: '0' },
+          to: { y: '0px', autoAlpha: '100' },
+          apply_styles: { y: 'on-load', autoAlpha: 'on-load' },
+        }],
+      });
+    }
+
+    if (shouldAnimateHover) {
+      interactions.push({
+        id: generateId('int'),
+        trigger: 'hover',
+        timeline: {
+          breakpoints: ['mobile', 'tablet', 'desktop'],
+          repeat: 0,
+          yoyo: true,
+        },
+        tweens: [{
+          id: generateId('anm'),
+          layer_id: layer.id,
+          position: 0,
+          duration: 0.25,
+          ease: 'power1.out',
+          from: { y: '0px', scale: '1' },
+          to: { y: '-2px', scale: '1.02' },
+          apply_styles: { y: 'on-trigger', scale: 'on-trigger' },
+        }],
+      });
+    }
+
+    return {
+      ...layer,
+      ...(children ? { children } : {}),
+      ...(interactions.length ? { interactions } : {}),
+    };
+  };
+
+  return layers.map((layer) => enhance(layer));
 }
 
 function assertUsableAiLayers(layers: Layer[], userPrompt: string, mode: AiBuilderMode) {
@@ -336,6 +564,8 @@ Silent quality checklist before returning JSON:
 - Are project/cards/feature sections varied, not copy-pasted boxes?
 - Is the typography hierarchy strong on desktop and mobile?
 - Are all headings, paragraphs, links, and buttons editable QAY text layers?
+- Are there tasteful load/scroll/hover interactions on important hero and section elements?
+- Did you avoid generic gray cards, default blue links, and flat unstyled stacks?
 - Would this look acceptable as a production website without manual redesign?
 
 Return only the final valid JSON layer array.`;
@@ -352,7 +582,10 @@ export async function generateQayAiLayers(input: GenerateAiLayersInput): Promise
       return layers;
     }
   );
-  const layers = providerResult.value || normalizeAiLayers(extractJsonArray(providerResult.text));
+  const normalizedLayers = providerResult.value || normalizeAiLayers(extractJsonArray(providerResult.text));
+  const layers = (input.mode || 'page') === 'page' && !hasAnyInteractions(normalizedLayers)
+    ? addDefaultInteractions(normalizedLayers)
+    : normalizedLayers;
 
   return {
     layers,
