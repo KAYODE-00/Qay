@@ -2,6 +2,7 @@ import type { Layer } from '@/types';
 import { generateId } from '@/lib/utils';
 import { createDynamicTextVariable, createStaticTextVariable } from '@/lib/variable-utils';
 import { callWithFallbackDetailed } from '@/qay/lib/ai/providers';
+import { layersContainPromptLeak } from '@/qay/lib/ai/prompt-leak';
 
 export type AiBuilderMode = 'page' | 'selected';
 
@@ -245,7 +246,7 @@ export function normalizeAiLayers(value: unknown): Layer[] {
     throw new Error('AI response did not include any layers.');
   }
 
-  if (hasInstructionLeak(layers.flatMap((layer) => getLayerText(layer)).join(' '))) {
+  if (layersContainPromptLeak(layers)) {
     throw new Error('AI echoed the prompt instead of returning a usable design.');
   }
 
@@ -278,27 +279,6 @@ function normalizeComparisonText(value: string) {
     .trim();
 }
 
-function hasInstructionLeak(value: string) {
-  const normalized = normalizeComparisonText(value);
-  const blockedPhrases = [
-    'act as an elite frontend engineer',
-    'visual and aesthetic guidelines',
-    'visual aesthetic guidelines',
-    'core architecture and sections',
-    'core architecture sections',
-    'technical and engineering requirements',
-    'technical engineering requirements',
-    'build a high level production ready',
-    'theme minimalist ultra high contrast',
-    'placeholder project a',
-    'placeholder project b',
-    'ensure the layout is flawlessly responsive',
-    'the entire template should be self contained',
-  ];
-
-  return blockedPhrases.some((phrase) => normalized.includes(phrase));
-}
-
 function promptOverlapScore(promptText: string, combinedText: string) {
   const promptWords = Array.from(new Set(promptText.split(' ').filter((word) => word.length > 5)));
   if (promptWords.length === 0) return 0;
@@ -313,7 +293,7 @@ function assertUsableAiLayers(layers: Layer[], userPrompt: string, mode: AiBuild
   const combinedText = normalizeComparisonText(layerTexts.join(' '));
 
   if (
-    hasInstructionLeak(layerTexts.join(' ')) ||
+    layersContainPromptLeak(layers, userPrompt) ||
     (promptText.length > 300 && combinedText.includes(promptText.slice(0, 180))) ||
     (promptText.length > 500 && promptOverlapScore(promptText, combinedText) > 0.62)
   ) {
