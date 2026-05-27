@@ -743,6 +743,28 @@ function cleanDesign(design: Layer['design']): Layer['design'] | undefined {
   return hasValues ? (cleaned as Layer['design']) : undefined;
 }
 
+function safeImportedAttributes(el: Element) {
+  const attributes: Record<string, string> = {};
+
+  for (const attr of Array.from(el.attributes)) {
+    const name = attr.name.toLowerCase();
+    const value = attr.value;
+
+    if (
+      name === 'id' ||
+      name === 'role' ||
+      name === 'aria-label' ||
+      name === 'aria-expanded' ||
+      name === 'aria-controls' ||
+      name.startsWith('data-qay-')
+    ) {
+      attributes[name] = value;
+    }
+  }
+
+  return Object.keys(attributes).length ? attributes : undefined;
+}
+
 function resolveImportClasses(el: Element): string {
   const classAttr = el.getAttribute('class') || '';
   const styleAttr = el.getAttribute('style') || '';
@@ -791,6 +813,11 @@ function elementToLayer(el: Element, context?: ImportContext): Layer | null {
     classes,
     ...(design ? { design } : {}),
   };
+  const importedAttributes = safeImportedAttributes(el);
+  if (importedAttributes) {
+    layer.attributes = importedAttributes;
+  }
+
   const importedInteractions = [
     interactionFromAnimateAttribute(el, layer.id),
     interactionFromHoverAttribute(el, layer.id),

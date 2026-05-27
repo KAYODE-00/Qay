@@ -5,6 +5,7 @@ import CustomCodeInjector from '@/components/CustomCodeInjector';
 import LayerRenderer from '@/components/LayerRenderer';
 import SliderInitializer from '@/components/SliderInitializer';
 import LightboxInitializer from '@/components/LightboxInitializer';
+import QayInteractionInitializer from '@/components/QayInteractionInitializer';
 import PasswordForm from '@/components/PasswordForm';
 import { unstable_cache } from 'next/cache';
 import { resolveCustomCodePlaceholders } from '@/lib/resolve-cms-variables';
@@ -575,6 +576,9 @@ export default async function PageRenderer({
 
       {/* Initialize GSAP animations based on layer interactions */}
       <AnimationInitializer layers={animationLayers} />
+
+      {/* Initialize safe QAY declarative interactions such as mobile menu toggles */}
+      <QayInteractionInitializer />
 
       {/* Initialize Swiper on slider elements */}
       {hasSliderLayers(resolvedLayers) && <SliderInitializer />}
