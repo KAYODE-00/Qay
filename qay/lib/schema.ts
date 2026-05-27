@@ -13,6 +13,7 @@ const QAY_MIGRATION_FILES = [
   '004_qay_site_integrations.sql',
   '005_qay_site_settings.sql',
   '007_qay_localisation_isolation.sql',
+  '008_qay_user_templates.sql',
 ];
 
 const QAY_LOCALISATION_MIGRATION_FILES = [
@@ -27,6 +28,7 @@ const MISSING_SCHEMA_PATTERNS = [
   'qay_site_webhooks',
   'qay_site_app_settings',
   'qay_site_settings',
+  'qay_user_templates',
   'schema cache',
   'relation "public.qay_sites" does not exist',
   'relation "qay_sites" does not exist',
@@ -107,7 +109,7 @@ async function runQayMigrationFiles(fileNames: string[], fallbackError: string) 
 export function qaySchemaSetupMessage(error?: string) {
   return [
     'QAY database tables are not ready yet.',
-    'Run the QAY migrations after Ycode setup: qay/database/migrations/001_qay_core.sql through qay/database/migrations/007_qay_localisation_isolation.sql.',
+    'Run the QAY migrations after Ycode setup: qay/database/migrations/001_qay_core.sql through qay/database/migrations/008_qay_user_templates.sql.',
     error ? `Details: ${error}` : null,
   ].filter(Boolean).join(' ');
 }

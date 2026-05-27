@@ -37,6 +37,7 @@ import { toCurrentEditorPath } from '@/qay/lib/editor-path';
 import { getQaySiteBaseUrl } from '@/qay/lib/site-url';
 import type { QaySite } from '@/qay/types';
 import AiBuilderPanel from '@/qay/components/AiBuilderPanel';
+import UserTemplateDialog from '@/qay/components/UserTemplateDialog';
 
 interface HeaderBarProps {
   user: User | null;
@@ -197,6 +198,7 @@ export default function HeaderBar({
   const [currentQaySiteSlug, setCurrentQaySiteSlug] = useState<string | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [isAiBuilderOpen, setIsAiBuilderOpen] = useState(false);
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
 
   // Get current host after mount
   useEffect(() => {
@@ -662,7 +664,7 @@ export default function HeaderBar({
           active={activeNavButton === 'forms'} onClick={goToForms}
         />
         <RailButton
-          title="AI Builder" icon="zap"
+          title="AI Builder" icon="wand-sparkles"
           active={isAiBuilderOpen}
           onClick={() => setIsAiBuilderOpen((current) => !current)}
         />
@@ -672,6 +674,10 @@ export default function HeaderBar({
         <RailButton
           title="File manager" icon="folder"
           onClick={() => openFileManager()}
+        />
+        <RailButton
+          title="Make template" icon="component"
+          onClick={() => setIsTemplateDialogOpen(true)}
         />
         <RailButton
           title="Integrations" icon="zap-outline"
@@ -736,6 +742,10 @@ export default function HeaderBar({
     <AiBuilderPanel
       open={isAiBuilderOpen}
       onOpenChange={setIsAiBuilderOpen}
+    />
+    <UserTemplateDialog
+      open={isTemplateDialogOpen}
+      onOpenChange={setIsTemplateDialogOpen}
     />
     </>
   );
