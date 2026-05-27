@@ -38,6 +38,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'We could not generate this design.';
     const status = message.includes('No AI provider is configured') ? 503 : 500;
+    const isDev = process.env.NODE_ENV !== 'production';
 
     console.error('[QAY AI generate] Error:', error);
     return NextResponse.json(
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
         error: status === 503
           ? 'AI is not configured yet. Add at least one AI provider key to use this.'
           : 'AI is busy. Try again shortly.',
+        ...(isDev ? { details: message } : {}),
       },
       { status }
     );
