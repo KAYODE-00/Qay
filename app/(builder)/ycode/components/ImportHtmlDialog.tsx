@@ -46,7 +46,7 @@ export default function ImportHtmlDialog({
         <DialogHeader>
           <DialogTitle>Convert HTML to layers</DialogTitle>
           <DialogDescription>
-            If you use Tailwind CSS, classes will be converted to design settings in QAY. &apos;Script&apos; and &apos;Style&apos; tags will be ignored.
+            Tailwind classes become QAY design settings. Normal scripts are ignored, but QAY interaction metadata can be imported safely.
           </DialogDescription>
         </DialogHeader>
 

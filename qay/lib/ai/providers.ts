@@ -46,6 +46,10 @@ function collectGeminiText(parts: Array<{ text?: string }> | undefined) {
   return (parts || []).map((part) => part.text || '').join('\n').trim();
 }
 
+function wantsPlainHtml(system: string) {
+  return /return\s+only\s+html/i.test(system);
+}
+
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/free';
@@ -100,7 +104,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: 'gpt-4o',
           temperature: 0.35,
-          response_format: { type: 'json_object' },
+          ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: prompt },
@@ -132,7 +136,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: GROQ_MODEL,
           temperature: 0.35,
-          response_format: { type: 'json_object' },
+          ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: prompt },
@@ -166,7 +170,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
           temperature: 0.35,
-          response_format: { type: 'json_object' },
+          ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: prompt },
@@ -206,7 +210,7 @@ export const PROVIDERS: AiProvider[] = [
             generationConfig: {
               temperature: 0.35,
               maxOutputTokens: 6000,
-              responseMimeType: 'application/json',
+              ...(!wantsPlainHtml(system) ? { responseMimeType: 'application/json' } : {}),
             },
           }),
         }

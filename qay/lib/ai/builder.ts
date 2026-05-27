@@ -18,6 +18,12 @@ type GenerateAiLayersResult = {
   model: string;
 };
 
+type GenerateAiHtmlResult = {
+  html: string;
+  provider: string;
+  model: string;
+};
+
 const ALLOWED_LAYER_NAMES = new Set([
   'div',
   'heading',
@@ -38,6 +44,34 @@ type AiInteractionTrigger = LayerInteraction['trigger'];
 const ALLOWED_INTERACTION_TRIGGERS = new Set<AiInteractionTrigger>(['click', 'hover', 'scroll-into-view', 'while-scrolling', 'load']);
 const ALLOWED_TWEEN_KEYS = new Set(['x', 'y', 'rotation', 'scale', 'skewX', 'skewY', 'autoAlpha', 'display', 'width', 'height']);
 const ALLOWED_BREAKPOINTS = new Set(['mobile', 'tablet', 'desktop']);
+
+export const QAY_AI_HTML_SYSTEM_PROMPT = `You are QAY's AI website designer.
+Generate one complete, premium HTML + Tailwind page or fragment that QAY will import into editable layers.
+
+Return ONLY HTML. No markdown fences, no explanations, no repeated prompt text.
+
+Rules:
+- Use semantic HTML and Tailwind classes.
+- Use editable real copy, not the user's instruction text.
+- Use strong visual hierarchy, exact palettes from the user, polished spacing, and responsive layouts.
+- Use relative internal links such as "/about".
+- Use absolute image URLs only, preferably Unsplash URLs with width and quality params.
+- Do not include normal JavaScript, event handlers, onclick, inline script execution, or external script tags.
+- If interactions are needed, use data-qay-* attributes and one optional non-executing script tag:
+  <script type="application/qay-interactions">{...JSON...}</script>
+- Supported attributes:
+  data-qay-animate="fade-in|slide-up|scale-in|scroll-reveal"
+  data-qay-hover="lift|scale|glow"
+  data-qay-duration="0.6"
+  data-qay-hover-duration="0.25"
+  data-qay-delay="0.1"
+  data-qay-y="32"
+  data-qay-x="0"
+  data-qay-ease="power2.out"
+- The interaction script must be valid JSON with this shape:
+  {"defaults":{"duration":0.65,"ease":"power2.out"},"animations":[{"selector":"[data-qay-animate='slide-up']","trigger":"load","from":{"y":"32px","autoAlpha":"0"},"to":{"y":"0px","autoAlpha":"100"}}]}
+- Use data-qay-* generously but tastefully on hero content, cards, timeline rows, and buttons.
+- Never output a single paragraph containing the prompt.`;
 
 export const QAY_AI_BUILDER_SYSTEM_PROMPT = `You are a website builder AI for QAY.
 Generate valid Ycode layer JSON from the user's description.
@@ -590,6 +624,58 @@ Silent quality checklist before returning JSON:
 Return only the final valid JSON layer array.`;
 }
 
+function extractHtml(text: string) {
+  const stripped = text.trim()
+    .replace(/^```(?:html)?/i, '')
+    .replace(/```$/i, '')
+    .trim();
+
+  const bodyMatch = stripped.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const html = (bodyMatch?.[1] || stripped).trim();
+
+  if (!/<[a-z][\s\S]*>/i.test(html)) {
+    throw new Error('AI response did not include importable HTML.');
+  }
+
+  if (html.length < 400) {
+    throw new Error('AI response was too small to be a usable design.');
+  }
+
+  if (/^<div>\s*<p>[\s\S]*act as an/i.test(html) || /visual\s*&?\s*aesthetic guidelines/i.test(html)) {
+    throw new Error('AI echoed the prompt instead of returning a usable design.');
+  }
+
+  return html;
+}
+
+function buildHtmlPrompt({ prompt, mode = 'page', selectedLayers = [] }: GenerateAiLayersInput) {
+  if (mode === 'selected') {
+    return `Create a polished HTML/Tailwind replacement fragment for the selected QAY layer(s).
+
+User request:
+${prompt}
+
+Current selected layer JSON, for content/context only:
+${JSON.stringify(selectedLayers, null, 2)}
+
+Return only the replacement HTML fragment.`;
+  }
+
+  return `Create a complete premium HTML/Tailwind page for QAY import.
+
+User request:
+${prompt}
+
+Silent checklist:
+- The output is actual website HTML, not the prompt.
+- The page has nav, hero, 2-4 sections, and footer.
+- The design has strong composition, responsive grids, premium spacing, and meaningful copy.
+- Text and images are represented as normal HTML elements.
+- Interactions use data-qay-* attributes or application/qay-interactions JSON only.
+
+Return only HTML.`;
+}
+
 export async function generateQayAiLayers(input: GenerateAiLayersInput): Promise<GenerateAiLayersResult> {
   const providerResult = await callWithFallbackDetailed<Layer[]>(
     buildPrompt(input),
@@ -608,6 +694,20 @@ export async function generateQayAiLayers(input: GenerateAiLayersInput): Promise
 
   return {
     layers,
+    provider: providerResult.provider,
+    model: providerResult.model,
+  };
+}
+
+export async function generateQayAiHtml(input: GenerateAiLayersInput): Promise<GenerateAiHtmlResult> {
+  const providerResult = await callWithFallbackDetailed<string>(
+    buildHtmlPrompt(input),
+    QAY_AI_HTML_SYSTEM_PROMPT,
+    (text) => extractHtml(text)
+  );
+
+  return {
+    html: providerResult.value || extractHtml(providerResult.text),
     provider: providerResult.provider,
     model: providerResult.model,
   };
