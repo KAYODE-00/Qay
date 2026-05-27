@@ -673,7 +673,109 @@ Silent checklist:
 - Text and images are represented as normal HTML elements.
 - Interactions use data-qay-* attributes or application/qay-interactions JSON only.
 
-Return only HTML.`;
+  Return only HTML.`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function inferSiteTitle(prompt: string) {
+  const cleaned = prompt
+    .replace(/act as an? .+?\./i, '')
+    .replace(/build|create|design|website|site|landing page|portfolio/gi, ' ')
+    .replace(/[#*_`>"':;!?()[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const words = cleaned.split(' ').filter(Boolean).slice(0, 5);
+  return words.length ? words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'QAY Studio';
+}
+
+function localFallbackHtml(input: GenerateAiLayersInput) {
+  const title = escapeHtml(inferSiteTitle(input.prompt));
+  const description = escapeHtml(
+    input.prompt
+      .replace(/\s+/g, ' ')
+      .slice(0, 180)
+      .trim() || 'A polished digital experience built with QAY.'
+  );
+
+  if (input.mode === 'selected') {
+    return `<section class="rounded-3xl border border-black/10 bg-[#F6F3ED] p-8 text-[#11141A]" data-qay-animate="slide-up">
+  <p class="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-black/50">Refined block</p>
+  <h2 class="max-w-2xl text-3xl font-semibold tracking-normal md:text-5xl">${title}</h2>
+  <p class="mt-4 max-w-xl text-base leading-7 text-black/65">${description}</p>
+</section>`;
+  }
+
+  return `<main class="min-h-screen bg-[#11141A] text-[#F6F3ED]">
+  <nav class="mx-auto flex max-w-7xl items-center justify-between px-6 py-6" data-qay-animate="fade-in">
+    <a href="/" class="text-sm font-semibold uppercase tracking-[0.26em]">${title}</a>
+    <div class="hidden items-center gap-6 text-sm text-white/70 md:flex">
+      <a href="/work" class="transition hover:text-white">Work</a>
+      <a href="/about" class="transition hover:text-white">About</a>
+      <a href="/contact" class="transition hover:text-white">Contact</a>
+    </div>
+  </nav>
+  <section class="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-[1.15fr_0.85fr] md:items-end md:py-28">
+    <div data-qay-animate="slide-up" data-qay-y="36">
+      <p class="mb-5 inline-flex rounded-full border border-white/15 px-4 py-2 text-xs font-medium uppercase tracking-[0.22em] text-white/65">Built with QAY</p>
+      <h1 class="max-w-4xl text-5xl font-semibold leading-[0.92] tracking-normal md:text-7xl lg:text-8xl">${title}</h1>
+      <p class="mt-8 max-w-2xl text-lg leading-8 text-white/68">${description}</p>
+      <div class="mt-10 flex flex-wrap gap-3">
+        <a href="/contact" class="rounded-full bg-[#F6F3ED] px-6 py-3 text-sm font-semibold text-[#11141A] transition hover:-translate-y-0.5" data-qay-hover="lift">Start a project</a>
+        <a href="/about" class="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10" data-qay-hover="lift">Learn more</a>
+      </div>
+    </div>
+    <div class="rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/30" data-qay-animate="scale-in">
+      <img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1200&q=85" alt="Modern workspace" class="aspect-[4/5] w-full rounded-[1.5rem] object-cover" />
+    </div>
+  </section>
+  <section class="border-y border-white/10 bg-[#F6F3ED] px-6 py-20 text-[#11141A]">
+    <div class="mx-auto grid max-w-7xl gap-5 md:grid-cols-3">
+      <article class="rounded-3xl border border-black/10 bg-white p-7" data-qay-animate="scroll-reveal" data-qay-hover="lift">
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-black/45">01</p>
+        <h2 class="mt-8 text-2xl font-semibold">Strategy first</h2>
+        <p class="mt-3 leading-7 text-black/60">Clear positioning, focused pages, and a structure that helps visitors act quickly.</p>
+      </article>
+      <article class="rounded-3xl border border-black/10 bg-[#11141A] p-7 text-white md:translate-y-8" data-qay-animate="scroll-reveal" data-qay-hover="lift">
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">02</p>
+        <h2 class="mt-8 text-2xl font-semibold">Premium visuals</h2>
+        <p class="mt-3 leading-7 text-white/60">Editorial spacing, sharp contrast, and motion details that keep the experience polished.</p>
+      </article>
+      <article class="rounded-3xl border border-black/10 bg-white p-7" data-qay-animate="scroll-reveal" data-qay-hover="lift">
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-black/45">03</p>
+        <h2 class="mt-8 text-2xl font-semibold">Ready to edit</h2>
+        <p class="mt-3 leading-7 text-black/60">Text, links, images, and sections import as editable layers inside the QAY editor.</p>
+      </article>
+    </div>
+  </section>
+  <section class="mx-auto max-w-7xl px-6 py-20">
+    <div class="grid gap-6 md:grid-cols-[0.75fr_1.25fr]">
+      <h2 class="text-4xl font-semibold tracking-normal md:text-6xl" data-qay-animate="slide-up">Built for momentum.</h2>
+      <div class="space-y-4">
+        <div class="rounded-3xl border border-white/10 p-6" data-qay-animate="scroll-reveal">
+          <p class="text-sm uppercase tracking-[0.2em] text-white/40">Launch</p>
+          <p class="mt-3 text-xl text-white/78">A focused homepage with clean navigation and conversion-ready actions.</p>
+        </div>
+        <div class="rounded-3xl border border-white/10 p-6" data-qay-animate="scroll-reveal">
+          <p class="text-sm uppercase tracking-[0.2em] text-white/40">Scale</p>
+          <p class="mt-3 text-xl text-white/78">Add pages, CMS content, media, forms, and client edits from one workspace.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <footer class="mx-auto flex max-w-7xl flex-col gap-4 border-t border-white/10 px-6 py-10 text-sm text-white/50 md:flex-row md:items-center md:justify-between">
+    <p>© ${new Date().getFullYear()} ${title}</p>
+    <a href="/contact" class="text-white transition hover:text-[#F6F3ED]">Contact</a>
+  </footer>
+</main>`;
 }
 
 export async function generateQayAiLayers(input: GenerateAiLayersInput): Promise<GenerateAiLayersResult> {
@@ -700,15 +802,25 @@ export async function generateQayAiLayers(input: GenerateAiLayersInput): Promise
 }
 
 export async function generateQayAiHtml(input: GenerateAiLayersInput): Promise<GenerateAiHtmlResult> {
-  const providerResult = await callWithFallbackDetailed<string>(
-    buildHtmlPrompt(input),
-    QAY_AI_HTML_SYSTEM_PROMPT,
-    (text) => extractHtml(text)
-  );
+  try {
+    const providerResult = await callWithFallbackDetailed<string>(
+      buildHtmlPrompt(input),
+      QAY_AI_HTML_SYSTEM_PROMPT,
+      (text) => extractHtml(text)
+    );
 
-  return {
-    html: providerResult.value || extractHtml(providerResult.text),
-    provider: providerResult.provider,
-    model: providerResult.model,
-  };
+    return {
+      html: providerResult.value || extractHtml(providerResult.text),
+      provider: providerResult.provider,
+      model: providerResult.model,
+    };
+  } catch (error) {
+    console.warn('[QAY AI] Providers failed for HTML generation; using local fallback.', error);
+
+    return {
+      html: localFallbackHtml(input),
+      provider: 'qay',
+      model: 'local-fallback',
+    };
+  }
 }

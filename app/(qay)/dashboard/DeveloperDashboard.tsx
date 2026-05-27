@@ -9,6 +9,7 @@ import type { ClientPendingInvite } from '@/qay/lib/client-content';
 import { PendingInvites } from '@/qay/components/client/PendingInvites';
 import type { QayAccountProfile } from '@/qay/lib/account';
 import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
+import { htmlToLayers } from '@/lib/html-layer-converter';
 
 type DashboardProps = {
   initialSites: QaySite[];
@@ -104,12 +105,15 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
         const aiResponse = await fetch('/api/qay/ai/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, mode: 'page' }),
+          body: JSON.stringify({ prompt, mode: 'page', output: 'html' }),
         });
         const aiPayload = await aiResponse.json();
+        const generatedLayers = aiPayload.data?.html
+          ? htmlToLayers(aiPayload.data.html)
+          : aiPayload.data?.layers;
 
-        if (!aiResponse.ok || !aiPayload.data?.layers) {
-          setError(aiPayload.error || 'We could not build this site.');
+        if (!aiResponse.ok || !generatedLayers?.length) {
+          setError(aiPayload.details || aiPayload.error || 'We could not build this site.');
           return;
         }
 
@@ -117,7 +121,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
         const applyResponse = await fetch(`/api/qay/ai/sites/${payload.data.id}/apply`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ layers: aiPayload.data.layers }),
+          body: JSON.stringify({ layers: generatedLayers }),
         });
         const applyPayload = await applyResponse.json();
 
