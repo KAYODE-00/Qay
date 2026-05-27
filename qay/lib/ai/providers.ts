@@ -14,8 +14,38 @@ type AiProvider = {
   canRepairJson?: boolean;
 };
 
+const DEFAULT_AI_TIMEOUT_MS = Number(process.env.QAY_AI_PROVIDER_TIMEOUT_MS || 18000);
+const HTML_AI_TIMEOUT_MS = Number(process.env.QAY_AI_HTML_PROVIDER_TIMEOUT_MS || 12000);
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function requestTimeoutMs(system: string) {
+  return wantsPlainHtml(system) ? HTML_AI_TIMEOUT_MS : DEFAULT_AI_TIMEOUT_MS;
+}
+
+function maxOutputTokens(system: string) {
+  return wantsPlainHtml(system) ? 3600 : 6000;
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, providerName: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if ((error as { name?: string })?.name === 'AbortError') {
+      const timeoutError = new Error(`${providerName} timed out after ${Math.round(timeoutMs / 1000)}s`) as Error & { status?: number };
+      timeoutError.status = 503;
+      throw timeoutError;
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function readJsonResponse(response: Response) {
@@ -54,6 +84,17 @@ const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/free';
 
+function sortProvidersForRequest(providers: AiProvider[], system: string) {
+  if (!wantsPlainHtml(system)) return providers;
+
+  const fastHtmlOrder = ['groq', 'openrouter', 'gemini', 'openai', 'claude'];
+  return [...providers].sort((a, b) => {
+    const aIndex = fastHtmlOrder.indexOf(a.name);
+    const bIndex = fastHtmlOrder.indexOf(b.name);
+    return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+  });
+}
+
 export const PROVIDERS: AiProvider[] = [
   {
     name: 'claude',
@@ -61,7 +102,7 @@ export const PROVIDERS: AiProvider[] = [
     apiKey: process.env.ANTHROPIC_API_KEY,
     available: () => Boolean(process.env.ANTHROPIC_API_KEY),
     call: async (prompt: string, system: string) => {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -70,12 +111,12 @@ export const PROVIDERS: AiProvider[] = [
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 6000,
+          max_tokens: maxOutputTokens(system),
           temperature: 0.35,
           system,
           messages: [{ role: 'user', content: prompt }],
         }),
-      });
+      }, requestTimeoutMs(system), 'Claude');
 
       await assertOk(response);
       const body = await readJsonResponse(response);
@@ -95,7 +136,7 @@ export const PROVIDERS: AiProvider[] = [
     apiKey: process.env.OPENAI_API_KEY,
     available: () => Boolean(process.env.OPENAI_API_KEY),
     call: async (prompt: string, system: string) => {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -103,6 +144,7 @@ export const PROVIDERS: AiProvider[] = [
         },
         body: JSON.stringify({
           model: 'gpt-4o',
+          max_tokens: maxOutputTokens(system),
           temperature: 0.35,
           ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
@@ -110,7 +152,7 @@ export const PROVIDERS: AiProvider[] = [
             { role: 'user', content: prompt },
           ],
         }),
-      });
+      }, requestTimeoutMs(system), 'OpenAI');
 
       await assertOk(response);
       const body = await readJsonResponse(response);
@@ -127,7 +169,7 @@ export const PROVIDERS: AiProvider[] = [
     available: () => Boolean(process.env.GROQ_API_KEY),
     canRepairJson: true,
     call: async (prompt: string, system: string) => {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const response = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -135,6 +177,7 @@ export const PROVIDERS: AiProvider[] = [
         },
         body: JSON.stringify({
           model: GROQ_MODEL,
+          max_tokens: maxOutputTokens(system),
           temperature: 0.35,
           ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
@@ -142,7 +185,7 @@ export const PROVIDERS: AiProvider[] = [
             { role: 'user', content: prompt },
           ],
         }),
-      });
+      }, requestTimeoutMs(system), 'Groq');
 
       await assertOk(response);
       const body = await readJsonResponse(response);
@@ -159,7 +202,7 @@ export const PROVIDERS: AiProvider[] = [
     available: () => Boolean(process.env.OPENROUTER_API_KEY),
     canRepairJson: true,
     call: async (prompt: string, system: string) => {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -169,6 +212,7 @@ export const PROVIDERS: AiProvider[] = [
         },
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
+          max_tokens: maxOutputTokens(system),
           temperature: 0.35,
           ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
@@ -176,7 +220,7 @@ export const PROVIDERS: AiProvider[] = [
             { role: 'user', content: prompt },
           ],
         }),
-      });
+      }, requestTimeoutMs(system), 'OpenRouter');
 
       await assertOk(response);
       const body = await readJsonResponse(response);
@@ -192,7 +236,7 @@ export const PROVIDERS: AiProvider[] = [
     apiKey: process.env.GEMINI_API_KEY,
     available: () => Boolean(process.env.GEMINI_API_KEY),
     call: async (prompt: string, system: string) => {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY || '')}`,
         {
           method: 'POST',
@@ -209,11 +253,13 @@ export const PROVIDERS: AiProvider[] = [
             ],
             generationConfig: {
               temperature: 0.35,
-              maxOutputTokens: 6000,
+              maxOutputTokens: maxOutputTokens(system),
               ...(!wantsPlainHtml(system) ? { responseMimeType: 'application/json' } : {}),
             },
           }),
-        }
+        },
+        requestTimeoutMs(system),
+        'Gemini'
       );
 
       await assertOk(response);
@@ -249,6 +295,8 @@ function canTryNextProvider(error: unknown) {
     message.includes('echoed the prompt') ||
     message.includes('not a usable design') ||
     message.includes('overloaded') ||
+    message.includes('timed out') ||
+    message.includes('aborted') ||
     message.includes('temporarily unavailable')
   );
 }
@@ -282,7 +330,7 @@ export async function callWithFallbackDetailed<T = unknown>(
   system: string,
   validate?: (text: string) => T
 ): Promise<ProviderResult<T>> {
-  const available = PROVIDERS.filter((provider) => provider.available());
+  const available = sortProvidersForRequest(PROVIDERS.filter((provider) => provider.available()), system);
   const failures: string[] = [];
 
   for (const provider of available) {
