@@ -27,6 +27,7 @@ import Superscript from '@tiptap/extension-superscript';
 import Heading from '@tiptap/extension-heading';
 import Blockquote from '@tiptap/extension-blockquote';
 import Code from '@tiptap/extension-code';
+import HardBreak from '@tiptap/extension-hard-break';
 import { RichTextImage } from '@/lib/tiptap-extensions/rich-text-image';
 import { getTextStyleClasses } from '@/lib/text-format-utils';
 import type { Layer, TextStyle, CollectionField, Collection } from '@/types';
@@ -286,6 +287,7 @@ const CanvasTextEditor = forwardRef<CanvasTextEditorHandle, CanvasTextEditorProp
     Document,
     createParagraphExtension(textStylesRef),
     Text,
+    HardBreak,
     History,
     DynamicVariableWithNodeView,
     RichTextComponent,

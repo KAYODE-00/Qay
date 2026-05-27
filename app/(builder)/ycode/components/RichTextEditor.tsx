@@ -31,6 +31,7 @@ import Heading from '@tiptap/extension-heading';
 import Blockquote from '@tiptap/extension-blockquote';
 import Code from '@tiptap/extension-code';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import HardBreak from '@tiptap/extension-hard-break';
 import { cn } from '@/lib/utils';
 import type { CollectionField, Collection } from '@/types';
 import {
@@ -451,6 +452,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       Document,
       Paragraph,
       Text,
+      HardBreak,
       History,
       DynamicVariableWithNodeView,
       DynamicStyle,
