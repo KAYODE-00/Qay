@@ -82,7 +82,7 @@ function wantsPlainHtml(system: string) {
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/free';
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
 
 function sortProvidersForRequest(providers: AiProvider[], system: string) {
   if (!wantsPlainHtml(system)) return providers;
@@ -277,6 +277,7 @@ function canTryNextProvider(error: unknown) {
   const message = getErrorMessage(error).toLowerCase();
 
   return (
+    (typeof status === 'number' && status >= 400) ||
     status === 429 ||
     status === 503 ||
     message.includes('rate') ||
@@ -292,8 +293,14 @@ function canTryNextProvider(error: unknown) {
     message.includes('not supported') ||
     message.includes('did not contain a json') ||
     message.includes('invalid layer json') ||
+    message.includes('did not include importable html') ||
     message.includes('echoed the prompt') ||
     message.includes('not a usable design') ||
+    message.includes('too small') ||
+    message.includes('invalid') ||
+    message.includes('bad request') ||
+    message.includes('model') ||
+    message.includes('endpoint') ||
     message.includes('overloaded') ||
     message.includes('timed out') ||
     message.includes('aborted') ||
