@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Layer } from '@/types';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
+import { htmlToLayers } from '@/lib/html-layer-converter';
 import { findLayerById } from '@/lib/layer-utils';
 import { useEditorStore } from '@/stores/useEditorStore';
 import { usePagesStore } from '@/stores/usePagesStore';
@@ -24,7 +25,8 @@ type HistoryEntry = {
 
 type GenerateResponse = {
   data?: {
-    layers: Layer[];
+    layers?: Layer[];
+    html?: string;
     provider: string;
     model: string;
   };
@@ -170,6 +172,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         body: JSON.stringify({
           prompt: trimmedPrompt,
           mode,
+          output: 'html',
           selectedLayers: mode === 'selected' ? selectedLayers : [],
         }),
       });
@@ -179,7 +182,15 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         throw new Error(body.error || 'We could not generate this design.');
       }
 
-      applyGeneratedLayers(body.data.layers);
+      const generatedLayers = body.data.html
+        ? htmlToLayers(body.data.html)
+        : body.data.layers || [];
+
+      if (generatedLayers.length === 0) {
+        throw new Error('AI generated a design QAY could not import. Try again shortly.');
+      }
+
+      applyGeneratedLayers(generatedLayers);
       setStatus('Applied.');
       setPrompt('');
       addHistory({

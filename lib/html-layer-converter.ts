@@ -7,7 +7,7 @@
  * Export: Convert a Layer tree back into clean HTML with Tailwind classes.
  */
 
-import type { Layer, LinkSettings } from '@/types';
+import type { InteractionTween, Layer, LayerInteraction, LinkSettings, TweenProperties } from '@/types';
 import { generateId } from '@/lib/utils';
 import { classesToDesign } from '@/lib/tailwind-class-mapper';
 import { getClassesString, getLayerHtmlTag } from '@/lib/layer-utils';
@@ -551,6 +551,180 @@ function makeTextLayer(textOrDoc: string | object): Layer {
   };
 }
 
+type ImportInteractionAnimation = {
+  selector?: string;
+  trigger?: LayerInteraction['trigger'];
+  from?: TweenProperties;
+  to?: TweenProperties;
+  duration?: number;
+  ease?: string;
+};
+
+type ImportInteractionPayload = {
+  defaults?: {
+    duration?: number;
+    ease?: string;
+  };
+  animations?: ImportInteractionAnimation[];
+};
+
+type ImportContext = {
+  payload: ImportInteractionPayload | null;
+};
+
+const QAY_INTERACTION_SCRIPT_TYPE = 'application/qay-interactions';
+
+function toFiniteNumber(value: string | null, fallback: number, min = 0.05, max = 3) {
+  if (!value) return fallback;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(Math.max(number, min), max);
+}
+
+function normalizeTweenValue(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return null;
+}
+
+function sanitizeTweenProperties(value: unknown): TweenProperties {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+
+  const allowed = new Set(['x', 'y', 'rotation', 'scale', 'skewX', 'skewY', 'autoAlpha', 'display', 'width', 'height']);
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => allowed.has(key))
+      .map(([key, entry]) => [key, normalizeTweenValue(entry)])
+      .filter(([, entry]) => entry !== null)
+  ) as TweenProperties;
+}
+
+function applyStylesFromTween(to: TweenProperties) {
+  return Object.fromEntries(
+    Object.keys(to).map((key) => [key, 'on-trigger'])
+  ) as InteractionTween['apply_styles'];
+}
+
+function createInteraction(
+  layerId: string,
+  trigger: LayerInteraction['trigger'],
+  from: TweenProperties,
+  to: TweenProperties,
+  duration: number,
+  ease: string
+): LayerInteraction {
+  return {
+    id: generateId('int'),
+    trigger,
+    timeline: {
+      breakpoints: ['mobile', 'tablet', 'desktop'],
+      repeat: 0,
+      yoyo: trigger === 'hover',
+      ...(trigger === 'scroll-into-view'
+        ? { scrollStart: 'top 82%', toggleActions: 'play none none none' }
+        : {}),
+    },
+    tweens: [{
+      id: generateId('anm'),
+      layer_id: layerId,
+      position: 0,
+      duration,
+      ease,
+      from,
+      to,
+      apply_styles: applyStylesFromTween(to),
+    }],
+  };
+}
+
+function interactionFromAnimateAttribute(el: Element, layerId: string): LayerInteraction | null {
+  const type = el.getAttribute('data-qay-animate');
+  if (!type) return null;
+
+  const duration = toFiniteNumber(el.getAttribute('data-qay-duration'), 0.65);
+  const ease = el.getAttribute('data-qay-ease') || 'power2.out';
+  const y = el.getAttribute('data-qay-y') || '24';
+  const x = el.getAttribute('data-qay-x') || '0';
+
+  if (type === 'fade-in') {
+    return createInteraction(layerId, 'load', { autoAlpha: '0' }, { autoAlpha: '100' }, duration, ease);
+  }
+
+  if (type === 'scale-in') {
+    return createInteraction(layerId, 'scroll-into-view', { scale: '0.96', autoAlpha: '0' }, { scale: '1', autoAlpha: '100' }, duration, ease);
+  }
+
+  if (type === 'scroll-reveal') {
+    return createInteraction(layerId, 'scroll-into-view', { y: `${y}px`, autoAlpha: '0' }, { y: '0px', autoAlpha: '100' }, duration, ease);
+  }
+
+  return createInteraction(layerId, 'load', { x: `${x}px`, y: `${y}px`, autoAlpha: '0' }, { x: '0px', y: '0px', autoAlpha: '100' }, duration, ease);
+}
+
+function interactionFromHoverAttribute(el: Element, layerId: string): LayerInteraction | null {
+  const type = el.getAttribute('data-qay-hover');
+  if (!type) return null;
+
+  const duration = toFiniteNumber(el.getAttribute('data-qay-hover-duration'), 0.25);
+  const ease = el.getAttribute('data-qay-ease') || 'power1.out';
+
+  if (type === 'scale') {
+    return createInteraction(layerId, 'hover', { scale: '1' }, { scale: '1.03' }, duration, ease);
+  }
+
+  if (type === 'glow') {
+    return createInteraction(layerId, 'hover', { scale: '1', autoAlpha: '90' }, { scale: '1.015', autoAlpha: '100' }, duration, ease);
+  }
+
+  return createInteraction(layerId, 'hover', { y: '0px', scale: '1' }, { y: '-4px', scale: '1.015' }, duration, ease);
+}
+
+function elementMatchesImportSelector(el: Element, selector: string) {
+  if (!selector || selector.length > 180) return false;
+  try {
+    return el.matches(selector);
+  } catch {
+    return false;
+  }
+}
+
+function interactionsFromScriptPayload(el: Element, layerId: string, context?: ImportContext) {
+  if (!context?.payload?.animations?.length) return [];
+  const defaults = context.payload.defaults || {};
+
+  return context.payload.animations
+    .filter((animation) => animation.selector && elementMatchesImportSelector(el, animation.selector))
+    .map((animation) => createInteraction(
+      layerId,
+      animation.trigger === 'hover' || animation.trigger === 'load' || animation.trigger === 'scroll-into-view'
+        ? animation.trigger
+        : 'scroll-into-view',
+      sanitizeTweenProperties(animation.from || { y: '24px', autoAlpha: '0' }),
+      sanitizeTweenProperties(animation.to || { y: '0px', autoAlpha: '100' }),
+      typeof animation.duration === 'number' ? Math.min(Math.max(animation.duration, 0.05), 3) : defaults.duration || 0.65,
+      animation.ease || defaults.ease || 'power2.out'
+    ));
+}
+
+function parseInteractionPayload(doc: Document): ImportInteractionPayload | null {
+  const script = doc.querySelector(`script[type="${QAY_INTERACTION_SCRIPT_TYPE}"]`);
+  if (!script) return null;
+
+  try {
+    const text = script.textContent?.trim();
+    if (!text) return null;
+    const parsed = JSON.parse(text);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed as ImportInteractionPayload;
+  } catch (error) {
+    console.warn('htmlToLayers: ignored invalid QAY interaction metadata', error);
+    return null;
+  } finally {
+    script.remove();
+  }
+}
+
 function cleanDesign(design: Layer['design']): Layer['design'] | undefined {
   if (!design) return undefined;
 
@@ -598,7 +772,7 @@ function sanitizeSvg(el: Element): void {
   walk(el);
 }
 
-function elementToLayer(el: Element): Layer | null {
+function elementToLayer(el: Element, context?: ImportContext): Layer | null {
   const tag = el.tagName.toLowerCase();
 
   if (tag === 'script' || tag === 'style' || tag === 'link' || tag === 'meta' || tag === 'br') {
@@ -617,6 +791,15 @@ function elementToLayer(el: Element): Layer | null {
     classes,
     ...(design ? { design } : {}),
   };
+  const importedInteractions = [
+    interactionFromAnimateAttribute(el, layer.id),
+    interactionFromHoverAttribute(el, layer.id),
+    ...interactionsFromScriptPayload(el, layer.id, context),
+  ].filter((interaction): interaction is LayerInteraction => Boolean(interaction));
+
+  if (importedInteractions.length > 0) {
+    layer.interactions = importedInteractions;
+  }
 
   if (HEADING_TAGS.has(tag)) {
     layer.settings = { tag };
@@ -807,7 +990,7 @@ function elementToLayer(el: Element): Layer | null {
         children.push(makeTextLayer(text));
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const childLayer = elementToLayer(node as Element);
+      const childLayer = elementToLayer(node as Element, context);
       if (childLayer) {
         children.push(childLayer);
       }
@@ -842,6 +1025,9 @@ export function htmlToLayers(html: string): Layer[] {
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
+    const context: ImportContext = {
+      payload: parseInteractionPayload(doc),
+    };
 
     const layers: Layer[] = [];
     const body = doc.body;
@@ -849,7 +1035,7 @@ export function htmlToLayers(html: string): Layer[] {
     for (let i = 0; i < body.childNodes.length; i++) {
       const node = body.childNodes[i];
       if (node.nodeType === Node.ELEMENT_NODE) {
-        const layer = elementToLayer(node as Element);
+        const layer = elementToLayer(node as Element, context);
         if (layer) layers.push(layer);
       } else if (node.nodeType === Node.TEXT_NODE) {
         const text = (node.textContent || '').trim();

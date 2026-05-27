@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { Layer } from '@/types';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
-import { generateQayAiLayers, type AiBuilderMode } from '@/qay/lib/ai/builder';
+import { generateQayAiHtml, generateQayAiLayers, type AiBuilderMode } from '@/qay/lib/ai/builder';
 
 export const runtime = 'nodejs';
 
 type GenerateRequestBody = {
   prompt?: string;
   mode?: AiBuilderMode;
+  output?: 'layers' | 'html';
   selectedLayers?: Layer[];
 };
 
@@ -29,7 +30,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Select a layer before asking AI to redesign it.' }, { status: 400 });
     }
 
-    const result = await generateQayAiLayers({ prompt, mode, selectedLayers });
+    const result = body.output === 'html'
+      ? await generateQayAiHtml({ prompt, mode, selectedLayers })
+      : await generateQayAiLayers({ prompt, mode, selectedLayers });
 
     return NextResponse.json({ data: result });
   } catch (error) {
