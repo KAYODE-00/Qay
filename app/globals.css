@@ -325,6 +325,7 @@
 /* RichTextEditor Styles */
 .rich-text-editor.ProseMirror {
   @apply outline-none w-full min-h-full;
+  white-space: pre-wrap;
 }
 
 .rich-text-editor.ProseMirror p {

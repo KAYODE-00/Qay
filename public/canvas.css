@@ -130,6 +130,10 @@
   display: inline !important;
 }
 
+.ycode-text-editor.ProseMirror {
+  white-space: pre-wrap;
+}
+
 /* Strip native browser appearance from form elements so Tailwind classes apply */
 input,
 select,
