@@ -11,6 +11,7 @@ type AiProvider = {
   apiKey: string | undefined;
   available: () => boolean;
   call: (prompt: string, system: string) => Promise<string>;
+  canRepairJson?: boolean;
 };
 
 function getErrorMessage(error: unknown) {
@@ -99,6 +100,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: 'gpt-4o',
           temperature: 0.35,
+          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: prompt },
@@ -119,6 +121,7 @@ export const PROVIDERS: AiProvider[] = [
     model: GROQ_MODEL,
     apiKey: process.env.GROQ_API_KEY,
     available: () => Boolean(process.env.GROQ_API_KEY),
+    canRepairJson: true,
     call: async (prompt: string, system: string) => {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -129,6 +132,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: GROQ_MODEL,
           temperature: 0.35,
+          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: prompt },
@@ -149,6 +153,7 @@ export const PROVIDERS: AiProvider[] = [
     model: OPENROUTER_MODEL,
     apiKey: process.env.OPENROUTER_API_KEY,
     available: () => Boolean(process.env.OPENROUTER_API_KEY),
+    canRepairJson: true,
     call: async (prompt: string, system: string) => {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -161,6 +166,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
           temperature: 0.35,
+          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: prompt },
@@ -200,6 +206,7 @@ export const PROVIDERS: AiProvider[] = [
             generationConfig: {
               temperature: 0.35,
               maxOutputTokens: 6000,
+              responseMimeType: 'application/json',
             },
           }),
         }
@@ -242,6 +249,30 @@ function canTryNextProvider(error: unknown) {
   );
 }
 
+function isInvalidJsonError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes('invalid layer json') ||
+    message.includes('did not contain a json') ||
+    message.includes('expected') ||
+    message.includes('unterminated string') ||
+    message.includes('bad control character')
+  );
+}
+
+function buildJsonRepairPrompt(text: string) {
+  return `Repair the following malformed QAY/Ycode layer JSON into one valid JSON array.
+
+Rules:
+- Return ONLY the corrected JSON array.
+- Do not add prose, markdown, explanations, or comments.
+- Preserve as much layer content, classes, variables, settings, children, and interactions as possible.
+- Remove trailing commas and complete any unterminated strings safely.
+
+Malformed response:
+${text}`;
+}
+
 export async function callWithFallbackDetailed<T = unknown>(
   prompt: string,
   system: string,
@@ -254,7 +285,27 @@ export async function callWithFallbackDetailed<T = unknown>(
     try {
       console.log(`[AI] Trying ${provider.name}...`);
       const text = await provider.call(prompt, system);
-      const value = validate ? validate(text) : undefined;
+      let value: T | undefined;
+
+      if (validate) {
+        try {
+          value = validate(text);
+        } catch (validationError) {
+          if (!provider.canRepairJson || !isInvalidJsonError(validationError)) {
+            throw validationError;
+          }
+
+          console.warn(`[AI] ${provider.name} returned malformed JSON. Attempting repair...`);
+          const repairedText = await provider.call(
+            buildJsonRepairPrompt(text),
+            'You repair malformed JSON. Return only valid JSON and no prose.'
+          );
+          value = validate(repairedText);
+          console.log(`[AI] Repaired JSON from ${provider.name}`);
+          return { text: repairedText, provider: provider.name, model: provider.model, value };
+        }
+      }
+
       console.log(`[AI] Success with ${provider.name}`);
       return { text, provider: provider.name, model: provider.model, value };
     } catch (error) {

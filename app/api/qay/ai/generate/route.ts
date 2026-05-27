@@ -37,6 +37,13 @@ export async function POST(request: Request) {
     const status = message.includes('No AI provider is configured') ? 503 : 500;
 
     console.error('[QAY AI generate] Error:', error);
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+      {
+        error: status === 503
+          ? 'AI is not configured yet. Add at least one AI provider key to use this.'
+          : 'AI is busy. Try again shortly.',
+      },
+      { status }
+    );
   }
 }

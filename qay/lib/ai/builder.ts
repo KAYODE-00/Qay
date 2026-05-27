@@ -535,8 +535,27 @@ function assertUsableAiLayers(layers: Layer[], userPrompt: string, mode: AiBuild
       return [layer, ...(Array.isArray(layer.children) ? layer.children.flatMap(flatten) : [])];
     })
     .filter((layer) => ['nav', 'section', 'footer'].includes(layer.name)).length;
+  const flatLayers = layers.flatMap(function flatten(layer): Layer[] {
+    return [layer, ...(Array.isArray(layer.children) ? layer.children.flatMap(flatten) : [])];
+  });
+  const classText = flatLayers
+    .map((layer) => Array.isArray(layer.classes) ? layer.classes.join(' ') : layer.classes || '')
+    .join(' ');
+  const visualStructureCount = [
+    /\bgrid\b/.test(classText),
+    /\bflex\b/.test(classText),
+    /\bmax-w-/.test(classText),
+    /\b(px|py|p)-/.test(classText),
+    /\bborder/.test(classText),
+    /\b(bg|text)-\[#/.test(classText) || /\b(bg|text)-(black|white|zinc|neutral|slate|stone)/.test(classText),
+  ].filter(Boolean).length;
+  const repeatedGrayCards = (classText.match(/bg-gray-100/g) || []).length;
 
   if (sectionLikeCount < 2 || layerTexts.length < 4) {
+    throw new Error('AI response was not a usable design. Please try again.');
+  }
+
+  if (flatLayers.length < 14 || visualStructureCount < 4 || repeatedGrayCards > 4) {
     throw new Error('AI response was not a usable design. Please try again.');
   }
 }

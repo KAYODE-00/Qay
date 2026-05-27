@@ -24,6 +24,25 @@ type Category = {
   order?: number;
 };
 
+type UserTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  status: 'private' | 'pending_review' | 'approved' | 'rejected';
+  pricing_mode: 'free' | 'paid';
+  intended_price: number | string | null;
+  paid_available: boolean;
+  review_score?: number | null;
+  review_notes?: string | null;
+};
+
+type UserTemplateCounts = {
+  total: number;
+  pending: number;
+  approved: number;
+};
+
 type Props = {
   initialSites: QaySite[];
   profile: QayAccountProfile;
@@ -59,6 +78,9 @@ function DashboardNavItem({
 
 export function TemplatesDashboardClient({ profile }: Props) {
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [userTemplates, setUserTemplates] = useState<UserTemplate[]>([]);
+  const [communityTemplates, setCommunityTemplates] = useState<UserTemplate[]>([]);
+  const [userTemplateCounts, setUserTemplateCounts] = useState<UserTemplateCounts>({ total: 0, pending: 0, approved: 0 });
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -78,15 +100,25 @@ export function TemplatesDashboardClient({ profile }: Props) {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await fetch('/api/templates');
-        const payload = await response.json();
+        const [templateResponse, userTemplateResponse] = await Promise.all([
+          fetch('/api/templates'),
+          fetch('/api/qay/templates/user', { cache: 'no-store' }),
+        ]);
+        const payload = await templateResponse.json();
 
-        if (!response.ok) {
+        if (!templateResponse.ok) {
           throw new Error(payload.error || 'Failed to load templates');
         }
 
         setTemplates(payload.templates ?? []);
         setCategories(payload.categories ?? []);
+
+        if (userTemplateResponse.ok) {
+          const userTemplatePayload = await userTemplateResponse.json();
+          setUserTemplates(userTemplatePayload.data?.templates ?? []);
+          setCommunityTemplates(userTemplatePayload.data?.communityTemplates ?? []);
+          setUserTemplateCounts(userTemplatePayload.data?.counts ?? { total: 0, pending: 0, approved: 0 });
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load templates');
       } finally {
@@ -134,6 +166,56 @@ export function TemplatesDashboardClient({ profile }: Props) {
     } finally {
       setIsApplying(false);
       setSelectedTemplate(null);
+    }
+  }
+
+  async function applyUserTemplate(template: UserTemplate, siteId: string, redirectTo = `/dashboard/sites/${siteId}/editor`) {
+    setIsApplying(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response = await fetch(`/api/qay/templates/user/${template.id}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to apply template');
+      }
+
+      window.location.assign(redirectTo);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to apply template');
+    } finally {
+      setIsApplying(false);
+    }
+  }
+
+  async function createSiteFromUserTemplate(template: UserTemplate) {
+    setIsApplying(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response = await fetch('/api/qay/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: template.name, skipDefaultPages: true }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Unable to create site');
+      }
+
+      const site = payload.data as QaySite;
+      await applyUserTemplate(template, site.id, `/dashboard/sites/${site.id}/editor`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create site');
+      setIsApplying(false);
     }
   }
 
@@ -335,6 +417,21 @@ export function TemplatesDashboardClient({ profile }: Props) {
           ))}
         </div>
 
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-white/40">My templates</p>
+            <p className="mt-1 text-2xl font-semibold">{userTemplateCounts.total}</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-white/40">Pending review</p>
+            <p className="mt-1 text-2xl font-semibold">{userTemplateCounts.pending}</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-white/40">Approved</p>
+            <p className="mt-1 text-2xl font-semibold">{userTemplateCounts.approved}</p>
+          </div>
+        </div>
+
         {(notice || error) && (
           <div
             className={`mt-5 rounded-md border px-4 py-3 text-sm ${
@@ -355,6 +452,74 @@ export function TemplatesDashboardClient({ profile }: Props) {
             <p className="mt-3 text-sm text-white/60">No templates found in this category.</p>
           </div>
         ) : (
+          <>
+          {(userTemplates.length > 0 || communityTemplates.length > 0) && (
+            <div className="mt-8 space-y-8">
+              {userTemplates.length > 0 && (
+                <section>
+                  <div className="flex items-end justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-semibold tracking-normal">My templates</h2>
+                      <p className="mt-1 text-sm text-white/45">Templates you saved from your sites.</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {userTemplates.map((template) => (
+                      <article key={template.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-white/35">{template.category}</p>
+                            <h3 className="mt-1 text-base font-medium">{template.name}</h3>
+                          </div>
+                          <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/55">
+                            {template.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <p className="mt-3 line-clamp-2 text-sm text-white/50">{template.description || 'Reusable QAY template.'}</p>
+                        {template.pricing_mode === 'paid' && (
+                          <p className="mt-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/45">
+                            Price saved for later. Paid template sales are not live yet.
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => createSiteFromUserTemplate(template)}
+                          disabled={isApplying}
+                          className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Create project
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {communityTemplates.length > 0 && (
+                <section>
+                  <h2 className="text-xl font-semibold tracking-normal">Community</h2>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {communityTemplates.map((template) => (
+                      <article key={template.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                        <p className="text-xs uppercase tracking-wide text-white/35">{template.category}</p>
+                        <h3 className="mt-1 text-base font-medium">{template.name}</h3>
+                        <p className="mt-3 line-clamp-2 text-sm text-white/50">{template.description || 'Reusable QAY template.'}</p>
+                        <button
+                          type="button"
+                          onClick={() => createSiteFromUserTemplate(template)}
+                          disabled={isApplying}
+                          className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Create project
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredTemplates.map((template) => (
               <article key={template.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
@@ -401,6 +566,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
               </article>
             ))}
           </div>
+          </>
         )}
       </section>
 
