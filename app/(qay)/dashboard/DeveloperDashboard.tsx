@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, useState, type ReactNode } from 'react';
-import { Bell, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Sparkles, Trash2, UserPlus } from 'lucide-react';
+import { Bell, Code2, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Sparkles, Trash2, UserPlus } from 'lucide-react';
+import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
 import type { QaySite } from '@/qay/types';
@@ -66,6 +67,10 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
   const [creationMode, setCreationMode] = useState<'blank' | 'ai'>('blank');
   const [siteName, setSiteName] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isImportNameOpen, setIsImportNameOpen] = useState(false);
+  const [importSiteName, setImportSiteName] = useState('');
+  const [pendingImportHtml, setPendingImportHtml] = useState('');
   const [creationStatus, setCreationStatus] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,6 +139,64 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
       window.location.assign(`/dashboard/sites/${payload.data.id}/editor`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create site');
+    } finally {
+      setIsCreating(false);
+      setCreationStatus('');
+    }
+  }
+
+  function handleImportHtml(html: string) {
+    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+    const importedName = titleMatch?.[1]?.replace(/\s+/g, ' ').trim() || 'Imported site';
+    setPendingImportHtml(html);
+    setImportSiteName(importedName);
+    setError(null);
+    setIsImportNameOpen(true);
+  }
+
+  async function importHtmlIntoNewSite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsCreating(true);
+    setError(null);
+    setCreationStatus('Importing site...');
+
+    try {
+      const layers = htmlToLayers(pendingImportHtml);
+
+      if (layers.length === 0) {
+        throw new Error('No valid HTML elements found');
+      }
+
+      const importedName = importSiteName.trim() || 'Imported site';
+      const siteResponse = await fetch('/api/qay/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: importedName, skipDefaultPages: true }),
+      });
+      const sitePayload = await siteResponse.json();
+
+      if (!siteResponse.ok) {
+        throw new Error(sitePayload.error || 'Unable to create site for import');
+      }
+
+      const site = sitePayload.data as QaySite;
+      const response = await fetch(`/api/qay/sites/${site.id}/import-html`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layers }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to import HTML');
+      }
+
+      setIsImportNameOpen(false);
+      setPendingImportHtml('');
+      setImportSiteName('');
+      window.location.assign(`/dashboard/sites/${site.id}/editor`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import HTML');
     } finally {
       setIsCreating(false);
       setCreationStatus('');
@@ -214,6 +277,14 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
             >
               <Sparkles className="size-4" />
               Build with AI
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsImportOpen(true)}
+              className="hidden h-10 items-center gap-2 rounded-md border border-border px-4 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground sm:inline-flex"
+            >
+              <Code2 className="size-4" />
+              Import HTML
             </button>
             <button
               type="button"
@@ -448,6 +519,56 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
                 className="h-11 w-full rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isCreating ? (creationMode === 'ai' ? 'Building...' : 'Creating...') : creationMode === 'ai' ? 'Build and open editor' : 'Create and open editor'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      <ImportHtmlDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onImport={handleImportHtml}
+      />
+
+      {isImportNameOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <form onSubmit={importHtmlIntoNewSite} className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold tracking-normal">Name imported site</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Your imported site will open as a fresh site.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImportNameOpen(false);
+                  setPendingImportHtml('');
+                  setImportSiteName('');
+                }}
+                className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <label className="block space-y-2 text-sm text-muted-foreground">
+                <span>Site name</span>
+                <input
+                  value={importSiteName}
+                  onChange={(event) => setImportSiteName(event.target.value)}
+                  required
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
+                />
+              </label>
+              {creationStatus && <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">{creationStatus}</p>}
+              {error && <p className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
+              <button
+                type="submit"
+                disabled={isCreating}
+                className="h-11 w-full rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCreating ? 'Importing...' : 'Import and open editor'}
               </button>
             </div>
           </form>

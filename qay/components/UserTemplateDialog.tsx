@@ -14,6 +14,7 @@ const CATEGORIES = ['Portfolio', 'Business', 'SaaS', 'Landing', 'Blog', 'Ecommer
 
 export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateDialogProps) {
   const [siteId, setSiteId] = useState<string | null>(null);
+  const [templateUrl, setTemplateUrl] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Portfolio');
@@ -25,9 +26,27 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
 
   useEffect(() => {
     if (!open) return;
-    setSiteId(readQayEditorSiteIdFromBrowser());
+    const currentSiteId = readQayEditorSiteIdFromBrowser();
+    setSiteId(currentSiteId);
+    setTemplateUrl('');
     setMessage(null);
     setError(null);
+
+    if (!currentSiteId) return;
+
+    let cancelled = false;
+    fetch(`/api/qay/sites/${currentSiteId}`, { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!cancelled && payload?.data?.live_url) {
+          setTemplateUrl(payload.data.live_url);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   const paidNotice = useMemo(() => {
@@ -117,6 +136,13 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
               placeholder="Agency homepage"
             />
           </label>
+
+          {templateUrl && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+              <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">Template URL</span>
+              <span className="mt-1 block break-all text-muted-foreground">{templateUrl}</span>
+            </div>
+          )}
 
           <label className="block space-y-2 text-sm">
             <span className="font-medium">Description</span>

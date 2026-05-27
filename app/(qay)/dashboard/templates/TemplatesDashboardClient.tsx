@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, Settings } from 'lucide-react';
+import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, Settings, Sparkles } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
 import { htmlToLayers } from '@/lib/html-layer-converter';
 import { QayLogo } from '@/qay/components/QayLogo';
@@ -89,9 +89,12 @@ export function TemplatesDashboardClient({ profile }: Props) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isImportNameOpen, setIsImportNameOpen] = useState(false);
+  const [creationMode, setCreationMode] = useState<'blank' | 'ai'>('blank');
   const [siteName, setSiteName] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
   const [importSiteName, setImportSiteName] = useState('');
   const [pendingImportHtml, setPendingImportHtml] = useState('');
+  const [creationStatus, setCreationStatus] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -224,6 +227,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
     setError(null);
     setSelectedTemplate(template);
     setSiteName(template.name);
+    setCreationMode('blank');
     setIsCreateOpen(true);
     setNotice('Create a new project from this template. It will appear in your dashboard.');
   }
@@ -232,12 +236,21 @@ export function TemplatesDashboardClient({ profile }: Props) {
     event.preventDefault();
     setIsApplying(true);
     setError(null);
+    setCreationStatus(creationMode === 'ai' ? 'Creating site...' : '');
 
     try {
+      const prompt = aiPrompt.trim();
+
+      if (creationMode === 'ai' && !prompt) {
+        setError('Describe the site you want QAY to build.');
+        setIsApplying(false);
+        return;
+      }
+
       const response = await fetch('/api/qay/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: siteName, skipDefaultPages: Boolean(selectedTemplate) }),
+        body: JSON.stringify({ name: siteName, skipDefaultPages: Boolean(selectedTemplate || creationMode === 'ai') }),
       });
       const payload = await response.json();
 
@@ -251,12 +264,48 @@ export function TemplatesDashboardClient({ profile }: Props) {
 
       if (selectedTemplate) {
         await applyTemplate(selectedTemplate, site.id, `/dashboard/sites/${site.id}/editor`);
+      } else if (creationMode === 'ai') {
+        setCreationStatus('Building with AI...');
+        const aiResponse = await fetch('/api/qay/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, mode: 'page', output: 'html' }),
+        });
+        const aiPayload = await aiResponse.json();
+        const generatedLayers = aiPayload.data?.html
+          ? htmlToLayers(aiPayload.data.html)
+          : aiPayload.data?.layers;
+
+        if (!aiResponse.ok || !generatedLayers?.length) {
+          setError(aiPayload.details || aiPayload.error || 'We could not build this site.');
+          setIsApplying(false);
+          return;
+        }
+
+        setCreationStatus('Preparing editor...');
+        const importResponse = await fetch(`/api/qay/sites/${site.id}/import-html`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ layers: generatedLayers }),
+        });
+        const importPayload = await importResponse.json();
+
+        if (!importResponse.ok) {
+          setError(importPayload.error || 'The site was created, but the design could not be applied.');
+          setIsApplying(false);
+          return;
+        }
+
+        setAiPrompt('');
+        window.location.assign(`/dashboard/sites/${site.id}/editor`);
       } else {
         window.location.assign(`/dashboard/sites/${site.id}/editor`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create site');
       setIsApplying(false);
+    } finally {
+      setCreationStatus('');
     }
   }
 
@@ -383,11 +432,27 @@ export function TemplatesDashboardClient({ profile }: Props) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
-              onClick={() => setIsCreateOpen(true)}
+              onClick={() => {
+                setSelectedTemplate(null);
+                setCreationMode('blank');
+                setIsCreateOpen(true);
+              }}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/10 px-4 text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
             >
               <Plus className="size-4" />
               New site
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTemplate(null);
+                setCreationMode('ai');
+                setIsCreateOpen(true);
+              }}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/10 px-4 text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
+            >
+              <Sparkles className="size-4" />
+              Build with AI
             </button>
             <button
               type="button"
@@ -576,10 +641,10 @@ export function TemplatesDashboardClient({ profile }: Props) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold tracking-normal">
-                  {selectedTemplate ? 'Create project from template' : 'Create site'}
+                  {selectedTemplate ? 'Create project from template' : creationMode === 'ai' ? 'Build with AI' : 'Create site'}
                 </h2>
                 <p className="mt-1 text-sm text-white/55">
-                  {selectedTemplate ? `We’ll start a fresh site from ${selectedTemplate.name}.` : 'Create a new site for your import.'}
+                  {selectedTemplate ? `We'll start a fresh site from ${selectedTemplate.name}.` : creationMode === 'ai' ? 'Describe the site and QAY will draft the first page.' : 'Create a new site for your import.'}
                 </p>
               </div>
               <button
@@ -587,6 +652,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                 onClick={() => {
                   setIsCreateOpen(false);
                   setSelectedTemplate(null);
+                  setCreationMode('blank');
                   setNotice(null);
                 }}
                 className="rounded-md px-2 py-1 text-sm text-white/50 hover:bg-white/5 hover:text-white"
@@ -596,6 +662,25 @@ export function TemplatesDashboardClient({ profile }: Props) {
             </div>
 
             <div className="mt-6 space-y-4">
+              {!selectedTemplate && (
+                <div className="grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+                  <button
+                    type="button"
+                    onClick={() => setCreationMode('blank')}
+                    className={`rounded-md px-3 py-2 text-sm font-medium transition ${creationMode === 'blank' ? 'bg-white text-black shadow-sm' : 'text-white/55 hover:text-white'}`}
+                  >
+                    Blank
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreationMode('ai')}
+                    className={`rounded-md px-3 py-2 text-sm font-medium transition ${creationMode === 'ai' ? 'bg-white text-black shadow-sm' : 'text-white/55 hover:text-white'}`}
+                  >
+                    AI
+                  </button>
+                </div>
+              )}
+
               <label className="block space-y-2 text-sm text-white/75">
                 <span>Site name</span>
                 <input
@@ -605,13 +690,29 @@ export function TemplatesDashboardClient({ profile }: Props) {
                   className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
                 />
               </label>
+              {creationMode === 'ai' && !selectedTemplate && (
+                <label className="block space-y-2 text-sm text-white/75">
+                  <span>What should we build?</span>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(event) => setAiPrompt(event.target.value)}
+                    required
+                    rows={5}
+                    placeholder="A premium portfolio for a full-stack developer with project cards, timeline, and contact section..."
+                    className="w-full resize-none rounded-md border border-white/15 bg-black px-3 py-2 text-white outline-none transition focus:border-white"
+                  />
+                </label>
+              )}
               <p className="text-sm text-white/55">A short site URL will be created automatically.</p>
+              {creationStatus && (
+                <p className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white/55">{creationStatus}</p>
+              )}
               <button
                 type="submit"
                 disabled={isApplying}
                 className="h-11 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isApplying ? 'Creating...' : selectedTemplate ? 'Create project' : 'Create site'}
+                {isApplying ? (creationMode === 'ai' ? 'Building...' : 'Creating...') : selectedTemplate ? 'Create project' : creationMode === 'ai' ? 'Build and open editor' : 'Create site'}
               </button>
             </div>
           </form>

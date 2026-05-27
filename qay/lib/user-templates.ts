@@ -9,6 +9,7 @@ import { generatePageLayersHash, generatePageMetadataHash } from '@/lib/hash-uti
 import { buildQayIndexSlug } from '@/qay/lib/index-slug';
 import { layersContainPromptLeak } from '@/qay/lib/ai/prompt-leak';
 import { callWithFallbackDetailed } from '@/qay/lib/ai/providers';
+import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 
 export type QayUserTemplateStatus = 'private' | 'pending_review' | 'approved' | 'rejected';
 export type QayUserTemplatePricingMode = 'free' | 'paid';
@@ -284,7 +285,7 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
 
   const site = await knex('qay_sites')
     .where({ id: input.siteId, owner_id: input.ownerId })
-    .first('id', 'slug');
+    .first('id', 'slug', 'custom_domain', 'live_url', 'publish_status');
 
   if (!site) {
     throw new Error('Site not found');
@@ -321,7 +322,7 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
       pricing_mode: pricingMode,
       intended_price: intendedPrice,
       paid_available: false,
-      preview_url: `/${site.slug}`,
+      preview_url: withResolvedQayLiveUrl(site).live_url || `/${site.slug}`,
       review_score: reviewScore,
       review_notes: reviewNotes,
       template_payload: payload,
