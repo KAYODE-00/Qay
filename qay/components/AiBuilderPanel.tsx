@@ -31,6 +31,7 @@ type GenerateResponse = {
     model: string;
   };
   error?: string;
+  details?: string;
 };
 
 function historyKey(siteId: string | null) {
@@ -179,7 +180,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       const body = (await response.json()) as GenerateResponse;
 
       if (!response.ok || !body.data) {
-        throw new Error(body.error || 'We could not generate this design.');
+        throw new Error(body.details || body.error || 'We could not generate this design.');
       }
 
       const generatedLayers = body.data.html
