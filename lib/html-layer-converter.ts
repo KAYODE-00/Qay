@@ -51,8 +51,8 @@ const TAG_TO_LAYER_NAME: Record<string, string> = {
   hgroup: 'div',
   search: 'div',
 
-  // Links — treated as div with link settings
-  a: 'div',
+  // Links become button layers with link settings for editor controls.
+  a: 'button',
 
   // Text / inline content
   p: 'text',
@@ -521,6 +521,13 @@ function isTextOnlyElement(el: Element): boolean {
     }
   }
   return true;
+}
+
+function hasDirectAnchorChild(el: Element): boolean {
+  for (let i = 0; i < el.children.length; i++) {
+    if (el.children[i].tagName.toLowerCase() === 'a') return true;
+  }
+  return false;
 }
 
 const TEXT_LAYER_NAMES = new Set(['text', 'heading', 'span']);
@@ -995,7 +1002,7 @@ function elementToLayer(el: Element, context?: ImportContext): Layer | null {
     return layer;
   }
 
-  if (!isTextLayer && isTextOnlyElement(el) && el.textContent?.trim()) {
+  if (!isTextLayer && isTextOnlyElement(el) && el.textContent?.trim() && !hasDirectAnchorChild(el)) {
     const doc = buildRichTextDoc(el);
     if (CONTAINER_NAMES.has(layerName)) {
       layer.children = [makeTextLayer(doc)];
