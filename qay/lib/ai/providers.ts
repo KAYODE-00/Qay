@@ -82,7 +82,10 @@ function wantsPlainHtml(system: string) {
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
+const DEFAULT_OPENROUTER_MODEL = 'meta-llama/llama-3.1-8b-instruct:free';
+const OPENROUTER_MODEL = !process.env.OPENROUTER_MODEL || process.env.OPENROUTER_MODEL === 'openrouter/free'
+  ? DEFAULT_OPENROUTER_MODEL
+  : process.env.OPENROUTER_MODEL;
 
 function sortProvidersForRequest(providers: AiProvider[], system: string) {
   if (!wantsPlainHtml(system)) return providers;
