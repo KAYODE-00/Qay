@@ -3,6 +3,8 @@ import { getKnexClient, closeKnexClient } from '@/lib/knex-client';
 import { getDraftLayers, upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { buildQayIndexSlug } from '@/qay/lib/index-slug';
+import { ensureQayDraftErrorPages } from '@/qay/lib/site-error-pages';
 import type { Layer } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -46,18 +48,30 @@ async function findOrCreateImportPage(siteId: string) {
       .whereNull('deleted_at')
       .whereNull('error_page')
       .where('is_published', false)
-      .select('id', 'name', 'settings', 'is_index', 'created_at')
+      .select('id', 'name', 'slug', 'settings', 'is_index', 'page_folder_id', 'created_at')
       .orderBy('is_index', 'desc')
       .orderBy('created_at', 'asc');
 
     const sitePages = pages.filter((page) => page.settings?.qay_site_id === siteId);
-    const existing = sitePages[0];
+    const existing = sitePages.find((page) => page.is_index && page.page_folder_id === null) ?? sitePages[0];
     if (existing) {
+      if (existing.slug !== buildQayIndexSlug(siteId) || !existing.is_index || existing.page_folder_id !== null) {
+        await knex('pages')
+          .where({ id: existing.id })
+          .update({
+            slug: buildQayIndexSlug(siteId),
+            is_index: true,
+            page_folder_id: null,
+            settings: { ...(existing.settings || {}), qay_site_id: siteId },
+            updated_at: new Date().toISOString(),
+          });
+      }
+
       return existing.id as string;
     }
 
     const isFirstSitePage = sitePages.length === 0;
-    const slug = isFirstSitePage ? 'index' : `import-${Date.now().toString(36)}`;
+    const slug = isFirstSitePage ? buildQayIndexSlug(siteId) : `import-${Date.now().toString(36)}`;
     const [page] = await knex('pages')
       .insert({
         name: isFirstSitePage ? 'Homepage' : 'Imported HTML',
@@ -119,6 +133,7 @@ export async function POST(
     : [{ id: 'body', name: 'body', classes: '', children: [] } as Layer];
 
   await upsertDraftLayers(pageId, appendToBody(currentLayers, layers));
+  await ensureQayDraftErrorPages(siteId);
 
   return NextResponse.json({
     success: true,

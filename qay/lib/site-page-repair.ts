@@ -108,6 +108,11 @@ export async function ensureQayDraftHomePage(siteId: string): Promise<string> {
   const sitePages = regularPages.filter((page) => getSiteIdFromSettings(page.settings) === siteId);
   const homePage = sitePages.find((page) => page.is_index && page.page_folder_id === null);
   if (homePage) {
+    if (homePage.slug !== buildQayIndexSlug(siteId) || getSiteIdFromSettings(homePage.settings) !== siteId) {
+      const repaired = await repairPageAsHome(supabase, homePage, siteId);
+      return repaired.id;
+    }
+
     return homePage.id;
   }
 
