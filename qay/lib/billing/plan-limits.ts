@@ -9,6 +9,7 @@ export type QayPlan = {
   currency: string;
   interval: 'month';
   siteLimit: number;
+  publishedSiteLimit: number;
   features: string[];
 };
 
@@ -20,7 +21,8 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     currency: 'USD',
     interval: 'month',
     siteLimit: Number.MAX_SAFE_INTEGER,
-    features: ['Unlimited sites', 'QAY editor', 'CMS basics'],
+    publishedSiteLimit: 2,
+    features: ['Unlimited draft sites', 'Publish 2 sites', 'QAY editor', 'CMS basics'],
   },
   pro: {
     key: 'pro',
@@ -29,7 +31,8 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     currency: 'USD',
     interval: 'month',
     siteLimit: 10,
-    features: ['10 sites', 'Custom domains', 'Client handoff', 'Collaboration'],
+    publishedSiteLimit: 10,
+    features: ['10 sites', 'Publish 10 sites', 'Custom domains', 'Client handoff', 'Collaboration'],
   },
   agency: {
     key: 'agency',
@@ -38,7 +41,8 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     currency: 'USD',
     interval: 'month',
     siteLimit: 50,
-    features: ['50 sites', 'Advanced collaboration', 'Priority workflow', 'Agency workspace'],
+    publishedSiteLimit: 50,
+    features: ['50 sites', 'Publish 50 sites', 'Advanced collaboration', 'Priority workflow', 'Agency workspace'],
   },
 };
 

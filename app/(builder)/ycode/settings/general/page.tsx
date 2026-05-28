@@ -117,6 +117,7 @@ export default function GeneralSettingsPage() {
   const [customDomain, setCustomDomain] = useState('');
   const [isLoadingSiteSettings, setIsLoadingSiteSettings] = useState(false);
   const [isSavingSiteSettings, setIsSavingSiteSettings] = useState(false);
+  const [isVerifyingDomain, setIsVerifyingDomain] = useState(false);
 
   // Initialize timezone from store (default UTC)
   const storedTimezone = getSettingByKey('timezone') as string | null;
@@ -319,6 +320,33 @@ export default function GeneralSettingsPage() {
     }
   }, [qaySiteId, siteName, siteSlug, customDomain]);
 
+  const verifyCustomDomain = useCallback(async () => {
+    if (!qaySiteId) return;
+
+    try {
+      setIsVerifyingDomain(true);
+      const response = await fetch(`/api/qay/sites/${qaySiteId}/domain/verify`, { method: 'POST' });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Unable to verify domain');
+      }
+
+      if (result?.data?.verified) {
+        setSiteSettings((current) => current ? { ...current, domain_verified: true } : current);
+        toast.success('Domain verified');
+      } else {
+        toast.message('Domain is saved', {
+          description: 'Point your domain to Vercel, then try verification again.',
+        });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to verify domain');
+    } finally {
+      setIsVerifyingDomain(false);
+    }
+  }, [qaySiteId]);
+
   const handleDetectTimezone = useCallback(() => {
     const detected = getDetectedTimezone();
     if (detected) setTimezone(detected);
@@ -470,9 +498,21 @@ export default function GeneralSettingsPage() {
                         {siteSettings?.custom_domain
                           ? siteSettings.domain_verified
                             ? 'Connected and verified.'
-                            : 'Saved. Add the DNS records from your domain provider, then verify.'
+                            : 'Saved. In Vercel, point an apex domain with A 76.76.21.21 or point www with a CNAME to cname.vercel-dns.com.'
                           : 'Connect a domain you own. Leave blank to use the QAY URL.'}
                       </FieldDescription>
+                      {siteSettings?.custom_domain && !siteSettings.domain_verified && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="mt-3"
+                          onClick={verifyCustomDomain}
+                          disabled={isVerifyingDomain}
+                        >
+                          {isVerifyingDomain ? 'Checking...' : 'Verify domain'}
+                        </Button>
+                      )}
                     </Field>
 
                     <Field className="col-span-2 rounded-lg border border-border bg-background p-4">

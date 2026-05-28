@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState, type ReactNode } from 'react';
-import { Bell, Code2, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Sparkles, Trash2, UserPlus } from 'lucide-react';
+import { BarChart3, Bell, Code2, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Sparkles, Trash2, UserPlus } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
@@ -397,6 +397,13 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
                       >
                         <Settings className="size-4" />
                         Site settings
+                      </a>
+                      <a
+                        href={`/dashboard/sites/${site.id}/analytics`}
+                        className="flex items-center gap-2 rounded px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <BarChart3 className="size-4" />
+                        Analytics
                       </a>
                       <button
                         type="button"

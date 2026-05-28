@@ -4,7 +4,7 @@ import { UpgradeModal } from '@/qay/components/billing/UpgradeModal';
 import { QAY_PLANS, type QayPlanKey } from '@/qay/lib/billing/plan-limits';
 
 const plans = [
-  { key: 'free', body: 'Launch your first site, explore the editor, and publish when you are ready.' },
+  { key: 'free', body: 'Create unlimited draft sites and publish two while you test, learn, and shape your workflow.' },
   { key: 'pro', body: 'Built for freelancers shipping client sites with CMS, collaboration, and custom domains.' },
   { key: 'agency', body: 'For teams juggling multiple sites, reviews, and client handoff without the usual clutter.' },
 ] as const;
