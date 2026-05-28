@@ -567,12 +567,22 @@ type ImportInteractionAnimation = {
   ease?: string;
 };
 
+type ImportClickInteraction = {
+  selector?: string;
+  trigger?: string;
+  action?: string;
+  target?: string;
+  className?: string;
+};
+
 type ImportInteractionPayload = {
   defaults?: {
     duration?: number;
     ease?: string;
   };
   animations?: ImportInteractionAnimation[];
+  interactions?: ImportClickInteraction[];
+  hoverAnimations?: ImportInteractionAnimation[];
 };
 
 type ImportContext = {
@@ -697,10 +707,14 @@ function elementMatchesImportSelector(el: Element, selector: string) {
 }
 
 function interactionsFromScriptPayload(el: Element, layerId: string, context?: ImportContext) {
-  if (!context?.payload?.animations?.length) return [];
-  const defaults = context.payload.defaults || {};
+  const payloadAnimations = [
+    ...(context?.payload?.animations || []),
+    ...(context?.payload?.hoverAnimations || []),
+  ];
+  if (!payloadAnimations.length) return [];
+  const defaults = context?.payload?.defaults || {};
 
-  return context.payload.animations
+  return payloadAnimations
     .filter((animation) => animation.selector && elementMatchesImportSelector(el, animation.selector))
     .map((animation) => createInteraction(
       layerId,
@@ -712,6 +726,74 @@ function interactionsFromScriptPayload(el: Element, layerId: string, context?: I
       typeof animation.duration === 'number' ? Math.min(Math.max(animation.duration, 0.05), 3) : defaults.duration || 0.65,
       animation.ease || defaults.ease || 'power2.out'
     ));
+}
+
+function getElementsForSelector(root: Document | Element, selector: string | undefined) {
+  if (!selector || selector.length > 180) return [];
+  try {
+    return Array.from(root.querySelectorAll(selector));
+  } catch {
+    return [];
+  }
+}
+
+function hasDisplayClass(el: Element) {
+  return Array.from(el.classList).some((className) => (
+    className === 'flex' ||
+    className === 'grid' ||
+    className === 'block' ||
+    className === 'inline-block' ||
+    className === 'inline-flex' ||
+    className === 'hidden' ||
+    className.endsWith(':flex') ||
+    className.endsWith(':grid') ||
+    className.endsWith(':block') ||
+    className.endsWith(':inline-block') ||
+    className.endsWith(':inline-flex') ||
+    className.endsWith(':hidden')
+  ));
+}
+
+function normalizeToggleInteractions(doc: Document, payload: ImportInteractionPayload | null) {
+  const interactions = payload?.interactions || [];
+
+  interactions.forEach((interaction) => {
+    if (
+      interaction.trigger !== 'click' ||
+      interaction.action !== 'toggle-class' ||
+      !interaction.selector ||
+      !interaction.target
+    ) {
+      return;
+    }
+
+    const triggers = getElementsForSelector(doc, interaction.selector);
+    const targets = getElementsForSelector(doc, interaction.target);
+    if (!triggers.length || !targets.length) return;
+
+    const importedClass = interaction.className || 'hidden';
+    const useHiddenToggle = importedClass !== 'hidden';
+
+    triggers.forEach((trigger) => {
+      trigger.setAttribute('data-qay-click', 'toggle');
+      trigger.setAttribute('data-qay-target', interaction.target!);
+      trigger.setAttribute('data-qay-class', useHiddenToggle ? 'hidden' : importedClass);
+      if (!trigger.hasAttribute('aria-expanded')) {
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    targets.forEach((target) => {
+      if (useHiddenToggle) {
+        if (!hasDisplayClass(target)) {
+          target.classList.add('flex');
+        } else if (target.classList.contains('flex-col') && !target.classList.contains('flex')) {
+          target.classList.add('flex');
+        }
+        target.classList.add('hidden');
+      }
+    });
+  });
 }
 
 function parseInteractionPayload(doc: Document): ImportInteractionPayload | null {
@@ -1059,8 +1141,10 @@ export function htmlToLayers(html: string): Layer[] {
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
+    const payload = parseInteractionPayload(doc);
+    normalizeToggleInteractions(doc, payload);
     const context: ImportContext = {
-      payload: parseInteractionPayload(doc),
+      payload,
     };
 
     const layers: Layer[] = [];
@@ -1182,6 +1266,37 @@ function layerToHtmlString(layer: Layer, indent: number): string {
 
   if (layer.attributes?.id) {
     attrs.push(`id="${escapeHtml(layer.attributes.id)}"`);
+  }
+
+  for (const [name, value] of Object.entries(layer.attributes || {})) {
+    if (
+      name === 'id' ||
+      name === 'style' ||
+      name === 'width' ||
+      name === 'height' ||
+      name === 'type' ||
+      name === 'placeholder' ||
+      name === 'name' ||
+      name === 'rows' ||
+      name === 'action' ||
+      name === 'method' ||
+      name === 'controls' ||
+      name === 'loop' ||
+      name === 'muted' ||
+      name === 'autoplay'
+    ) {
+      continue;
+    }
+
+    if (
+      name === 'role' ||
+      name === 'aria-label' ||
+      name === 'aria-expanded' ||
+      name === 'aria-controls' ||
+      name.startsWith('data-qay-')
+    ) {
+      attrs.push(`${name}="${escapeHtml(String(value))}"`);
+    }
   }
 
   const linkSettings = layer.variables?.link;
