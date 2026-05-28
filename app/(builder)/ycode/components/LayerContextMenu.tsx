@@ -32,8 +32,7 @@ import type { Layer } from '@/types';
 import CreateComponentDialog from './CreateComponentDialog';
 import SaveLayoutDialog from './SaveLayoutDialog';
 import ImportHtmlDialog from './ImportHtmlDialog';
-import ExportHtmlDialog from './ExportHtmlDialog';
-import { htmlToLayers, layerToExportHtml } from '@/lib/html-layer-converter';
+import { htmlToLayers } from '@/lib/html-layer-converter';
 
 interface LayerContextMenuProps {
   layerId: string;
@@ -86,8 +85,6 @@ export default function LayerContextMenu({
   const [isComponentDialogOpen, setIsComponentDialogOpen] = useState(false);
   const [isLayoutDialogOpen, setIsLayoutDialogOpen] = useState(false);
   const [isImportHtmlOpen, setIsImportHtmlOpen] = useState(false);
-  const [isExportHtmlOpen, setIsExportHtmlOpen] = useState(false);
-  const [exportHtml, setExportHtml] = useState('');
   const [layerName, setLayerName] = useState('');
   const canvasPortalContainer = useCanvasPortalContainer();
   const canvasZoom = useCanvasZoom();
@@ -614,13 +611,6 @@ export default function LayerContextMenu({
     toast.success('HTML imported successfully');
   };
 
-  const handleExportHtml = () => {
-    if (!layer) return;
-    const html = layerToExportHtml(layer);
-    setExportHtml(html);
-    setIsExportHtmlOpen(true);
-  };
-
   const handleConvertToCollection = () => {
     if (!layer || !canConvertToCollection(layer)) return;
 
@@ -816,11 +806,6 @@ export default function LayerContextMenu({
           <ContextMenuShortcut><Icon name="code" className="size-3" /></ContextMenuShortcut>
         </ContextMenuItem>
 
-        <ContextMenuItem onClick={handleExportHtml}>
-          Export as HTML
-          <ContextMenuShortcut><Icon name="code" className="size-3" /></ContextMenuShortcut>
-        </ContextMenuItem>
-
         {(showConvertOption || isCollection) && (
           <>
             <ContextMenuSeparator />
@@ -898,12 +883,6 @@ export default function LayerContextMenu({
         open={isImportHtmlOpen}
         onOpenChange={setIsImportHtmlOpen}
         onImport={handleImportHtml}
-      />
-
-      <ExportHtmlDialog
-        open={isExportHtmlOpen}
-        onOpenChange={setIsExportHtmlOpen}
-        html={exportHtml}
       />
     </ContextMenu>
   );

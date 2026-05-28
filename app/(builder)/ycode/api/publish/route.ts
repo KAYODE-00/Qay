@@ -22,6 +22,9 @@ import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { setQaySiteSettings } from '@/qay/lib/site-settings';
 import { getQaySiteLiveUrl } from '@/qay/lib/site-url';
 import { collectComponentIds } from '@/lib/component-utils';
+import { getQayAuthUser } from '@/qay/lib/auth-guard';
+import { hasQayAdminAccessFromRequest } from '@/qay/lib/admin-access';
+import { getQayPlan } from '@/qay/lib/billing/plan-limits';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -201,6 +204,46 @@ export async function POST(request: NextRequest) {
     const siteAssetIdSet = new Set(siteAssetIds);
     const siteAssetFolderIds = qaySiteId ? Array.from(await getSiteAssetFolderIds(qaySiteId)) : [];
     const siteAssetFolderIdSet = new Set(siteAssetFolderIds);
+
+    if (qaySiteId) {
+      const user = await getQayAuthUser();
+      const adminAccess = hasQayAdminAccessFromRequest(request, user);
+      const supabase = getQayAdmin() as any;
+      const { data: site, error: siteError } = await supabase
+        .from('qay_sites')
+        .select('id, owner_id, plan, publish_status')
+        .eq('id', qaySiteId)
+        .maybeSingle();
+
+      if (siteError) {
+        return noCache({ error: siteError.message }, 500);
+      }
+
+      if (site && !adminAccess && site.publish_status !== 'published') {
+        const plan = getQayPlan(site.plan);
+        const { count, error: countError } = await supabase
+          .from('qay_sites')
+          .select('id', { count: 'exact', head: true })
+          .eq('owner_id', site.owner_id)
+          .eq('publish_status', 'published');
+
+        if (countError) {
+          return noCache({ error: countError.message }, 500);
+        }
+
+        if ((count ?? 0) >= plan.publishedSiteLimit) {
+          return noCache(
+            {
+              error: `Your ${plan.name} plan can publish ${plan.publishedSiteLimit} site${plan.publishedSiteLimit === 1 ? '' : 's'}. Upgrade to publish more.`,
+              code: 'PUBLISH_LIMIT_REACHED',
+              plan: plan.key,
+              limit: plan.publishedSiteLimit,
+            },
+            402
+          );
+        }
+      }
+    }
 
     // Publish folders first (pages depend on them)
     {

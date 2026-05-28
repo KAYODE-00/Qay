@@ -4,6 +4,7 @@ import '@/app/globals.css';
 import '@/qay/styles/brand.css';
 import RootLayoutShell from '@/components/RootLayoutShell';
 import { QayBadgeInjector } from '@/qay/components/QayBadgeInjector';
+import { AdminUnlock } from '@/qay/components/admin/AdminUnlock';
 import { fetchGlobalPageSettings } from '@/lib/generate-page-metadata';
 import { getMetadataBase } from '@/lib/metadata-utils';
 import { renderRootLayoutHeadCode } from '@/lib/parse-head-html';
@@ -35,6 +36,7 @@ export default async function QayLayout({ children }: { children: ReactNode }) {
     <RootLayoutShell headElements={headElements}>
       {children}
       <QayBadgeInjector />
+      <AdminUnlock />
     </RootLayoutShell>
   );
 }

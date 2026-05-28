@@ -7,6 +7,7 @@ import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 import { ensureQayDraftHomePage } from '@/qay/lib/site-page-repair';
 import { ensureQayDraftErrorPages } from '@/qay/lib/site-error-pages';
 import { getHighestQayPlan, getQayPlan, getUserQayPlan } from '@/qay/lib/billing/plan-limits';
+import { hasQayAdminAccess } from '@/qay/lib/admin-access';
 
 function slugifyBase(value: string) {
   const base = value
@@ -119,8 +120,9 @@ export async function POST(request: Request) {
     const sitePlan = getHighestQayPlan((existingSites ?? []).map((site: any) => site.plan));
     const plan = getQayPlan(getHighestQayPlan([accountPlan, sitePlan]));
     const siteCount = existingSites?.length ?? 0;
+    const adminAccess = await hasQayAdminAccess(user);
 
-    if (siteCount >= plan.siteLimit) {
+    if (!adminAccess && siteCount >= plan.siteLimit) {
       return NextResponse.json(
         {
           error: `Your ${plan.name} plan includes ${plan.siteLimit} site${plan.siteLimit === 1 ? '' : 's'}. Upgrade to create more sites.`,

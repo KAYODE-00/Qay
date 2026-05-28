@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { isQayBaseHost, withResolvedQayLiveUrl } from '@/qay/lib/site-url';
+import { addDomainToVercelProject } from '@/qay/lib/vercel-domains';
 
 type RouteContext = {
   params: Promise<{ siteId: string }>;
@@ -104,6 +105,16 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     updates.custom_domain = customDomain;
     updates.domain_verified = false;
+
+    if (customDomain) {
+      const domainResult = await addDomainToVercelProject(customDomain);
+      if (domainResult.configured && domainResult.error) {
+        return NextResponse.json({ error: domainResult.error }, { status: 502 });
+      }
+      if (domainResult.verified) {
+        updates.domain_verified = true;
+      }
+    }
   }
 
   if (typeof body?.publish_status === 'string') {
