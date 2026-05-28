@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useMemo, type ComponentProps } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { useEditorUrl } from '@/hooks/use-editor-url';
 import { findHomepage } from '@/lib/page-utils';
 import { getTranslationValue } from '@/lib/localisation-utils';
@@ -504,7 +505,20 @@ export default function HeaderBar({
           title="Dashboard"
           aria-label="Dashboard"
         >
-          <Icon name="layout" className="size-4" />
+          <Image
+            src="/qay-filled.svg"
+            alt=""
+            width={20}
+            height={20}
+            className="size-5 object-contain dark:hidden"
+          />
+          <Image
+            src="/qay-filled-light.svg"
+            alt=""
+            width={20}
+            height={20}
+            className="hidden size-5 object-contain dark:block"
+          />
         </Button>
       </div>
 

@@ -50,7 +50,7 @@ export function QayBadgeInjector() {
       'color: #ffffff',
       'box-shadow: 0 10px 30px rgba(0,0,0,0.22)',
     ].join(';');
-    badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2L7 7M7 7L12 12M7 7L12 2M7 7L2 12" stroke="white" stroke-width="2" stroke-linecap="round"/></svg><span>Built with QAY</span>`;
+    badge.innerHTML = `<img src="/qay-filled-light.svg" alt="" width="16" height="16" style="width:16px;height:16px;object-fit:contain" aria-hidden="true" /><span>Built with QAY</span>`;
 
     document.body.appendChild(badge);
 
