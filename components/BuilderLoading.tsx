@@ -21,7 +21,7 @@ export default function BuilderLoading({
       <div className="mx-4 flex w-full max-w-[420px] flex-col items-center text-center">
         <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-foreground text-background shadow-sm">
           <img
-            src="/ycode-webclip.png"
+            src="/qay-webclip.png"
             alt=""
             width={40}
             height={40}

@@ -307,8 +307,8 @@ export async function generateMetadata(): Promise<Metadata> {
       title: 'QAY',
       description: 'Build, invite, and hand off websites from one workspace.',
       icons: {
-        icon: '/icon.svg',
-        apple: '/icon.svg',
+        icon: '/icon.png',
+        apple: '/icon.png',
       },
     };
   }

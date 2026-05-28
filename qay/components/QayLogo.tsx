@@ -2,7 +2,7 @@ export function QayLogo() {
   return (
     <div className="flex items-center gap-3 text-current">
       <img
-        src="/ycode-webclip.png"
+        src="/qay-webclip.png"
         alt=""
         width={32}
         height={32}

@@ -159,8 +159,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await fetchPageRenderSettings(qaySiteId);
   return {
     icons: {
-      icon: settings.faviconUrl || '/icon.svg',
-      apple: settings.webClipUrl || settings.faviconUrl || '/icon.svg',
+      icon: settings.faviconUrl || '/icon.png',
+      apple: settings.webClipUrl || settings.faviconUrl || '/icon.png',
     },
   };
 }
