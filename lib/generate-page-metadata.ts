@@ -250,7 +250,7 @@ export async function generatePageMetadata(
     }
 
     // Add custom favicon and web clip (apple-touch-icon) from settings
-    // Default favicon is handled by app/icon.svg
+    // Default favicon is handled by app/icon.png
     if (seoSettings.faviconUrl || seoSettings.webClipUrl) {
       metadata.icons = {};
       if (seoSettings.faviconUrl) {

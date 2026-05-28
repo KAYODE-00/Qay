@@ -195,8 +195,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const settings = await fetchPageRenderSettings(qaySiteId);
   return {
     icons: {
-      icon: settings.faviconUrl || '/icon.svg',
-      apple: settings.webClipUrl || settings.faviconUrl || '/icon.svg',
+      icon: settings.faviconUrl || '/icon.png',
+      apple: settings.webClipUrl || settings.faviconUrl || '/icon.png',
     },
   };
 }

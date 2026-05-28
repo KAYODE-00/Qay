@@ -565,7 +565,7 @@ export default function GeneralSettingsPage() {
                       />
                     ) : (
                       <Image
-                        src={'/y-filled.svg'}
+                        src={'/qay-filled.svg'}
                         alt="Favicon preview"
                         width={32}
                         height={32}
@@ -615,7 +615,7 @@ export default function GeneralSettingsPage() {
                       />
                     ) : (
                       <Image
-                        src={'/ycode-webclip.png'}
+                        src={'/qay-webclip.png'}
                         alt="Web clip preview"
                         width={64}
                         height={64}
