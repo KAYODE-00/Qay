@@ -1,14 +1,14 @@
 {
-  "name": "ycode",
+  "name": "qay",
   "version": "1.2.1",
-  "description": "Visual website builder you can self-host",
+  "description": "QAY website builder",
   "license": "MIT",
   "private": false,
-  "author": "Ycode",
-  "homepage": "https://www.ycode.com",
+  "author": "QAY",
+  "homepage": "https://qay-theta.vercel.app",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ycode/ycode.git"
+    "url": "https://github.com/KAYODE-00/Qay.git"
   },
   "keywords": [
     "website-builder",
