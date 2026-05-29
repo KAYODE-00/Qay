@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Spinner } from '@/components/ui/spinner';
+import { PlanRestrictionDialog } from '@/qay/components/billing/PlanRestrictionDialog';
 import Icon from '@/components/ui/icon';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { publishApi } from '@/lib/api';
@@ -56,6 +57,7 @@ export default function PublishPopover({
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
+  const [restriction, setRestriction] = useState<{ title: string; message: string } | null>(null);
   const publishedHref = `${baseUrl}${publishedUrl}`;
 
   const { getSettingByKey, updateSetting } = useSettingsStore();
@@ -88,6 +90,14 @@ export default function PublishPopover({
       const result = await publishApi.publish({ publishAll: true });
 
       if (result.error) {
+        if (result.code === 'PUBLISH_LIMIT_REACHED') {
+          setRestriction({
+            title: 'Publishing limit reached',
+            message: result.error,
+          });
+          setIsOpen(false);
+          return;
+        }
         throw new Error(result.error);
       }
 
@@ -111,6 +121,7 @@ export default function PublishPopover({
       loadChangesCount();
     } catch (error) {
       console.error('Failed to publish all:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to publish');
     } finally {
       setIsPublishing(false);
     }
@@ -274,6 +285,13 @@ export default function PublishPopover({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <PlanRestrictionDialog
+      open={Boolean(restriction)}
+      onOpenChange={(open) => { if (!open) setRestriction(null); }}
+      title={restriction?.title}
+      message={restriction?.message}
+    />
     </>
   );
 }

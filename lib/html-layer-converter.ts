@@ -591,6 +591,41 @@ type ImportContext = {
 
 const QAY_INTERACTION_SCRIPT_TYPE = 'application/qay-interactions';
 
+function mergeStyleAttribute(el: Element, style: string) {
+  const current = el.getAttribute('style')?.trim();
+  el.setAttribute('style', current ? `${current.replace(/;$/, '')}; ${style}` : style);
+}
+
+function applySimpleDocumentStyles(doc: Document) {
+  const styleElements = Array.from(doc.querySelectorAll('style'));
+
+  styleElements.forEach((styleElement) => {
+    const css = styleElement.textContent || '';
+    const rules = css.matchAll(/([^{}]+)\{([^{}]+)\}/g);
+
+    for (const rule of rules) {
+      const selectorText = rule[1]?.trim();
+      const declarations = rule[2]?.trim();
+      if (!selectorText || !declarations) continue;
+
+      const selectors = selectorText
+        .split(',')
+        .map((selector) => selector.trim())
+        .filter((selector) => selector === 'body' || /^\.[A-Za-z_-][\w-]*$/.test(selector));
+
+      selectors.forEach((selector) => {
+        const targets = selector === 'body'
+          ? [doc.body].filter(Boolean)
+          : Array.from(doc.querySelectorAll(selector));
+
+        targets.forEach((target) => mergeStyleAttribute(target, declarations));
+      });
+    }
+
+    styleElement.remove();
+  });
+}
+
 function toFiniteNumber(value: string | null, fallback: number, min = 0.05, max = 3) {
   if (!value) return fallback;
   const number = Number(value);
@@ -668,12 +703,44 @@ function interactionFromAnimateAttribute(el: Element, layerId: string): LayerInt
     return createInteraction(layerId, 'load', { autoAlpha: '0' }, { autoAlpha: '100' }, duration, ease);
   }
 
+  if (type === 'slide-up') {
+    return createInteraction(layerId, 'load', { y: `${y}px`, autoAlpha: '0' }, { y: '0px', autoAlpha: '100' }, duration, ease);
+  }
+
+  if (type === 'slide-left' || type === 'sidebar-slide') {
+    const fromX = type === 'sidebar-slide' ? '-100%' : `-${Math.abs(Number(x) || 80)}px`;
+    return createInteraction(layerId, 'scroll-into-view', { x: fromX, autoAlpha: '0' }, { x: '0px', autoAlpha: '100' }, duration, ease);
+  }
+
+  if (type === 'slide-right') {
+    return createInteraction(layerId, 'scroll-into-view', { x: `${Math.abs(Number(x) || 80)}px`, autoAlpha: '0' }, { x: '0px', autoAlpha: '100' }, duration, ease);
+  }
+
   if (type === 'scale-in') {
     return createInteraction(layerId, 'scroll-into-view', { scale: '0.96', autoAlpha: '0' }, { scale: '1', autoAlpha: '100' }, duration, ease);
   }
 
   if (type === 'scroll-reveal') {
     return createInteraction(layerId, 'scroll-into-view', { y: `${y}px`, autoAlpha: '0' }, { y: '0px', autoAlpha: '100' }, duration, ease);
+  }
+
+  if (type === 'luxe-reveal' || type === 'luxe-asym-reveal') {
+    return createInteraction(
+      layerId,
+      'load',
+      { y: `${Math.max(Number(y) || 80, 60)}px`, skewY: type === 'luxe-asym-reveal' ? '2deg' : '1.5deg', autoAlpha: '0' },
+      { y: '0px', skewY: '0deg', autoAlpha: '100' },
+      Math.max(duration, 1),
+      ease
+    );
+  }
+
+  if (type === 'line-grow') {
+    return createInteraction(layerId, 'load', { scale: '0' }, { scale: '1' }, duration, ease);
+  }
+
+  if (type === 'luxe-dock-reveal') {
+    return createInteraction(layerId, 'load', { y: '100px', scale: '0.9', autoAlpha: '0' }, { y: '0px', scale: '1', autoAlpha: '100' }, duration, ease);
   }
 
   return createInteraction(layerId, 'load', { x: `${x}px`, y: `${y}px`, autoAlpha: '0' }, { x: '0px', y: '0px', autoAlpha: '100' }, duration, ease);
@@ -686,12 +753,20 @@ function interactionFromHoverAttribute(el: Element, layerId: string): LayerInter
   const duration = toFiniteNumber(el.getAttribute('data-qay-hover-duration'), 0.25);
   const ease = el.getAttribute('data-qay-ease') || 'power1.out';
 
-  if (type === 'scale') {
+  if (type === 'img-zoom' || type === 'border-gold') {
+    return null;
+  }
+
+  if (type === 'scale' || type === 'scale-btn') {
     return createInteraction(layerId, 'hover', { scale: '1' }, { scale: '1.03' }, duration, ease);
   }
 
   if (type === 'glow') {
     return createInteraction(layerId, 'hover', { scale: '1', autoAlpha: '90' }, { scale: '1.015', autoAlpha: '100' }, duration, ease);
+  }
+
+  if (type === 'luxe-lift') {
+    return createInteraction(layerId, 'hover', { y: '0px', scale: '1' }, { y: '-5px', scale: '1.01' }, duration, ease);
   }
 
   return createInteraction(layerId, 'hover', { y: '0px', scale: '1' }, { y: '-4px', scale: '1.015' }, duration, ease);
@@ -1086,6 +1161,14 @@ function elementToLayer(el: Element, context?: ImportContext): Layer | null {
 
   if (!isTextLayer && isTextOnlyElement(el) && el.textContent?.trim() && !hasDirectAnchorChild(el)) {
     const doc = buildRichTextDoc(el);
+    if (layerName === 'button') {
+      layer.restrictions = { editText: true };
+      layer.variables = {
+        ...layer.variables,
+        text: makeRichTextVariable(doc),
+      };
+      return layer;
+    }
     if (CONTAINER_NAMES.has(layerName)) {
       layer.children = [makeTextLayer(doc)];
     } else {
@@ -1141,6 +1224,7 @@ export function htmlToLayers(html: string): Layer[] {
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
+    applySimpleDocumentStyles(doc);
     const payload = parseInteractionPayload(doc);
     normalizeToggleInteractions(doc, payload);
     const context: ImportContext = {
@@ -1161,6 +1245,18 @@ export function htmlToLayers(html: string): Layer[] {
           layers.push(makeTextLayer(text));
         }
       }
+    }
+
+    const bodyClasses = resolveImportClasses(body);
+    if (bodyClasses) {
+      const bodyDesign = cleanDesign(classesToDesign(bodyClasses));
+      return [{
+        id: generateId('lyr'),
+        name: 'div',
+        classes: bodyClasses,
+        ...(bodyDesign ? { design: bodyDesign } : {}),
+        children: layers,
+      } as Layer];
     }
 
     return layers;

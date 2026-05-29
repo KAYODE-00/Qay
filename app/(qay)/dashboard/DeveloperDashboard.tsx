@@ -10,6 +10,7 @@ import type { ClientPendingInvite } from '@/qay/lib/client-content';
 import { PendingInvites } from '@/qay/components/client/PendingInvites';
 import type { QayAccountProfile } from '@/qay/lib/account';
 import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
+import { PlanRestrictionDialog } from '@/qay/components/billing/PlanRestrictionDialog';
 import { htmlToLayers } from '@/lib/html-layer-converter';
 
 type DashboardProps = {
@@ -74,6 +75,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
   const [creationStatus, setCreationStatus] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [restriction, setRestriction] = useState<{ title: string; message: string } | null>(null);
 
   function openEditor(siteId: string) {
     window.location.assign(`/dashboard/sites/${siteId}/editor`);
@@ -101,6 +103,14 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
       const payload = await response.json();
 
       if (!response.ok) {
+        if (payload.code === 'SITE_LIMIT_REACHED') {
+          setRestriction({
+            title: 'Site limit reached',
+            message: payload.error || 'Your current plan cannot create more sites. Upgrade to continue.',
+          });
+          setIsModalOpen(false);
+          return;
+        }
         setError(payload.error || 'Unable to create site');
         return;
       }
@@ -176,6 +186,14 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
       const sitePayload = await siteResponse.json();
 
       if (!siteResponse.ok) {
+        if (sitePayload.code === 'SITE_LIMIT_REACHED') {
+          setRestriction({
+            title: 'Site limit reached',
+            message: sitePayload.error || 'Your current plan cannot create more sites. Upgrade to continue.',
+          });
+          setIsImportNameOpen(false);
+          return;
+        }
         throw new Error(sitePayload.error || 'Unable to create site for import');
       }
 
@@ -581,6 +599,12 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
           </form>
         </div>
       )}
+      <PlanRestrictionDialog
+        open={Boolean(restriction)}
+        onOpenChange={(open) => { if (!open) setRestriction(null); }}
+        title={restriction?.title}
+        message={restriction?.message}
+      />
       </div>
     </main>
   );

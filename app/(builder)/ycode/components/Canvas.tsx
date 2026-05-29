@@ -482,7 +482,7 @@ export default function Canvas({
     const iframeDoc = iframeRef.current.contentDocument;
     if (!iframeDoc) return;
 
-    const STYLE_ID = 'ycode-color-vars';
+    const STYLE_ID = 'qay-color-vars';
     let styleEl = iframeDoc.getElementById(STYLE_ID) as HTMLStyleElement | null;
     if (!styleEl) {
       styleEl = iframeDoc.createElement('style');

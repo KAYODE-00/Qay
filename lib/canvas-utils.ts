@@ -46,10 +46,10 @@ function escapeSelector(cls: string): string {
 export function updateViewportOverrides(doc: Document, referenceHeight: number): void {
   if (referenceHeight <= 0) return;
 
-  let styleEl = doc.getElementById('ycode-viewport-overrides');
+  let styleEl = doc.getElementById('qay-viewport-overrides');
   if (!styleEl) {
     styleEl = doc.createElement('style');
-    styleEl.id = 'ycode-viewport-overrides';
+    styleEl.id = 'qay-viewport-overrides';
     doc.head.appendChild(styleEl);
   }
 
@@ -150,7 +150,7 @@ export function getCanvasIframeHtml(mountId: string = 'canvas-mount'): string {
       --color-destructive: oklch(0.704 0.191 22.216);
     }
   </style>
-  <style id="ycode-fonts-style">
+  <style id="qay-fonts-style">
     /* Font CSS (Google @import + custom @font-face) injected dynamically */
   </style>
   <style>
@@ -163,7 +163,7 @@ export function getCanvasIframeHtml(mountId: string = 'canvas-mount'): string {
     }
   </style>
   <link rel="stylesheet" href="/canvas.css?v=0.2.1.1">
-  <style id="ycode-viewport-overrides">
+  <style id="qay-viewport-overrides">
     /* Dynamically populated: overrides vh/svh/dvh/lvh with fixed px values */
   </style>
 </head>

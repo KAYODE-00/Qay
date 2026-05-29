@@ -328,7 +328,7 @@ const CanvasTextEditor = forwardRef<CanvasTextEditorHandle, CanvasTextEditorProp
     content: initialContent,
     editorProps: {
       attributes: {
-        class: 'outline-none ycode-text-editor',
+        class: 'outline-none qay-text-editor',
       },
       handleKeyDown: (view, event) => {
         // Escape to save and finish editing

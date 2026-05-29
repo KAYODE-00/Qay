@@ -51,26 +51,32 @@ Generate one complete, premium HTML + Tailwind page or fragment that QAY will im
 Return ONLY HTML. No markdown fences, no explanations, no repeated prompt text.
 
 Rules:
-- Use semantic HTML and Tailwind classes.
+- Use a complete HTML document for full pages: <!DOCTYPE html>, html, head, body.
+- Use semantic HTML and Tailwind classes. Put the main page background/text classes on <body>.
 - Use editable real copy, not the user's instruction text.
 - Use strong visual hierarchy, exact palettes from the user, polished spacing, and responsive layouts.
 - Use relative internal links such as "/about".
+- Style navigation and CTA links as buttons with Tailwind classes; do not leave bare blue/default links.
 - Use absolute image URLs only, preferably Unsplash URLs with width and quality params.
-- Do not include normal JavaScript, event handlers, onclick, inline script execution, or external script tags.
-- If interactions are needed, use data-qay-* attributes and one optional non-executing script tag:
-  <script type="application/qay-interactions">{...JSON...}</script>
-- Supported attributes:
-  data-qay-animate="fade-in|slide-up|scale-in|scroll-reveal"
-  data-qay-hover="lift|scale|glow"
+- Do not include JavaScript, event handlers, onclick, external scripts, GSAP scripts, or application/qay-interactions scripts.
+- Interactions must use only these native QAY data attributes:
+  data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|line-grow|stagger-children"
+  data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold"
+  data-qay-click="toggle"
+  data-qay-target="#element-id"
+  data-qay-class="hidden"
   data-qay-duration="0.6"
   data-qay-hover-duration="0.25"
-  data-qay-delay="0.1"
   data-qay-y="32"
   data-qay-x="0"
   data-qay-ease="power2.out"
-- The interaction script must be valid JSON with this shape:
-  {"defaults":{"duration":0.65,"ease":"power2.out"},"animations":[{"selector":"[data-qay-animate='slide-up']","trigger":"load","from":{"y":"32px","autoAlpha":"0"},"to":{"y":"0px","autoAlpha":"100"}}]}
-- Use data-qay-* generously but tastefully on hero content, cards, timeline rows, and buttons.
+- Mobile menus must be implemented by toggling "hidden":
+  <button data-qay-click="toggle" data-qay-target="#mobile-menu" data-qay-class="hidden">...</button>
+  <div id="mobile-menu" class="hidden fixed ... flex ...">...</div>
+- For image zoom, put data-qay-hover="img-zoom" on an overflow-hidden wrapper that contains one img.
+- Use data-qay-* tastefully on hero content, cards, timeline rows, image wrappers, and buttons.
+- Do not rely on custom CSS classes for layout or interaction behavior. Tailwind utilities must carry the design.
+- A small <style> tag is allowed only for font-family helper classes such as .serif; do not put animations or toggles in CSS.
 - Never output a single paragraph containing the prompt.`;
 
 export const QAY_AI_BUILDER_SYSTEM_PROMPT = `You are a website builder AI for QAY.
@@ -668,10 +674,12 @@ ${prompt}
 
 Silent checklist:
 - The output is actual website HTML, not the prompt.
+- The output is a complete HTML document with body classes for the page background and base text color.
 - The page has nav, hero, 2-4 sections, and footer.
 - The design has strong composition, responsive grids, premium spacing, and meaningful copy.
 - Text and images are represented as normal HTML elements.
-- Interactions use data-qay-* attributes or application/qay-interactions JSON only.
+- Interactions use only QAY data attributes. No interaction script, GSAP script, or custom JavaScript.
+- CTA links and nav links are visually styled as buttons or deliberate navigation items, never browser-default links.
 
   Return only HTML.`;
 }

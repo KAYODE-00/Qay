@@ -205,9 +205,9 @@ export async function generatePageMetadata(
   }
 
   // Build description - resolve field variables if collection item is available
-  let description = seo?.description || fallbackDescription || `${page.name} - Built with Ycode`;
+  let description = seo?.description || fallbackDescription || `${page.name} - Built with QAY`;
   if (collectionItem && seo?.description) {
-    description = resolveInlineVariables(seo.description, collectionItem) || fallbackDescription || `${page.name} - Built with Ycode`;
+    description = resolveInlineVariables(seo.description, collectionItem) || fallbackDescription || `${page.name} - Built with QAY`;
   }
 
   // Base metadata

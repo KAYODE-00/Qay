@@ -846,6 +846,9 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   message?: string;
+  code?: string;
+  plan?: string;
+  limit?: number;
 }
 
 export interface PaginatedResponse<T> {

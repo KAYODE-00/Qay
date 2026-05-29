@@ -8,6 +8,7 @@ import { QayLogo } from '@/qay/components/QayLogo';
 import type { QaySite } from '@/qay/types';
 import type { QayAccountProfile } from '@/qay/lib/account';
 import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
+import { PlanRestrictionDialog } from '@/qay/components/billing/PlanRestrictionDialog';
 
 type Template = {
   id: string;
@@ -97,6 +98,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
   const [creationStatus, setCreationStatus] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [restriction, setRestriction] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
     async function loadTemplates() {
@@ -211,6 +213,14 @@ export function TemplatesDashboardClient({ profile }: Props) {
       const payload = await response.json();
 
       if (!response.ok) {
+        if (payload.code === 'SITE_LIMIT_REACHED') {
+          setRestriction({
+            title: 'Site limit reached',
+            message: payload.error || 'Your current plan cannot create more sites. Upgrade to continue.',
+          });
+          setIsApplying(false);
+          return;
+        }
         throw new Error(payload.error || 'Unable to create site');
       }
 
@@ -255,6 +265,15 @@ export function TemplatesDashboardClient({ profile }: Props) {
       const payload = await response.json();
 
       if (!response.ok) {
+        if (payload.code === 'SITE_LIMIT_REACHED') {
+          setRestriction({
+            title: 'Site limit reached',
+            message: payload.error || 'Your current plan cannot create more sites. Upgrade to continue.',
+          });
+          setIsCreateOpen(false);
+          setIsApplying(false);
+          return;
+        }
         throw new Error(payload.error || 'Unable to create site');
       }
 
@@ -342,6 +361,15 @@ export function TemplatesDashboardClient({ profile }: Props) {
       const sitePayload = await siteResponse.json();
 
       if (!siteResponse.ok) {
+        if (sitePayload.code === 'SITE_LIMIT_REACHED') {
+          setRestriction({
+            title: 'Site limit reached',
+            message: sitePayload.error || 'Your current plan cannot create more sites. Upgrade to continue.',
+          });
+          setIsImportNameOpen(false);
+          setIsApplying(false);
+          return;
+        }
         throw new Error(sitePayload.error || 'Unable to create site for import');
       }
 
@@ -767,6 +795,12 @@ export function TemplatesDashboardClient({ profile }: Props) {
           </form>
         </div>
       )}
+      <PlanRestrictionDialog
+        open={Boolean(restriction)}
+        onOpenChange={(open) => { if (!open) setRestriction(null); }}
+        title={restriction?.title}
+        message={restriction?.message}
+      />
       </div>
     </main>
   );

@@ -44,7 +44,13 @@ async function apiRequest<T>(
     try {
       const json = await response.json();
       if (json.error) {
-        return { error: json.error };
+        return {
+          error: json.error,
+          ...(json.message ? { message: json.message } : {}),
+          ...(json.code ? { code: json.code } : {}),
+          ...(json.plan ? { plan: json.plan } : {}),
+          ...(typeof json.limit === 'number' ? { limit: json.limit } : {}),
+        };
       }
     } catch {
       // If parsing fails, fall back to status text

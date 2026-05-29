@@ -77,14 +77,14 @@ export default function PasswordForm({ pageId, folderId, redirectUrl, isPublishe
   };
 
   return (
-    <form onSubmit={handleSubmit} className="ycode-password-form">
-      <div className="ycode-password-form-field">
+    <form onSubmit={handleSubmit} className="qay-password-form">
+      <div className="qay-password-form-field">
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter password"
-          className="ycode-password-input"
+          className="qay-password-input"
           disabled={isLoading}
           autoFocus
           required
@@ -92,7 +92,7 @@ export default function PasswordForm({ pageId, folderId, redirectUrl, isPublishe
       </div>
 
       {error && (
-        <div className={`ycode-password-error ${isRateLimited ? 'ycode-password-rate-limited' : ''}`}>
+        <div className={`qay-password-error ${isRateLimited ? 'qay-password-rate-limited' : ''}`}>
           {isRateLimited && (
             <svg
               width="16" height="16"
@@ -109,13 +109,13 @@ export default function PasswordForm({ pageId, folderId, redirectUrl, isPublishe
       <button
         type="submit"
         disabled={isLoading || !password}
-        className="ycode-password-submit"
+        className="qay-password-submit"
       >
         {isLoading ? 'Verifying...' : 'Submit'}
       </button>
 
       <style jsx>{`
-        .ycode-password-form {
+        .qay-password-form {
           display: flex;
           flex-direction: column;
           gap: 12px;
@@ -125,11 +125,11 @@ export default function PasswordForm({ pageId, folderId, redirectUrl, isPublishe
           padding: 0 16px 48px;
         }
 
-        .ycode-password-form-field {
+        .qay-password-form-field {
           width: 100%;
         }
 
-        .ycode-password-input {
+        .qay-password-input {
           width: 100%;
           padding: 10px 14px;
           font-size: 14px;
@@ -139,23 +139,23 @@ export default function PasswordForm({ pageId, folderId, redirectUrl, isPublishe
           transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        .ycode-password-input:focus {
+        .qay-password-input:focus {
           border-color: #3b82f6;
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
-        .ycode-password-input:disabled {
+        .qay-password-input:disabled {
           background-color: #f3f4f6;
           cursor: not-allowed;
         }
 
-        .ycode-password-error {
+        .qay-password-error {
           color: #dc2626;
           font-size: 13px;
           text-align: center;
         }
 
-        .ycode-password-rate-limited {
+        .qay-password-rate-limited {
           display: flex;
           align-items: center;
           justify-content: center;
@@ -166,7 +166,7 @@ export default function PasswordForm({ pageId, folderId, redirectUrl, isPublishe
           font-weight: 500;
         }
 
-        .ycode-password-submit {
+        .qay-password-submit {
           width: 100%;
           padding: 10px 16px;
           font-size: 14px;
@@ -179,11 +179,11 @@ export default function PasswordForm({ pageId, folderId, redirectUrl, isPublishe
           transition: background-color 0.15s ease;
         }
 
-        .ycode-password-submit:hover:not(:disabled) {
+        .qay-password-submit:hover:not(:disabled) {
           background-color: #2563eb;
         }
 
-        .ycode-password-submit:disabled {
+        .qay-password-submit:disabled {
           background-color: #9ca3af;
           cursor: not-allowed;
         }

@@ -52,7 +52,7 @@ export default function Error({ error, reset }: ErrorProps) {
       <>
         {generatedCss && (
           <style
-            id="ycode-styles"
+            id="qay-styles"
             dangerouslySetInnerHTML={{ __html: generatedCss }}
           />
         )}

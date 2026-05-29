@@ -1,35 +1,35 @@
 /* Editor-specific styles - using outline to prevent conflicts with user box-shadow */
-.ycode-selected {
+.qay-selected {
   outline: 1px solid #0b7efd !important;
   outline-offset: -1px;
 }
 
-.ycode-selected-purple {
+.qay-selected-purple {
   outline: 2px solid #a855f7 !important;
   outline-offset: -2px;
 }
 
-.ycode-hover {
+.qay-hover {
   outline: 1px solid #0b7efd !important;
   outline-offset: -1px;
 }
 
-.ycode-hover-purple {
+.qay-hover-purple {
   outline: 1px solid rgba(168, 85, 247, 0.3) !important;
   outline-offset: -1px;
 }
 
-.ycode-component-hover {
+.qay-component-hover {
   outline: 2px solid rgba(168, 85, 247, 0.5) !important;
   outline-offset: -2px;
 }
 
-.ycode-editing {
+.qay-editing {
   outline: 1px solid #0b7efd !important;
   outline-offset: -1px;
 }
 
-.ycode-drop-target {
+.qay-drop-target {
   outline: 2px solid #3b82f6 !important;
   outline-offset: -2px;
   background-color: rgba(59, 130, 246, 0.05) !important;
@@ -39,13 +39,13 @@
 /* Force default cursor on all elements in canvas edit mode */
 #canvas-body,
 #canvas-body *,
-.ycode-layer,
-.ycode-layer * {
+.qay-layer,
+.qay-layer * {
   cursor: default !important;
 }
 
 /* Empty element styling (exclude void/form elements and layers with visible border/background) */
-.ycode-layer:empty:not(input):not(select):not(textarea):not(img):not(br):not(hr):not([data-has-visual])::before {
+.qay-layer:empty:not(input):not(select):not(textarea):not(img):not(br):not(hr):not([data-has-visual])::before {
   content: ' ';
   display: block;
   background-color: rgb(191 219 254 / 0.1);
@@ -113,24 +113,24 @@
 }
 
 /* Text editing input */
-.ycode-text-editor {
+.qay-text-editor {
   width: 100%;
   outline: 1px solid #0b7efd !important;
   outline-offset: 0 !important;
   cursor: text !important;
 }
 
-.ycode-text-editor * {
+.qay-text-editor * {
   cursor: text !important;
 }
 
 /* Hide ProseMirror trailing breaks in text editor */
-.ycode-text-editor img.ProseMirror-separator,
-.ycode-text-editor br.ProseMirror-trailingBreak {
+.qay-text-editor img.ProseMirror-separator,
+.qay-text-editor br.ProseMirror-trailingBreak {
   display: inline !important;
 }
 
-.ycode-text-editor.ProseMirror {
+.qay-text-editor.ProseMirror {
   white-space: pre-wrap;
 }
 
@@ -167,3 +167,4 @@ select:focus,
 button:focus {
   outline: none !important;
 }
+

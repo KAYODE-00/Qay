@@ -91,7 +91,7 @@ export function createFlutterwaveTxRef(plan: QayPlanKey, userId: string) {
 }
 
 export function parsePlanFromTxRef(txRef: string | null | undefined): QayPlanKey {
-  const match = txRef?.match(/^qay_(free|pro|agency)_/);
+  const match = txRef?.match(/^qay_(free|starter|pro|studio|agency)_/);
   return normalizeQayPlan(match?.[1]);
 }
 

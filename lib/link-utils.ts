@@ -300,6 +300,16 @@ function normalizeSitePath(pathname: string, isPreview: boolean, previewBasePath
     return isPreview ? normalizedPreviewBase : '/';
   }
 
+  if (isPreview && pathname.startsWith('/')) {
+    if (pathname === normalizedPreviewBase || pathname.startsWith(`${normalizedPreviewBase}/`)) {
+      return pathname;
+    }
+
+    return pathname === '/'
+      ? normalizedPreviewBase
+      : `${normalizedPreviewBase}${pathname}`;
+  }
+
   if (pathname.startsWith('/ycode/')) {
     const suffix = pathname.slice('/ycode'.length);
     pathname = suffix || '/';

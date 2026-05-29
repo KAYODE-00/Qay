@@ -151,7 +151,7 @@ export async function POST(
       event: 'test',
       timestamp: new Date().toISOString(),
       data: {
-        message: 'This is a test webhook from Ycode',
+        message: 'This is a test webhook from QAY',
         webhook_id: webhook.id,
         webhook_name: webhook.name,
       },
@@ -162,8 +162,8 @@ export async function POST(
     // Build headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'User-Agent': 'Ycode-Webhook/1.0',
-      'X-Ycode-Event': 'test',
+      'User-Agent': 'QAY-Webhook/1.0',
+      'X-QAY-Event': 'test',
     };
 
     // Add HMAC signature if secret is configured
@@ -171,7 +171,7 @@ export async function POST(
       const signature = createHmac('sha256', webhook.secret)
         .update(payloadString)
         .digest('hex');
-      headers['X-Ycode-Signature'] = `sha256=${signature}`;
+      headers['X-QAY-Signature'] = `sha256=${signature}`;
     }
 
     // Create delivery log

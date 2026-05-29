@@ -1,6 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 
-export type QayPlanKey = 'free' | 'pro' | 'agency';
+export type QayPlanKey = 'free' | 'starter' | 'pro' | 'studio' | 'agency';
 
 export type QayPlan = {
   key: QayPlanKey;
@@ -10,6 +10,7 @@ export type QayPlan = {
   interval: 'month';
   siteLimit: number;
   publishedSiteLimit: number;
+  isAvailable: boolean;
   features: string[];
 };
 
@@ -22,7 +23,19 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     interval: 'month',
     siteLimit: Number.MAX_SAFE_INTEGER,
     publishedSiteLimit: 2,
-    features: ['Unlimited draft sites', 'Publish 2 sites', 'QAY editor', 'CMS basics'],
+    isAvailable: true,
+    features: ['Unlimited draft sites', 'Publish 2 sites', 'QAY editor', 'CMS basics', 'QAY badge'],
+  },
+  starter: {
+    key: 'starter',
+    name: 'Starter',
+    price: 9,
+    currency: 'USD',
+    interval: 'month',
+    siteLimit: Number.MAX_SAFE_INTEGER,
+    publishedSiteLimit: 5,
+    isAvailable: true,
+    features: ['Unlimited draft sites', 'Publish 5 sites', 'Custom domains', 'Remove QAY badge'],
   },
   pro: {
     key: 'pro',
@@ -30,26 +43,39 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     price: 19,
     currency: 'USD',
     interval: 'month',
-    siteLimit: 10,
-    publishedSiteLimit: 10,
-    features: ['10 sites', 'Publish 10 sites', 'Custom domains', 'Client handoff', 'Collaboration'],
+    siteLimit: Number.MAX_SAFE_INTEGER,
+    publishedSiteLimit: 15,
+    isAvailable: true,
+    features: ['Unlimited draft sites', 'Publish 15 sites', 'Client invites', 'CMS and forms', 'Site analytics'],
+  },
+  studio: {
+    key: 'studio',
+    name: 'Studio',
+    price: 49,
+    currency: 'USD',
+    interval: 'month',
+    siteLimit: Number.MAX_SAFE_INTEGER,
+    publishedSiteLimit: 50,
+    isAvailable: false,
+    features: ['Publish 50 sites', 'Team workflows', 'Template publishing', 'Advanced analytics', 'Coming soon'],
   },
   agency: {
     key: 'agency',
     name: 'Agency',
-    price: 79,
+    price: 99,
     currency: 'USD',
     interval: 'month',
-    siteLimit: 50,
-    publishedSiteLimit: 50,
-    features: ['50 sites', 'Publish 50 sites', 'Advanced collaboration', 'Priority workflow', 'Agency workspace'],
+    siteLimit: Number.MAX_SAFE_INTEGER,
+    publishedSiteLimit: 100,
+    isAvailable: false,
+    features: ['Publish 100 sites', 'White-label direction', 'Priority support', 'Agency workspace', 'Coming soon'],
   },
 };
 
-const PLAN_ORDER: QayPlanKey[] = ['free', 'pro', 'agency'];
+const PLAN_ORDER: QayPlanKey[] = ['free', 'starter', 'pro', 'studio', 'agency'];
 
 export function normalizeQayPlan(value: unknown): QayPlanKey {
-  return value === 'agency' || value === 'pro' ? value : 'free';
+  return value === 'agency' || value === 'studio' || value === 'pro' || value === 'starter' ? value : 'free';
 }
 
 export function getQayPlan(value: unknown): QayPlan {

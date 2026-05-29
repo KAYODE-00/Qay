@@ -1550,7 +1550,7 @@ const LayerItem: React.FC<{
     isDragging && 'opacity-30',
     showProjection && 'outline outline-1 outline-dashed outline-foreground bg-foreground/10',
     isLockedByOther && 'opacity-90 pointer-events-none select-none',
-    'ycode-layer'
+    'qay-layer'
   ) : clsx(classesString, paragraphClasses, SWIPER_CLASS_MAP[layer.name], isSlideChild && 'swiper-slide', buttonNeedsFit && 'w-fit');
 
   // Check if layer should be hidden (hide completely in both edit mode and public pages)
