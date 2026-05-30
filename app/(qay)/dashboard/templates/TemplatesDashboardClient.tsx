@@ -305,7 +305,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
         const importResponse = await fetch(`/api/qay/sites/${site.id}/import-html`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ layers: generatedLayers }),
+          body: JSON.stringify({ layers: generatedLayers, pageName: 'Homepage' }),
         });
         const importPayload = await importResponse.json();
 
@@ -328,9 +328,9 @@ export function TemplatesDashboardClient({ profile }: Props) {
     }
   }
 
-  function handleImportHtml(html: string) {
+  function handleImportHtml(html: string, options?: { pageName?: string }) {
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-    const importedName = titleMatch?.[1]?.replace(/\s+/g, ' ').trim() || 'Imported site';
+    const importedName = options?.pageName || titleMatch?.[1]?.replace(/\s+/g, ' ').trim() || 'Imported site';
     setPendingImportHtml(html);
     setImportSiteName(importedName);
     setError(null);
@@ -378,7 +378,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
       const response = await fetch(`/api/qay/sites/${site.id}/import-html`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ layers }),
+        body: JSON.stringify({ layers, pageName: 'Homepage' }),
       });
       const payload = await response.json();
 
@@ -751,6 +751,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
         onImport={handleImportHtml}
+        mode="page"
       />
 
       {isImportNameOpen && (

@@ -10,6 +10,8 @@ export type QayPlan = {
   interval: 'month';
   siteLimit: number;
   publishedSiteLimit: number;
+  demoLinkLimit: number;
+  demoLinkTtlHours: number;
   isAvailable: boolean;
   features: string[];
 };
@@ -23,8 +25,10 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     interval: 'month',
     siteLimit: Number.MAX_SAFE_INTEGER,
     publishedSiteLimit: 2,
+    demoLinkLimit: 5,
+    demoLinkTtlHours: 24,
     isAvailable: true,
-    features: ['Unlimited draft sites', 'Publish 2 sites', 'QAY editor', 'CMS basics', 'QAY badge'],
+    features: ['Unlimited draft sites', 'Publish 2 sites', '5 demo links', 'QAY editor', 'CMS basics', 'QAY badge'],
   },
   starter: {
     key: 'starter',
@@ -34,8 +38,10 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     interval: 'month',
     siteLimit: Number.MAX_SAFE_INTEGER,
     publishedSiteLimit: 5,
+    demoLinkLimit: 20,
+    demoLinkTtlHours: 72,
     isAvailable: true,
-    features: ['Unlimited draft sites', 'Publish 5 sites', 'Custom domains', 'Remove QAY badge'],
+    features: ['Unlimited draft sites', 'Publish 5 sites', '20 demo links', 'Custom domains', 'Remove QAY badge'],
   },
   pro: {
     key: 'pro',
@@ -45,8 +51,10 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     interval: 'month',
     siteLimit: Number.MAX_SAFE_INTEGER,
     publishedSiteLimit: 15,
+    demoLinkLimit: 100,
+    demoLinkTtlHours: 168,
     isAvailable: true,
-    features: ['Unlimited draft sites', 'Publish 15 sites', 'Client invites', 'CMS and forms', 'Site analytics'],
+    features: ['Unlimited draft sites', 'Publish 15 sites', '100 demo links', 'Client invites', 'CMS and forms', 'Site analytics'],
   },
   studio: {
     key: 'studio',
@@ -56,6 +64,8 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     interval: 'month',
     siteLimit: Number.MAX_SAFE_INTEGER,
     publishedSiteLimit: 50,
+    demoLinkLimit: 500,
+    demoLinkTtlHours: 336,
     isAvailable: false,
     features: ['Publish 50 sites', 'Team workflows', 'Template publishing', 'Advanced analytics', 'Coming soon'],
   },
@@ -67,6 +77,8 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     interval: 'month',
     siteLimit: Number.MAX_SAFE_INTEGER,
     publishedSiteLimit: 100,
+    demoLinkLimit: 1000,
+    demoLinkTtlHours: 720,
     isAvailable: false,
     features: ['Publish 100 sites', 'White-label direction', 'Priority support', 'Agency workspace', 'Coming soon'],
   },

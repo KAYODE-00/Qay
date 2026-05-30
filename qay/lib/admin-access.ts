@@ -5,8 +5,16 @@ import { cookies } from 'next/headers';
 
 export const QAY_ADMIN_ACCESS_COOKIE = 'qay_admin_access';
 
-function adminSecret() {
-  return process.env.QAY_ADMIN_ACCESS_SECRET || process.env.QAY_ADMIN_ACCESS_PASSWORD || '';
+function normalizeSecret(value: string | undefined) {
+  return (value || '').trim().replace(/^["']|["']$/g, '');
+}
+
+function adminPassword() {
+  return normalizeSecret(process.env.QAY_ADMIN_ACCESS_PASSWORD);
+}
+
+function adminSigningSecret() {
+  return normalizeSecret(process.env.QAY_ADMIN_ACCESS_SECRET) || adminPassword();
 }
 
 function configuredAdminEmails() {
@@ -23,12 +31,12 @@ export function isConfiguredQayAdmin(user: Pick<User, 'email'> | null | undefine
 }
 
 export function isQayAdminPassword(value: unknown) {
-  const secret = adminSecret();
-  return typeof value === 'string' && !!secret && value === secret;
+  const password = adminPassword();
+  return typeof value === 'string' && !!password && value.trim() === password;
 }
 
 function signAdminCookie(userId: string) {
-  const secret = adminSecret();
+  const secret = adminSigningSecret();
   if (!secret) return null;
   return createHmac('sha256', secret).update(userId).digest('hex');
 }

@@ -12,6 +12,10 @@ import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-si
 import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
 import type { SitemapSettings } from '@/types';
 
+function getQayAppBaseUrl() {
+  return getSiteBaseUrl() || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+}
+
 async function getRenderRobotsSettings(qaySiteId: string | null) {
   if (qaySiteId) {
     return listPublicQaySiteSettings(qaySiteId, ['robots_txt', 'sitemap', 'global_canonical_url']);
@@ -42,6 +46,35 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
 
     const qaySiteId = await getQayRenderSiteId();
+    if (!qaySiteId) {
+      const baseUrl = getQayAppBaseUrl();
+      const content = `User-agent: *
+Allow: /
+
+# Internal app routes
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /client/
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /invite/
+Disallow: /ycode/
+Disallow: /qay/editor/
+Disallow: /qay/preview/
+
+# Sitemap
+Sitemap: ${baseUrl}/sitemap.xml`;
+
+      return new NextResponse(content, {
+        headers: {
+          'Content-Type': 'text/plain',
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+        },
+      });
+    }
+
     const allSettings = await getRenderRobotsSettings(qaySiteId);
     const sitemapSettings = allSettings.sitemap as SitemapSettings | null;
     const sitemapEnabled = sitemapSettings?.mode && sitemapSettings.mode !== 'none';

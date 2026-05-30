@@ -7,8 +7,22 @@ import {
   parsePlanFromTxRef,
   verifyFlutterwaveTransaction,
 } from '@/qay/lib/billing/flutterwave';
+import {
+  getLemonWebhookSecret,
+  isPaidLemonEvent,
+  parseLemonPlanFromPayload,
+  parseLemonUserIdFromPayload,
+} from '@/qay/lib/billing/lemonsqueezy';
+import type { QayPlanKey } from '@/qay/lib/billing/plan-limits';
 
 function isValidWebhookSignature(rawBody: string, request: Request) {
+  const lemonSignature = request.headers.get('x-signature');
+  const lemonSecret = getLemonWebhookSecret();
+  if (lemonSignature && lemonSecret) {
+    const expected = createHmac('sha256', lemonSecret).update(rawBody).digest('hex');
+    return lemonSignature === expected;
+  }
+
   const secretHash = getFlutterwaveWebhookSecret();
   if (!secretHash) return true;
 
@@ -21,6 +35,28 @@ function isValidWebhookSignature(rawBody: string, request: Request) {
   return request.headers.get('verif-hash') === secretHash;
 }
 
+async function applyPlan(userId: string, plan: QayPlanKey, metadata: Record<string, unknown>) {
+  if (!userId || plan === 'free') return;
+
+  const supabase = getQayAdmin() as any;
+  const updatedAt = new Date().toISOString();
+  const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+
+  await supabase.auth.admin.updateUserById(userId, {
+    app_metadata: {
+      ...(authUser?.user?.app_metadata || {}),
+      qay_plan: plan,
+      qay_plan_updated_at: updatedAt,
+      ...metadata,
+    },
+  });
+
+  await supabase
+    .from('qay_sites')
+    .update({ plan, updated_at: updatedAt })
+    .eq('owner_id', userId);
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
 
@@ -30,6 +66,21 @@ export async function POST(request: Request) {
 
   try {
     const payload = JSON.parse(rawBody || '{}');
+    if (payload?.meta?.event_name && isPaidLemonEvent(payload)) {
+      const plan = parseLemonPlanFromPayload(payload);
+      const userId = parseLemonUserIdFromPayload(payload);
+
+      if (userId && plan !== 'free') {
+        await applyPlan(userId, plan, {
+          qay_billing_provider: 'lemonsqueezy',
+          qay_lemon_event: payload.meta.event_name,
+          qay_lemon_object_id: payload.data?.id,
+        });
+      }
+
+      return NextResponse.json({ received: true });
+    }
+
     const transactionId = payload?.id || payload?.data?.id || payload?.transaction_id;
 
     if (!transactionId) {
@@ -41,23 +92,10 @@ export async function POST(request: Request) {
     const userId = transaction.meta?.user_id;
 
     if (userId && plan !== 'free' && isVerifiedPlanPayment(transaction, plan)) {
-      const supabase = getQayAdmin() as any;
-      const updatedAt = new Date().toISOString();
-      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
-
-      await supabase.auth.admin.updateUserById(userId, {
-        app_metadata: {
-          ...(authUser?.user?.app_metadata || {}),
-          qay_plan: plan,
-          qay_plan_tx_ref: transaction.tx_ref,
-          qay_plan_updated_at: updatedAt,
-        },
+      await applyPlan(userId, plan, {
+        qay_billing_provider: 'flutterwave',
+        qay_plan_tx_ref: transaction.tx_ref,
       });
-
-      await supabase
-        .from('qay_sites')
-        .update({ plan, updated_at: updatedAt })
-        .eq('owner_id', userId);
     }
 
     return NextResponse.json({ received: true });

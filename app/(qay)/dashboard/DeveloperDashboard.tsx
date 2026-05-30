@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState, type ReactNode } from 'react';
-import { BarChart3, Bell, Code2, ExternalLink, Grid2X2, Home, LayoutTemplate, List, MoreVertical, Plus, Settings, Sparkles, Trash2, UserPlus } from 'lucide-react';
+import { BarChart3, Bell, Code2, ExternalLink, Grid2X2, Home, LayoutTemplate, Link2, List, MoreVertical, Plus, Settings, Sparkles, Trash2, UserPlus } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
@@ -76,6 +76,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restriction, setRestriction] = useState<{ title: string; message: string } | null>(null);
+  const [demoStatus, setDemoStatus] = useState<string | null>(null);
 
   function openEditor(siteId: string) {
     window.location.assign(`/dashboard/sites/${siteId}/editor`);
@@ -155,9 +156,9 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
     }
   }
 
-  function handleImportHtml(html: string) {
+  function handleImportHtml(html: string, options?: { pageName?: string }) {
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-    const importedName = titleMatch?.[1]?.replace(/\s+/g, ' ').trim() || 'Imported site';
+    const importedName = options?.pageName || titleMatch?.[1]?.replace(/\s+/g, ' ').trim() || 'Imported site';
     setPendingImportHtml(html);
     setImportSiteName(importedName);
     setError(null);
@@ -201,7 +202,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
       const response = await fetch(`/api/qay/sites/${site.id}/import-html`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ layers }),
+        body: JSON.stringify({ layers, pageName: 'Homepage' }),
       });
       const payload = await response.json();
 
@@ -239,6 +240,37 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
     } catch (err) {
       setSites(previousSites);
       window.alert(err instanceof Error ? err.message : 'Unable to delete site');
+    }
+  }
+
+  async function createDemoLink(siteId: string) {
+    setDemoStatus(null);
+
+    try {
+      const response = await fetch(`/api/qay/sites/${siteId}/demo-links`, { method: 'POST' });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        if (payload?.code === 'DEMO_LINK_LIMIT_REACHED') {
+          setRestriction({
+            title: 'Demo link limit reached',
+            message: payload.error || 'Your plan cannot create more active demo links right now.',
+          });
+          return;
+        }
+
+        throw new Error(payload?.error || 'Unable to create demo link');
+      }
+
+      const url = payload?.data?.url;
+      if (typeof url !== 'string' || !url) {
+        throw new Error('Demo link was not returned');
+      }
+
+      await navigator.clipboard?.writeText(url);
+      setDemoStatus('Demo link copied. Preview and demo visits are not counted in analytics.');
+    } catch (err) {
+      setDemoStatus(err instanceof Error ? err.message : 'Unable to create demo link');
     }
   }
 
@@ -360,6 +392,12 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
           </div>
         )}
 
+        {demoStatus && (
+          <p className="mt-6 rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+            {demoStatus}
+          </p>
+        )}
+
         <div className={view === 'grid' ? 'mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'mt-8 space-y-3'}>
           {sites.map((site) => (
             <article
@@ -423,6 +461,14 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
                         <BarChart3 className="size-4" />
                         Analytics
                       </a>
+                      <button
+                        type="button"
+                        onClick={() => createDemoLink(site.id)}
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Link2 className="size-4" />
+                        Copy demo link
+                      </button>
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -553,6 +599,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
         onImport={handleImportHtml}
+        mode="page"
       />
 
       {isImportNameOpen && (

@@ -1,14 +1,44 @@
-export function QayLogo() {
+type QayLogoProps = {
+  className?: string;
+  imageClassName?: string;
+  theme?: 'auto' | 'light' | 'dark';
+};
+
+export function QayLogo({ className = '', imageClassName = 'h-10 w-auto', theme = 'auto' }: QayLogoProps) {
+  if (theme === 'light') {
+    return (
+      <span className={`inline-flex items-center ${className}`}>
+        <img
+          src="/qaylight.svg" alt="QAY"
+          className={imageClassName}
+        />
+      </span>
+    );
+  }
+
+  if (theme === 'dark') {
+    return (
+      <span className={`inline-flex items-center ${className}`}>
+        <img
+          src="/qayDark.svg" alt="QAY"
+          className={imageClassName}
+        />
+      </span>
+    );
+  }
+
   return (
-    <div className="flex items-center gap-3 text-current">
+    <span className={`inline-flex items-center ${className}`}>
       <img
-        src="/qay-webclip.png"
-        alt=""
-        width={32}
-        height={32}
-        className="size-8 rounded-md object-contain"
+        src="/qaylight.svg"
+        alt="QAY"
+        className={`block dark:hidden ${imageClassName}`}
       />
-      <span className="font-sans text-lg font-semibold tracking-normal">QAY</span>
-    </div>
+      <img
+        src="/qayDark.svg"
+        alt="QAY"
+        className={`hidden dark:block ${imageClassName}`}
+      />
+    </span>
   );
 }

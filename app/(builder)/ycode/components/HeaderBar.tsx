@@ -39,6 +39,8 @@ import { getQaySiteBaseUrl } from '@/qay/lib/site-url';
 import type { QaySite } from '@/qay/types';
 import AiBuilderPanel from '@/qay/components/AiBuilderPanel';
 import UserTemplateDialog from '@/qay/components/UserTemplateDialog';
+import ImportHtmlDialog from './ImportHtmlDialog';
+import { htmlToLayers } from '@/lib/html-layer-converter';
 
 interface HeaderBarProps {
   user: User | null;
@@ -153,6 +155,53 @@ export default function HeaderBar({
     }
   };
 
+  const importHtmlAsPage = async (html: string, options?: { pageName?: string }) => {
+    if (!currentQaySiteId) {
+      window.alert('Open this editor from a QAY site before importing a page.');
+      return;
+    }
+
+    let importedLayers;
+    try {
+      importedLayers = htmlToLayers(html);
+    } catch (error) {
+      console.error('[QAY import page] Failed to parse HTML:', error);
+      window.alert('QAY could not read that HTML. Check the code and try again.');
+      return;
+    }
+
+    if (!importedLayers.length) {
+      window.alert('No valid HTML elements were found to import.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/qay/sites/${currentQaySiteId}/import-html`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          layers: importedLayers,
+          pageName: options?.pageName || 'Imported page',
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Unable to import this page.');
+      }
+
+      await usePagesStore.getState().loadPages();
+
+      const importedPageId = payload?.pageId as string | undefined;
+      if (importedPageId) {
+        router.push(withCurrentSite(`/ycode/layers/${importedPageId}`));
+      }
+    } catch (error) {
+      console.error('[QAY import page] Failed to create page:', error);
+      window.alert(error instanceof Error ? error.message : 'Unable to import this page.');
+    }
+  };
+
   // Clear optimistic state once the URL reflects the clicked route
   useEffect(() => {
     if (!optimisticNav) return;
@@ -200,6 +249,7 @@ export default function HeaderBar({
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [isAiBuilderOpen, setIsAiBuilderOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [isImportPageOpen, setIsImportPageOpen] = useState(false);
 
   // Get current host after mount
   useEffect(() => {
@@ -690,6 +740,10 @@ export default function HeaderBar({
           onClick={() => openFileManager()}
         />
         <RailButton
+          title="Import page" icon="code"
+          onClick={() => setIsImportPageOpen(true)}
+        />
+        <RailButton
           title="Make template" icon="component"
           onClick={() => setIsTemplateDialogOpen(true)}
         />
@@ -760,6 +814,12 @@ export default function HeaderBar({
     <UserTemplateDialog
       open={isTemplateDialogOpen}
       onOpenChange={setIsTemplateDialogOpen}
+    />
+    <ImportHtmlDialog
+      open={isImportPageOpen}
+      onOpenChange={setIsImportPageOpen}
+      onImport={importHtmlAsPage}
+      mode="page"
     />
     </>
   );

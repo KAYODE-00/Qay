@@ -15,7 +15,25 @@ export const metadata: Metadata = {
     default: 'QAY',
     template: '%s | QAY',
   },
-  description: 'Professional website builder for freelancers and agencies',
+  description: 'Build, import, edit, publish, and hand off client websites from one QAY workspace.',
+  applicationName: 'QAY',
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'QAY',
+    title: 'QAY',
+    description: 'Build, import, edit, publish, and hand off client websites from one QAY workspace.',
+    images: [{ url: '/icon.png', width: 512, height: 512, alt: 'QAY' }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'QAY',
+    description: 'Build, import, edit, publish, and hand off client websites from one QAY workspace.',
+    images: ['/icon.png'],
+  },
 };
 
 export default async function QayLayout({ children }: { children: ReactNode }) {

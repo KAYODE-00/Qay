@@ -21,8 +21,10 @@ function shouldApplyDark(): boolean {
 function isThemedAppRoute(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname.startsWith('/ycode/preview')) return false;
+  if (pathname.startsWith('/qay/preview')) return false;
 
   return (
+    pathname === '/' ||
     pathname.startsWith('/ycode') ||
     pathname.startsWith('/qay') ||
     pathname.startsWith('/dashboard') ||

@@ -12,8 +12,44 @@ const inter = Inter({
 
 export const defaultMetadata: Metadata = {
   metadataBase: getMetadataBase(),
-  title: 'QAY - Visual Website Builder',
-  description: 'Self-hosted visual website builder',
+  title: {
+    default: 'QAY - AI Website Builder for Freelancers and Agencies',
+    template: '%s | QAY',
+  },
+  description: 'Build, import, edit, publish, and hand off client websites from one QAY workspace.',
+  applicationName: 'QAY',
+  keywords: [
+    'QAY',
+    'AI website builder',
+    'visual website builder',
+    'client website builder',
+    'freelance web design platform',
+    'website editor',
+  ],
+  authors: [{ name: 'QAY' }],
+  creator: 'QAY',
+  publisher: 'QAY',
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'QAY',
+    title: 'QAY - AI Website Builder for Freelancers and Agencies',
+    description: 'Build, import, edit, publish, and hand off client websites from one QAY workspace.',
+    images: [{ url: '/icon.png', width: 512, height: 512, alt: 'QAY' }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'QAY - AI Website Builder for Freelancers and Agencies',
+    description: 'Build, import, edit, publish, and hand off client websites from one QAY workspace.',
+    images: ['/icon.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 interface RootLayoutShellProps {

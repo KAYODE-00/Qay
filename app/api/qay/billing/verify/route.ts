@@ -45,6 +45,10 @@ function redirectToPricing(request: Request, status: 'success' | 'failed', plan?
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    if (searchParams.get('provider') === 'lemonsqueezy' || searchParams.get('checkout_id')) {
+      return redirectToPricing(request, 'success', searchParams.get('plan') || undefined);
+    }
+
     const transactionId = searchParams.get('transaction_id') || searchParams.get('id');
 
     if (!transactionId) {

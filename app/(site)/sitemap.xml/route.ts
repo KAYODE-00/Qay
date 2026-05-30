@@ -24,6 +24,28 @@ import type { SitemapSettings, Translation, CollectionItem } from '@/types';
 import { getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
 
+function getQayAppBaseUrl() {
+  return (getSiteBaseUrl() || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '');
+}
+
+function generateQayAppSitemapXml() {
+  const baseUrl = getQayAppBaseUrl();
+  const routes = ['/', '/pricing', '/help', '/blog'];
+  const now = new Date().toISOString();
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${routes
+    .map((route) => `  <url>
+    <loc>${baseUrl}${route === '/' ? '' : route}</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>${route === '/' ? 'weekly' : 'monthly'}</changefreq>
+    <priority>${route === '/' ? '1.0' : '0.7'}</priority>
+  </url>`)
+    .join('\n')}
+</urlset>`;
+}
+
 async function getRenderSitemapSettings(qaySiteId: string | null) {
   if (qaySiteId) {
     return listPublicQaySiteSettings(qaySiteId, ['sitemap', 'global_canonical_url']);
@@ -47,6 +69,15 @@ export async function GET() {
     }
 
     const qaySiteId = await getQayRenderSiteId();
+    if (!qaySiteId) {
+      return new NextResponse(generateQayAppSitemapXml(), {
+        headers: {
+          'Content-Type': 'application/xml',
+          'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+        },
+      });
+    }
+
     const allSettings = await getRenderSitemapSettings(qaySiteId);
     const settings: SitemapSettings = allSettings.sitemap || getDefaultSitemapSettings();
     const globalCanonicalUrl: string | null = allSettings.global_canonical_url || null;

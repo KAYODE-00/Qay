@@ -48,6 +48,10 @@ function getFlutterwaveSecretKey() {
   return process.env.FLUTTERWAVE_SECRET_KEY || process.env.FLW_SECRET_KEY || '';
 }
 
+export function isFlutterwaveConfigured() {
+  return !!getFlutterwaveSecretKey();
+}
+
 export function getFlutterwaveWebhookSecret() {
   return process.env.FLUTTERWAVE_WEBHOOK_SECRET || process.env.FLW_SECRET_HASH || '';
 }

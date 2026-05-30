@@ -17,7 +17,7 @@ export default function PricingPage() {
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center justify-between">
           <QayLogo />
-          <Link href="/qay" className="text-sm text-[#e5e5e5] transition hover:text-white">
+          <Link href="/" className="text-sm text-[#e5e5e5] transition hover:text-white">
             Back to QAY
           </Link>
         </div>

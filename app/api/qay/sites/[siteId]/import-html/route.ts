@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getKnexClient, closeKnexClient } from '@/lib/knex-client';
-import { getDraftLayers, upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
+import { upsertDraftLayers } from '@/lib/repositories/pageLayersRepository';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { buildQayIndexSlug } from '@/qay/lib/index-slug';
@@ -10,25 +10,7 @@ import type { Layer } from '@/types';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-function appendToBody(layers: Layer[], importedLayers: Layer[]): Layer[] {
-  let appended = false;
-
-  const nextLayers = layers.map((layer) => {
-    if (layer.id === 'body') {
-      appended = true;
-      return {
-        ...layer,
-        children: [...(layer.children ?? []), ...importedLayers],
-      };
-    }
-
-    return layer;
-  });
-
-  if (appended) {
-    return nextLayers;
-  }
-
+function layersAsPageBody(importedLayers: Layer[]): Layer[] {
   return [
     {
       id: 'body',
@@ -36,11 +18,19 @@ function appendToBody(layers: Layer[], importedLayers: Layer[]): Layer[] {
       classes: '',
       children: importedLayers,
     } as Layer,
-    ...nextLayers,
   ];
 }
 
-async function findOrCreateImportPage(siteId: string) {
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
+async function createImportedPage(siteId: string, pageNameInput: unknown) {
   const knex = await getKnexClient();
 
   try {
@@ -53,30 +43,27 @@ async function findOrCreateImportPage(siteId: string) {
       .orderBy('created_at', 'asc');
 
     const sitePages = pages.filter((page) => page.settings?.qay_site_id === siteId);
-    const existing = sitePages.find((page) => page.is_index && page.page_folder_id === null) ?? sitePages[0];
-    if (existing) {
-      if (existing.slug !== buildQayIndexSlug(siteId) || !existing.is_index || existing.page_folder_id !== null) {
-        await knex('pages')
-          .where({ id: existing.id })
-          .update({
-            slug: buildQayIndexSlug(siteId),
-            is_index: true,
-            page_folder_id: null,
-            settings: { ...(existing.settings || {}), qay_site_id: siteId },
-            updated_at: new Date().toISOString(),
-          });
-      }
+    const isFirstSitePage = sitePages.length === 0;
+    const pageName = typeof pageNameInput === 'string' && pageNameInput.trim()
+      ? pageNameInput.trim().slice(0, 80)
+      : isFirstSitePage
+        ? 'Homepage'
+        : 'Imported page';
+    const baseSlug = slugify(pageName) || 'imported-page';
+    const existingSlugs = new Set(sitePages.map((page) => page.slug));
+    let slug = isFirstSitePage ? buildQayIndexSlug(siteId) : baseSlug;
+    let suffix = 2;
 
-      return existing.id as string;
+    while (!isFirstSitePage && existingSlugs.has(slug)) {
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
     }
 
-    const isFirstSitePage = sitePages.length === 0;
-    const slug = isFirstSitePage ? buildQayIndexSlug(siteId) : `import-${Date.now().toString(36)}`;
     const [page] = await knex('pages')
       .insert({
-        name: isFirstSitePage ? 'Homepage' : 'Imported HTML',
+        name: pageName,
         slug,
-        order: 0,
+        order: sitePages.length,
         depth: 0,
         is_index: isFirstSitePage,
         is_dynamic: false,
@@ -105,6 +92,7 @@ export async function POST(
   const { siteId } = await params;
   const body = await request.json().catch(() => null);
   const layers = Array.isArray(body?.layers) ? body.layers as Layer[] : [];
+  const pageName = body?.pageName;
 
   if (layers.length === 0) {
     return NextResponse.json({ error: 'No HTML layers to import' }, { status: 400 });
@@ -126,13 +114,9 @@ export async function POST(
     return NextResponse.json({ error: 'Site not found' }, { status: 404 });
   }
 
-  const pageId = await findOrCreateImportPage(siteId);
-  const draft = await getDraftLayers(pageId);
-  const currentLayers = draft?.layers?.length
-    ? draft.layers
-    : [{ id: 'body', name: 'body', classes: '', children: [] } as Layer];
+  const pageId = await createImportedPage(siteId, pageName);
 
-  await upsertDraftLayers(pageId, appendToBody(currentLayers, layers));
+  await upsertDraftLayers(pageId, layersAsPageBody(layers));
   await ensureQayDraftErrorPages(siteId);
 
   return NextResponse.json({

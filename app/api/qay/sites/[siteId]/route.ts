@@ -3,6 +3,8 @@ import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { isQayBaseHost, withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 import { addDomainToVercelProject } from '@/qay/lib/vercel-domains';
+import { hasQayAdminAccess } from '@/qay/lib/admin-access';
+import { getQayPlanRank, getUserQayPlan } from '@/qay/lib/billing/plan-limits';
 
 type RouteContext = {
   params: Promise<{ siteId: string }>;
@@ -89,6 +91,17 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   if (typeof body?.custom_domain === 'string' || body?.custom_domain === null) {
+    const hasAdminAccess = await hasQayAdminAccess(user);
+    if (body.custom_domain && !hasAdminAccess && getQayPlanRank(getUserQayPlan(user)) < getQayPlanRank('starter')) {
+      return NextResponse.json(
+        {
+          error: 'Custom domains are available on Starter and higher plans.',
+          code: 'CUSTOM_DOMAIN_PLAN_REQUIRED',
+        },
+        { status: 403 }
+      );
+    }
+
     const customDomain = body.custom_domain
       ? body.custom_domain
         .trim()

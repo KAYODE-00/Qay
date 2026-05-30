@@ -1,11 +1,50 @@
 import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
-import { createFlutterwaveCheckout } from '@/qay/lib/billing/flutterwave';
+import { createFlutterwaveCheckout, isFlutterwaveConfigured } from '@/qay/lib/billing/flutterwave';
+import { createLemonCheckout, isLemonSqueezyConfigured } from '@/qay/lib/billing/lemonsqueezy';
 import { normalizeQayPlan, QAY_PLANS } from '@/qay/lib/billing/plan-limits';
+
+const AFRICAN_COUNTRIES = new Set([
+  'DZ', 'AO', 'BJ', 'BW', 'BF', 'BI', 'CV', 'CM', 'CF', 'TD', 'KM', 'CG', 'CD', 'CI', 'DJ', 'EG',
+  'GQ', 'ER', 'SZ', 'ET', 'GA', 'GM', 'GH', 'GN', 'GW', 'KE', 'LS', 'LR', 'LY', 'MG', 'MW', 'ML',
+  'MR', 'MU', 'MA', 'MZ', 'NA', 'NE', 'NG', 'RW', 'ST', 'SN', 'SC', 'SL', 'SO', 'ZA', 'SS', 'SD',
+  'TZ', 'TG', 'TN', 'UG', 'EH', 'ZM', 'ZW',
+]);
 
 function getRequestOrigin(request: Request) {
   const url = new URL(request.url);
   return `${url.protocol}//${url.host}`;
+}
+
+function getHeader(request: Request, name: string) {
+  return request.headers.get(name)?.trim().toUpperCase() || '';
+}
+
+function isAfricanRequest(request: Request) {
+  const continent =
+    getHeader(request, 'x-vercel-ip-continent')
+    || getHeader(request, 'cf-ipcontinent')
+    || getHeader(request, 'x-continent-code');
+
+  if (continent === 'AF') return true;
+
+  const country =
+    getHeader(request, 'x-vercel-ip-country')
+    || getHeader(request, 'cf-ipcountry')
+    || getHeader(request, 'x-country-code');
+
+  return AFRICAN_COUNTRIES.has(country);
+}
+
+function chooseBillingProvider(request: Request): 'flutterwave' | 'lemonsqueezy' {
+  const preferFlutterwave = isAfricanRequest(request);
+  const flutterwaveReady = isFlutterwaveConfigured();
+  const lemonReady = isLemonSqueezyConfigured();
+
+  if (preferFlutterwave && flutterwaveReady) return 'flutterwave';
+  if (!preferFlutterwave && lemonReady) return 'lemonsqueezy';
+  if (lemonReady) return 'lemonsqueezy';
+  return 'flutterwave';
 }
 
 export async function POST(request: Request) {
@@ -28,15 +67,22 @@ export async function POST(request: Request) {
     }
 
     const origin = getRequestOrigin(request);
-    const checkout = await createFlutterwaveCheckout({
+    const provider = chooseBillingProvider(request);
+    const checkoutInput = {
       plan,
       userId: user.id,
       customer: {
         email: user.email,
         name: user.user_metadata?.full_name || user.user_metadata?.display_name || user.email,
       },
-      redirectUrl: `${origin}/api/qay/billing/verify`,
-    });
+      redirectUrl: provider === 'lemonsqueezy'
+        ? `${origin}/api/qay/billing/verify?provider=lemonsqueezy&plan=${plan}`
+        : `${origin}/api/qay/billing/verify`,
+    };
+
+    const checkout = provider === 'lemonsqueezy'
+      ? await createLemonCheckout(checkoutInput)
+      : await createFlutterwaveCheckout(checkoutInput);
 
     return NextResponse.json({ data: checkout });
   } catch (error) {
