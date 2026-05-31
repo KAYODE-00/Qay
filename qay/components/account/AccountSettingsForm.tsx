@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { QayAccountMode, QayAccountProfile } from '@/qay/lib/account';
 import { getQayPlan } from '@/qay/lib/billing/plan-limits';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 type AccountSettingsFormProps = {
   profile: QayAccountProfile;
@@ -26,6 +27,7 @@ const modes: Array<{ value: QayAccountMode; title: string; body: string }> = [
 
 export function AccountSettingsForm({ profile, role = profile.account_type }: AccountSettingsFormProps) {
   const router = useRouter();
+  const signOut = useAuthStore((state) => state.signOut);
   const currentPlan = getQayPlan(profile.plan);
   const displayPlan = currentPlan;
   const [fullName, setFullName] = useState(profile.full_name ?? '');
@@ -35,6 +37,7 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
   const [website, setWebsite] = useState(profile.website ?? '');
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +139,20 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
     }
   }
 
+  async function handleSignOut() {
+    setSigningOut(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      await signOut();
+      window.location.assign('/login');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to sign out');
+      setSigningOut(false);
+    }
+  }
+
   const helperText = role === 'client'
     ? 'These details appear across your client dashboard and shared site access.'
     : 'These details appear across your QAY dashboard and collaboration tools.';
@@ -219,7 +236,7 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
         <button
           type="button"
           onClick={saveSettings}
-          disabled={saving || uploadingAvatar || deletingAccount}
+          disabled={saving || uploadingAvatar || deletingAccount || signingOut}
           className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? 'Saving...' : 'Save settings'}
@@ -255,6 +272,21 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
         </div>
 
         <div className="border-t border-border pt-6">
+          <p className="text-sm font-medium text-foreground">Sign out</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            End this session and return to the QAY login page.
+          </p>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={saving || uploadingAvatar || deletingAccount || signingOut}
+            className="mt-3 inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {signingOut ? 'Signing out...' : 'Sign out'}
+          </button>
+        </div>
+
+        <div className="border-t border-border pt-6">
           <p className="text-sm font-medium text-foreground">Delete account</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Permanently remove your QAY account access.
@@ -262,7 +294,7 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
           <button
             type="button"
             onClick={deleteAccount}
-            disabled={saving || uploadingAvatar || deletingAccount}
+            disabled={saving || uploadingAvatar || deletingAccount || signingOut}
             className="mt-3 inline-flex h-10 items-center justify-center rounded-md border border-red-500/40 px-4 text-sm font-medium text-red-600 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {deletingAccount ? 'Deleting...' : 'Delete account'}
