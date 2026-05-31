@@ -55,6 +55,13 @@ type QaySiteSettings = {
   live_url?: string | null;
 };
 
+type QaySiteAuthSettings = {
+  enabled: boolean;
+  allowSignup: boolean;
+  provider: 'qay' | 'connected_supabase';
+  socialLogin: boolean;
+};
+
 function normalizeSiteSlug(value: string) {
   return value
     .trim()
@@ -118,6 +125,14 @@ export default function GeneralSettingsPage() {
   const [isLoadingSiteSettings, setIsLoadingSiteSettings] = useState(false);
   const [isSavingSiteSettings, setIsSavingSiteSettings] = useState(false);
   const [isVerifyingDomain, setIsVerifyingDomain] = useState(false);
+  const [siteAuthSettings, setSiteAuthSettings] = useState<QaySiteAuthSettings>({
+    enabled: false,
+    allowSignup: true,
+    provider: 'qay',
+    socialLogin: false,
+  });
+  const [isLoadingSiteAuth, setIsLoadingSiteAuth] = useState(false);
+  const [isSavingSiteAuth, setIsSavingSiteAuth] = useState(false);
 
   // Initialize timezone from store (default UTC)
   const storedTimezone = getSettingByKey('timezone') as string | null;
@@ -195,6 +210,41 @@ export default function GeneralSettingsPage() {
       .finally(() => {
         if (!cancelled) {
           setIsLoadingSiteSettings(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [qaySiteId]);
+
+  useEffect(() => {
+    if (!qaySiteId) return;
+
+    let cancelled = false;
+    setIsLoadingSiteAuth(true);
+
+    fetch(`/api/qay/sites/${qaySiteId}/auth`)
+      .then(async (response) => {
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(result?.error || 'Failed to load site auth settings');
+        }
+        return result?.data as QaySiteAuthSettings;
+      })
+      .then((settings) => {
+        if (!cancelled) {
+          setSiteAuthSettings(settings);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : 'Failed to load site auth settings');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingSiteAuth(false);
         }
       });
 
@@ -319,6 +369,31 @@ export default function GeneralSettingsPage() {
       setIsSavingSiteSettings(false);
     }
   }, [qaySiteId, siteName, siteSlug, customDomain]);
+
+  const saveSiteAuthSettings = useCallback(async () => {
+    if (!qaySiteId) return;
+
+    try {
+      setIsSavingSiteAuth(true);
+      const response = await fetch(`/api/qay/sites/${qaySiteId}/auth`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(siteAuthSettings),
+      });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to save site auth settings');
+      }
+
+      setSiteAuthSettings(result.data as QaySiteAuthSettings);
+      toast.success('Site auth settings saved');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save site auth settings');
+    } finally {
+      setIsSavingSiteAuth(false);
+    }
+  }, [qaySiteId, siteAuthSettings]);
 
   const verifyCustomDomain = useCallback(async () => {
     if (!qaySiteId) return;
@@ -530,6 +605,50 @@ export default function GeneralSettingsPage() {
                         >
                           Upgrade plan
                         </Button>
+                      </div>
+                    </Field>
+
+                    <Field className="col-span-2 rounded-lg border border-border bg-background p-4">
+                      <div className="flex flex-col gap-5">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <FieldLabel>Auth protected site</FieldLabel>
+                            <FieldDescription>
+                              Private Pro feature. When enabled, visitors must create or use an account scoped only to this site.
+                            </FieldDescription>
+                          </div>
+                          <Switch
+                            checked={siteAuthSettings.enabled}
+                            onCheckedChange={(enabled) => setSiteAuthSettings((current) => ({ ...current, enabled }))}
+                            disabled={isLoadingSiteAuth}
+                          />
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+                            <span>Allow visitor signup</span>
+                            <Switch
+                              checked={siteAuthSettings.allowSignup}
+                              onCheckedChange={(allowSignup) => setSiteAuthSettings((current) => ({ ...current, allowSignup }))}
+                              disabled={isLoadingSiteAuth || !siteAuthSettings.enabled}
+                            />
+                          </label>
+                          <div className="rounded-md border border-border p-3 text-sm text-muted-foreground">
+                            <span className="block font-medium text-foreground">Provider</span>
+                            <span className="mt-1 block">QAY isolated auth now. Connected Supabase and social login come next.</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={saveSiteAuthSettings}
+                            disabled={isSavingSiteAuth || isLoadingSiteAuth}
+                          >
+                            {isSavingSiteAuth ? 'Saving...' : 'Save auth settings'}
+                          </Button>
+                        </div>
                       </div>
                     </Field>
 

@@ -21,6 +21,18 @@ function layersAsPageBody(importedLayers: Layer[]): Layer[] {
   ];
 }
 
+type ImportPagePayload = {
+  name?: unknown;
+  slug?: unknown;
+  layers?: unknown;
+};
+
+type NormalizedImportPage = {
+  name?: unknown;
+  slug?: unknown;
+  layers: Layer[];
+};
+
 function slugify(value: string) {
   return value
     .trim()
@@ -30,7 +42,7 @@ function slugify(value: string) {
     .slice(0, 64);
 }
 
-async function createImportedPage(siteId: string, pageNameInput: unknown) {
+async function createImportedPage(siteId: string, pageNameInput: unknown, pageSlugInput?: unknown) {
   const knex = await getKnexClient();
 
   try {
@@ -49,7 +61,8 @@ async function createImportedPage(siteId: string, pageNameInput: unknown) {
       : isFirstSitePage
         ? 'Homepage'
         : 'Imported page';
-    const baseSlug = slugify(pageName) || 'imported-page';
+    const requestedSlug = typeof pageSlugInput === 'string' ? slugify(pageSlugInput) : '';
+    const baseSlug = requestedSlug || slugify(pageName) || 'imported-page';
     const existingSlugs = new Set(sitePages.map((page) => page.slug));
     let slug = isFirstSitePage ? buildQayIndexSlug(siteId) : baseSlug;
     let suffix = 2;
@@ -92,9 +105,18 @@ export async function POST(
   const { siteId } = await params;
   const body = await request.json().catch(() => null);
   const layers = Array.isArray(body?.layers) ? body.layers as Layer[] : [];
+  const pages = Array.isArray(body?.pages)
+    ? body.pages
+      .map((page: ImportPagePayload) => ({
+        name: page?.name,
+        slug: page?.slug,
+        layers: Array.isArray(page?.layers) ? page.layers as Layer[] : [],
+      }))
+      .filter((page: NormalizedImportPage) => page.layers.length > 0)
+    : [];
   const pageName = body?.pageName;
 
-  if (layers.length === 0) {
+  if (layers.length === 0 && pages.length === 0) {
     return NextResponse.json({ error: 'No HTML layers to import' }, { status: 400 });
   }
 
@@ -114,14 +136,22 @@ export async function POST(
     return NextResponse.json({ error: 'Site not found' }, { status: 404 });
   }
 
-  const pageId = await createImportedPage(siteId, pageName);
+  const importedPages = pages.length > 0
+    ? pages
+    : [{ name: pageName, slug: undefined, layers }];
+  const createdPages: Array<{ id: string; name: unknown }> = [];
 
-  await upsertDraftLayers(pageId, layersAsPageBody(layers));
+  for (const page of importedPages) {
+    const pageId = await createImportedPage(siteId, page.name, page.slug);
+    await upsertDraftLayers(pageId, layersAsPageBody(page.layers));
+    createdPages.push({ id: pageId, name: page.name });
+  }
   await ensureQayDraftErrorPages(siteId);
 
   return NextResponse.json({
     success: true,
-    pageId,
+    pageId: createdPages[0]?.id,
+    pages: createdPages,
     siteId,
   });
 }

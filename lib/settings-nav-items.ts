@@ -7,10 +7,13 @@ export interface SettingsNavItem {
   id: string;
   label: string;
   path: string;
+  requiresSite?: boolean;
 }
 
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'general', label: 'General', path: '/ycode/settings/general' },
+  { id: 'site-users', label: 'Site users', path: '/ycode/settings/site-users', requiresSite: true },
+  { id: 'commerce', label: 'Commerce', path: '/ycode/settings/commerce', requiresSite: true },
   { id: 'users', label: 'Invites', path: '/ycode/settings/users' },
   { id: 'redirects', label: 'Redirects', path: '/ycode/settings/redirects' },
   { id: 'email', label: 'Email', path: '/ycode/settings/email' },

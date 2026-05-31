@@ -19,6 +19,8 @@ const QAY_SITE_SCOPED_SETTING_KEY_LIST = [
   'published_at',
   'redirects',
   'email',
+  'site_auth',
+  'commerce_medusa',
 ] as const;
 
 export const QAY_SITE_SCOPED_SETTING_KEYS = new Set<string>(QAY_SITE_SCOPED_SETTING_KEY_LIST);

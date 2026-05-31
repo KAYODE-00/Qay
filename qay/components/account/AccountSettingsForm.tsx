@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, type ChangeEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { QayAccountMode, QayAccountProfile } from '@/qay/lib/account';
+import { getQayPlan } from '@/qay/lib/billing/plan-limits';
 
 type AccountSettingsFormProps = {
   profile: QayAccountProfile;
@@ -24,6 +26,8 @@ const modes: Array<{ value: QayAccountMode; title: string; body: string }> = [
 
 export function AccountSettingsForm({ profile, role = profile.account_type }: AccountSettingsFormProps) {
   const router = useRouter();
+  const currentPlan = getQayPlan(profile.plan);
+  const displayPlan = currentPlan;
   const [fullName, setFullName] = useState(profile.full_name ?? '');
   const [email, setEmail] = useState(profile.email ?? '');
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? '');
@@ -219,16 +223,32 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
         </button>
 
         <div className="border-t border-border pt-6">
-          <p className="text-sm font-medium text-foreground">Plan</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Current plan</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                You are on <span className="font-medium text-foreground">{displayPlan.name}</span>
+                {displayPlan.price > 0 ? ` at $${displayPlan.price}/month` : ''}.
+              </p>
+              {!displayPlan.isAvailable && displayPlan.key === 'pro' && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Pro is private access for now, so payment is disabled while these features are being prepared.
+                </p>
+              )}
+            </div>
+            <span className="inline-flex w-fit rounded-full border border-border px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              {displayPlan.name}
+            </span>
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Upgrade when you need more publishing, collaboration, or custom domain features.
           </p>
-          <a
+          <Link
             href="/pricing"
             className="mt-3 inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90"
           >
             Upgrade plan
-          </a>
+          </Link>
         </div>
 
         <div className="border-t border-border pt-6">

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { isQayBaseHost, withResolvedQayLiveUrl } from '@/qay/lib/site-url';
+import { getQaySiteBaseUrl, isQayBaseHost, withResolvedQayLiveUrl } from '@/qay/lib/site-url';
 import { addDomainToVercelProject } from '@/qay/lib/vercel-domains';
 import { hasQayAdminAccess } from '@/qay/lib/admin-access';
 import { getQayPlanRank, getUserQayPlan } from '@/qay/lib/billing/plan-limits';
@@ -48,7 +48,12 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Site not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ data: withResolvedQayLiveUrl(data) });
+  return NextResponse.json({
+    data: {
+      ...withResolvedQayLiveUrl(data),
+      qay_url: getQaySiteBaseUrl(data),
+    },
+  });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -158,7 +163,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  const resolvedSite = withResolvedQayLiveUrl(data);
+  const resolvedSite = {
+    ...withResolvedQayLiveUrl(data),
+    qay_url: getQaySiteBaseUrl(data),
+  };
 
   if (resolvedSite.publish_status === 'published' && resolvedSite.live_url !== data.live_url) {
     await supabase

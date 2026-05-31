@@ -20,6 +20,9 @@ import { useCollectionsStore } from '@/stores/useCollectionsStore';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { generateUniqueSlug, generateUniqueFolderSlug, getNextNumberFromNames, getParentContextFromSelection, calculateNextOrder, findNextSelection } from '@/lib/page-utils';
+import { generateId } from '@/lib/utils';
+import { getTiptapTextContent } from '@/lib/text-format-utils';
+import { toast } from 'sonner';
 
 interface LeftSidebarPagesProps {
   pages: Page[];
@@ -27,6 +30,338 @@ interface LeftSidebarPagesProps {
   currentPageId: string | null;
   onPageSelect: (pageId: string) => void;
   setCurrentPageId: (pageId: string | null) => void;
+}
+
+type AuthUtilityMode = 'auth' | 'login' | 'signup' | 'forgot-password' | 'reset-password';
+
+function isAuthUtilityPage(page: Page) {
+  const specialPage = String((page.settings as Record<string, unknown> | null | undefined)?.qay_special_page || '');
+  return page.error_page === null && (
+    ['login', 'signup', 'forgot-password', 'reset-password'].includes(specialPage)
+    || ['login', 'signup', 'forgot-password', 'reset-password'].includes(page.slug)
+  );
+}
+
+function richTextVariable(content: string) {
+  return {
+    text: {
+      type: 'dynamic_rich_text',
+      data: {
+        content: getTiptapTextContent(content),
+      },
+    },
+  };
+}
+
+function textLayer(content: string, classes: string, tag = 'p') {
+  return {
+    id: generateId('text'),
+    name: tag === 'h1' || tag === 'h2' || tag === 'h3' ? 'heading' : 'text',
+    settings: { tag },
+    classes,
+    restrictions: { editText: true },
+    variables: richTextVariable(content),
+    children: [],
+  };
+}
+
+function authInput(label: string, name: string, type: string, placeholder: string) {
+  return {
+    id: generateId('div'),
+    name: 'div',
+    settings: { tag: 'label' },
+    classes: 'grid gap-2',
+    children: [
+      textLayer(label, 'text-sm font-medium text-white/72', 'span'),
+      {
+        id: generateId('input'),
+        name: 'input',
+        classes: 'h-12 w-full rounded-xl border border-white/10 bg-black/35 px-4 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-white/35',
+        attributes: {
+          name,
+          type,
+          placeholder,
+          required: true,
+        },
+        children: [],
+      },
+    ],
+  };
+}
+
+function authSubmitButton(label: string) {
+  return {
+    id: generateId('button'),
+    name: 'button',
+    customName: label,
+    settings: { tag: 'button' },
+    classes: 'flex h-12 w-full items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90',
+    attributes: { type: 'submit' },
+    children: [
+      textLayer(label, '', 'span'),
+    ],
+  };
+}
+
+function authLinkButton(label: string, href: string) {
+  return {
+    id: generateId('button'),
+    name: 'button',
+    customName: label,
+    settings: { tag: 'a' },
+    classes: 'inline-flex items-center justify-center rounded-xl border border-white/10 px-5 py-3 text-sm font-medium text-white/72 transition hover:border-white/25 hover:text-white',
+    attributes: { href },
+    children: [
+      textLayer(label, '', 'span'),
+    ],
+  };
+}
+
+function createAuthPageTemplateLayers(mode: AuthUtilityMode) {
+  const layerId = (name: string) => generateId(name);
+  const isSignup = mode === 'signup';
+  const isForgotPassword = mode === 'forgot-password';
+  const isResetPassword = mode === 'reset-password';
+  const isAuthLanding = mode === 'auth';
+  const title = isAuthLanding
+    ? 'Private access for your visitors.'
+    : isSignup
+      ? 'Create your account.'
+      : isForgotPassword
+        ? 'Recover your account.'
+        : isResetPassword
+          ? 'Set a new password.'
+          : 'Sign in to continue.';
+  const eyebrow = isAuthLanding
+    ? 'Protected site'
+    : isSignup
+      ? 'Visitor sign up'
+      : isForgotPassword
+        ? 'Password recovery'
+        : isResetPassword
+          ? 'Password reset'
+          : 'Visitor login';
+  const body = isAuthLanding
+    ? 'Create separate editable login and sign-up pages, then style every section in QAY.'
+    : isForgotPassword
+      ? 'Visitors can request a secure reset link without touching your builder account.'
+      : isResetPassword
+        ? 'Visitors can set a fresh password and continue into this protected site.'
+        : 'This form is part of the page, so you can style the text, spacing, fields, and buttons directly in the editor.';
+  const formMode = isSignup
+    ? 'signup'
+    : isForgotPassword
+      ? 'forgot-password'
+      : isResetPassword
+        ? 'reset-password'
+        : 'signin';
+
+  return [
+    {
+      id: 'body',
+      name: 'body',
+      classes: 'min-h-screen bg-[#080808] text-white',
+      children: [
+        {
+          id: layerId('section'),
+          name: 'section',
+          classes: 'min-h-screen px-6 py-16 flex items-center justify-center bg-[#080808] text-white',
+          children: [
+            {
+              id: layerId('div'),
+              name: 'div',
+              customName: 'Auth page shell',
+              classes: 'w-full max-w-6xl grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center',
+              children: [
+                {
+                  id: layerId('div'),
+                  name: 'div',
+                  classes: 'space-y-7',
+                  children: [
+                    {
+                      ...textLayer(eyebrow, 'text-xs uppercase tracking-[0.28em] text-white/45'),
+                    },
+                    textLayer(title, 'max-w-3xl text-5xl font-semibold leading-[0.96] tracking-tight sm:text-7xl', 'h1'),
+                    textLayer(body, 'max-w-xl text-base leading-8 text-white/60'),
+                    ...(isAuthLanding ? [
+                      {
+                        id: layerId('div'),
+                        name: 'div',
+                        classes: 'flex flex-wrap gap-3',
+                        children: [
+                          authLinkButton('Open login page', '/login'),
+                          authLinkButton('Open sign up page', '/signup'),
+                        ],
+                      },
+                    ] : []),
+                  ],
+                },
+                {
+                  id: layerId('div'),
+                  name: 'div',
+                  customName: isAuthLanding
+                    ? 'Auth page links'
+                    : isSignup
+                      ? 'Sign up form'
+                      : isForgotPassword
+                        ? 'Forgot password form'
+                        : isResetPassword
+                          ? 'Reset password form'
+                          : 'Login form',
+                  classes: 'rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/40 backdrop-blur',
+                  children: isAuthLanding ? [
+                    textLayer('Choose the page your visitors need.', 'text-2xl font-semibold text-white', 'h2'),
+                    textLayer('Use the buttons below to route visitors to your editable login and sign-up pages.', 'mt-3 text-sm leading-6 text-white/55'),
+                    {
+                      id: layerId('div'),
+                      name: 'div',
+                      classes: 'mt-6 grid gap-3 sm:grid-cols-2',
+                      children: [
+                        authLinkButton('Login', '/login'),
+                        authLinkButton('Sign up', '/signup'),
+                      ],
+                    },
+                  ] : [
+                    {
+                      id: layerId('form'),
+                      name: 'form',
+                      customName: isSignup
+                        ? 'Visitor sign up form'
+                        : isForgotPassword
+                          ? 'Visitor forgot password form'
+                          : isResetPassword
+                            ? 'Visitor reset password form'
+                            : 'Visitor login form',
+                      classes: 'grid gap-5',
+                      attributes: {
+                        method: 'POST',
+                        'data-qay-site-auth-form': formMode,
+                      },
+                      children: [
+                        textLayer(
+                          isSignup
+                            ? 'Create access'
+                            : isForgotPassword
+                              ? 'Send reset link'
+                              : isResetPassword
+                                ? 'Choose new password'
+                                : 'Welcome back',
+                          'text-2xl font-semibold text-white',
+                          'h2'
+                        ),
+                        textLayer(
+                          isSignup
+                            ? 'Enter your details to join this protected site.'
+                            : isForgotPassword
+                              ? 'Enter the email you used for this site. If it exists, we will send a reset link.'
+                              : isResetPassword
+                                ? 'Enter a new password for your visitor account.'
+                                : 'Enter your details to continue.',
+                          'text-sm leading-6 text-white/55'
+                        ),
+                        {
+                          id: layerId('div'),
+                          name: 'div',
+                          attributes: { 'data-qay-site-auth-error': '', hidden: true },
+                          classes: 'rounded-lg border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-100',
+                          children: [
+                            textLayer('Unable to continue.', '', 'span'),
+                          ],
+                        },
+                        ...(isForgotPassword ? [
+                          {
+                            id: layerId('div'),
+                            name: 'div',
+                            attributes: { 'data-qay-site-auth-success': '', hidden: true },
+                            classes: 'rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100',
+                            children: [
+                              textLayer('If an account exists, a reset link has been sent.', '', 'span'),
+                            ],
+                          },
+                        ] : []),
+                        {
+                          id: layerId('div'),
+                          name: 'div',
+                          classes: 'grid gap-4',
+                          children: [
+                            ...(isSignup ? [authInput('Name', 'fullName', 'text', 'Jane Doe')] : []),
+                            authInput('Email', 'email', 'email', 'you@example.com'),
+                            ...(isForgotPassword ? [] : [
+                              authInput(isResetPassword ? 'New password' : 'Password', 'password', 'password', 'At least 8 characters'),
+                            ]),
+                          ],
+                        },
+                        authSubmitButton(
+                          isSignup
+                            ? 'Create account'
+                            : isForgotPassword
+                              ? 'Send reset link'
+                              : isResetPassword
+                                ? 'Set new password'
+                                : 'Sign in'
+                        ),
+                        ...(isResetPassword ? [
+                          authLinkButton('Back to login', '/login'),
+                        ] : isForgotPassword ? [
+                          authLinkButton('Back to login', '/login'),
+                        ] : [
+                          authLinkButton(isSignup ? 'Already have access? Sign in' : 'Need access? Create account', isSignup ? '/login' : '/signup'),
+                          ...(!isSignup ? [authLinkButton('Forgot password?', '/forgot-password')] : []),
+                        ]),
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ] as any;
+}
+
+function authTemplateNeedsRepair(layers: unknown, mode: AuthUtilityMode) {
+  const stack = Array.isArray(layers) ? [...layers] : [];
+  let hasRichText = false;
+  let hasModeForm = mode === 'auth';
+  let hasForgotPasswordButton = mode !== 'login';
+  const expectedFormMode = mode === 'signup'
+    ? 'signup'
+    : mode === 'forgot-password'
+      ? 'forgot-password'
+      : mode === 'reset-password'
+        ? 'reset-password'
+        : 'signin';
+
+  while (stack.length > 0) {
+    const layer = stack.pop() as any;
+    if (!layer || typeof layer !== 'object') continue;
+
+    if (layer.variables?.text?.type === 'dynamic_rich_text' || layer.variables?.text?.type === 'dynamic_text') {
+      hasRichText = true;
+    }
+
+    if (mode !== 'auth' && layer.attributes?.['data-qay-site-auth-form'] === expectedFormMode) {
+      hasModeForm = true;
+    }
+
+    if (
+      mode === 'login'
+      && (
+        layer.attributes?.href === '/forgot-password'
+        || layer.variables?.link?.data?.url === '/forgot-password'
+      )
+    ) {
+      hasForgotPasswordButton = true;
+    }
+
+    if (Array.isArray(layer.children)) {
+      stack.push(...layer.children);
+    }
+  }
+
+  return !hasRichText || !hasModeForm || !hasForgotPasswordButton;
 }
 
 export default function LeftSidebarPages({
@@ -61,13 +396,17 @@ export default function LeftSidebarPages({
     return folders.find((folder) => folder.id === selectedItemId) || null;
   }, [folders, selectedItemId]);
 
-  // Separate regular pages from error pages
-  const { regularPages, errorPages } = React.useMemo(() => {
-    const regular = pages.filter(page => page.error_page === null);
-    const errors = pages
-      .filter(page => page.error_page !== null)
+  // Separate regular pages from utility pages
+  const { regularPages, utilityPages, utilitySlugs } = React.useMemo(() => {
+    const regular = pages.filter(page => page.error_page === null && !isAuthUtilityPage(page));
+    const utilities = pages
+      .filter(page => page.error_page !== null || isAuthUtilityPage(page))
       .sort((a, b) => (a.error_page || 0) - (b.error_page || 0));
-    return { regularPages: regular, errorPages: errors };
+    return {
+      regularPages: regular,
+      utilityPages: utilities,
+      utilitySlugs: new Set(utilities.map((page) => page.slug)),
+    };
   }, [pages]);
 
   // Keep ref in sync with state
@@ -109,7 +448,7 @@ export default function LeftSidebarPages({
   }, [urlState.isEditing, urlState.resourceId, selectedPage, showPageSettings]);
 
   // Get store actions
-  const { createPage, updatePage, duplicatePage, deletePage, createFolder, updateFolder, duplicateFolder, deleteFolder, batchReorderPagesAndFolders } = usePagesStore();
+  const { createPage, updatePage, duplicatePage, deletePage, createFolder, updateFolder, duplicateFolder, deleteFolder, batchReorderPagesAndFolders, loadDraft, setDraftLayers, saveDraft } = usePagesStore();
   const { collections, fields } = useCollectionsStore();
 
   // Collaboration hooks
@@ -213,6 +552,84 @@ export default function LeftSidebarPages({
       setShowPageSettings(true);
       setShowFolderSettings(false);
     }
+  };
+
+  const getAuthPageLabel = (mode: AuthUtilityMode) => {
+    if (mode === 'signup') return 'Sign up';
+    if (mode === 'login') return 'Login';
+    if (mode === 'forgot-password') return 'Forgot password';
+    if (mode === 'reset-password') return 'Reset password';
+    return 'Auth';
+  };
+
+  const getAuthPageOrder = (mode: AuthUtilityMode) => {
+    if (mode === 'auth') return 990;
+    if (mode === 'login') return 991;
+    if (mode === 'signup') return 992;
+    if (mode === 'forgot-password') return 993;
+    return 994;
+  };
+
+  const handleCreateAuthPage = async (mode: AuthUtilityMode) => {
+    const existingAuthPage = pages.find((page) => page.slug === mode || (page.settings as any)?.qay_special_page === mode);
+    if (existingAuthPage) {
+      await loadDraft(existingAuthPage.id);
+      const existingDraft = usePagesStore.getState().draftsByPageId[existingAuthPage.id];
+
+      if (authTemplateNeedsRepair(existingDraft?.layers || [], mode)) {
+        setDraftLayers(existingAuthPage.id, createAuthPageTemplateLayers(mode));
+        await saveDraft(existingAuthPage.id);
+        toast.success(`${getAuthPageLabel(mode)} page repaired`);
+      }
+
+      setSelectedItemId(existingAuthPage.id);
+      selectedItemIdRef.current = existingAuthPage.id;
+      onPageSelect(existingAuthPage.id);
+      setCurrentPageId(existingAuthPage.id);
+      navigateToNextPage(existingAuthPage.id, 'body');
+      return;
+    }
+
+    const result = await createPage({
+      name: `${getAuthPageLabel(mode)} page`,
+      slug: mode,
+      is_published: false,
+      page_folder_id: null,
+      order: getAuthPageOrder(mode),
+      depth: 0,
+      is_index: false,
+      is_dynamic: false,
+      error_page: null,
+      settings: {
+        qay_special_page: mode,
+        seo: {
+          title: mode === 'login' ? 'Sign in' : getAuthPageLabel(mode),
+          description: mode === 'signup'
+            ? 'Create account to continue.'
+            : mode === 'forgot-password'
+              ? 'Recover your account.'
+              : mode === 'reset-password'
+                ? 'Set a new password.'
+                : 'Sign in to continue.',
+          image: null,
+          noindex: true,
+        },
+      } as any,
+    });
+
+    if (!result.success || !result.data) {
+      toast.error(result.error || 'Unable to create auth page');
+      return;
+    }
+
+    setDraftLayers(result.data.id, createAuthPageTemplateLayers(mode));
+    await saveDraft(result.data.id);
+    setSelectedItemId(result.data.id);
+    selectedItemIdRef.current = result.data.id;
+    onPageSelect(result.data.id);
+    setCurrentPageId(result.data.id);
+    navigateToNextPage(result.data.id, 'body');
+    toast.success(`${getAuthPageLabel(mode)} page template created`);
   };
 
   // Handler to create a new folder
@@ -836,14 +1253,38 @@ export default function LeftSidebarPages({
         />
 
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-xs text-muted-foreground font-medium">Error pages</span>
+          <span className="text-xs text-muted-foreground font-medium">Utility pages</span>
           <Separator className="flex-1" />
+          {!utilitySlugs.has('login') && (
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => handleCreateAuthPage('login')}>
+              <Icon name="block" className="size-3 opacity-60" />
+              Login
+            </Button>
+          )}
+          {!utilitySlugs.has('signup') && (
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => handleCreateAuthPage('signup')}>
+              <Icon name="block" className="size-3 opacity-60" />
+              Sign up
+            </Button>
+          )}
+          {!utilitySlugs.has('forgot-password') && (
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => handleCreateAuthPage('forgot-password')}>
+              <Icon name="block" className="size-3 opacity-60" />
+              Forgot
+            </Button>
+          )}
+          {!utilitySlugs.has('reset-password') && (
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => handleCreateAuthPage('reset-password')}>
+              <Icon name="block" className="size-3 opacity-60" />
+              Reset
+            </Button>
+          )}
         </div>
 
-        {/* Error pages tree */}
-        {errorPages.length > 0 && (
+        {/* Utility pages tree */}
+        {utilityPages.length > 0 && (
           <PagesTree
-            pages={errorPages}
+            pages={utilityPages}
             folders={[]}
             selectedItemId={selectedItemId}
             currentPageId={currentPageId}

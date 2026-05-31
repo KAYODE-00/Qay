@@ -8,6 +8,8 @@ import { generatePageMetadata, fetchPageRenderSettings } from '@/lib/generate-pa
 import { fetchPageByPath, fetchPageByPathForMetadata, fetchErrorPage, splitPageData, reassemblePageData, slimPageData } from '@/lib/page-fetcher';
 import PageRenderer from '@/components/PageRenderer';
 import PasswordForm from '@/components/PasswordForm';
+import { SiteAuthLogoutInitializer } from '@/qay/components/site-auth/SiteAuthLogoutInitializer';
+import { SiteAuthScreen } from '@/qay/components/site-auth/SiteAuthScreen';
 import { getSettingByKey } from '@/lib/repositories/settingsRepository';
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
@@ -15,12 +17,24 @@ import { getQayRenderHostSubdomain, getQayRenderSiteBaseUrl, getQayRenderSiteId,
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import { listPublicQaySiteSettings } from '@/qay/lib/site-settings';
 import { recordQayPageView } from '@/qay/lib/analytics';
+import { getQaySiteAuthSettings, getQaySiteVisitor } from '@/qay/lib/site-auth';
 import type { Page, PageFolder, Translation, Redirect as RedirectType } from '@/types';
 
 // Static by default for performance, dynamic only when pagination is requested
 export const revalidate = false; // Cache indefinitely until publish invalidates
 export const dynamicParams = true;
 export const dynamic = 'force-dynamic';
+
+function getSiteAuthMode(slugPath: string): 'signin' | 'signup' | 'forgot-password' | 'reset-password' {
+  if (slugPath === 'signup') return 'signup';
+  if (slugPath === 'forgot-password') return 'forgot-password';
+  if (slugPath === 'reset-password') return 'reset-password';
+  return 'signin';
+}
+
+function isSiteAuthUtilityPath(slugPath: string) {
+  return ['login', 'signup', 'forgot-password', 'reset-password'].includes(slugPath);
+}
 
 /**
  * Generate static params for known published pages
@@ -308,6 +322,23 @@ export default async function Page({ params }: PageProps) {
     ? await generatePreviewCss(data.pageLayers.layers || [], data.components)
     : undefined;
 
+  if (!data && isSiteAuthUtilityPath(slugPath)) {
+    const siteAuthSettings = await getQaySiteAuthSettings(qaySiteId);
+    const siteVisitor = siteAuthSettings.enabled ? await getQaySiteVisitor(qaySiteId) : null;
+
+    if (siteAuthSettings.enabled && !siteVisitor) {
+      return (
+        <SiteAuthScreen
+          siteId={qaySiteId}
+          allowSignup={siteAuthSettings.allowSignup}
+          isPublished={true}
+          sitePathPrefix={sitePathPrefix}
+          mode={getSiteAuthMode(slugPath)}
+        />
+      );
+    }
+  }
+
   // If page not found, try to show custom 404 error page
   if (!data) {
     const errorPageData = await fetchCachedErrorPage(404, qaySiteId);
@@ -333,6 +364,20 @@ export default async function Page({ params }: PageProps) {
   }
 
   const { page, pageLayers, components, collectionItem, collectionFields, pageCollectionSortedItemIds, pageCollectionSortedItemSlugs, locale, availableLocales, translations } = data;
+  const siteAuthSettings = await getQaySiteAuthSettings(qaySiteId);
+  const siteVisitor = siteAuthSettings.enabled ? await getQaySiteVisitor(qaySiteId) : null;
+
+  if (siteAuthSettings.enabled && !siteVisitor) {
+    return (
+      <SiteAuthScreen
+        siteId={qaySiteId}
+        allowSignup={siteAuthSettings.allowSignup}
+        isPublished={true}
+        sitePathPrefix={sitePathPrefix}
+        mode={getSiteAuthMode(slugPath)}
+      />
+    );
+  }
 
   // Check password protection for this page.
   // First evaluate without cookies() so non-protected pages stay cacheable.
@@ -393,25 +438,28 @@ export default async function Page({ params }: PageProps) {
   await recordQayPageView(qaySiteId, `/${slugPath}`, headerStore.get('referer'));
 
   return (
-    <PageRenderer
-      page={page}
-      layers={pageLayers.layers || []}
-      components={components}
-      generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
-      colorVariablesCss={globalSettings.colorVariablesCss || undefined}
-      sitePathPrefix={sitePathPrefix}
-      collectionItem={collectionItem}
-      collectionFields={collectionFields}
-      pageCollectionSortedItemIds={pageCollectionSortedItemIds}
-      pageCollectionSortedItemSlugs={pageCollectionSortedItemSlugs}
-      locale={locale}
-      availableLocales={availableLocales}
-      translations={translations}
-      gaMeasurementId={globalSettings.gaMeasurementId}
-      globalCustomCodeHead={globalSettings.globalCustomCodeHead}
-      globalCustomCodeBody={globalSettings.globalCustomCodeBody}
-      ycodeBadge={globalSettings.ycodeBadge}
-    />
+    <>
+      <PageRenderer
+        page={page}
+        layers={pageLayers.layers || []}
+        components={components}
+        generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
+        colorVariablesCss={globalSettings.colorVariablesCss || undefined}
+        sitePathPrefix={sitePathPrefix}
+        collectionItem={collectionItem}
+        collectionFields={collectionFields}
+        pageCollectionSortedItemIds={pageCollectionSortedItemIds}
+        pageCollectionSortedItemSlugs={pageCollectionSortedItemSlugs}
+        locale={locale}
+        availableLocales={availableLocales}
+        translations={translations}
+        gaMeasurementId={globalSettings.gaMeasurementId}
+        globalCustomCodeHead={globalSettings.globalCustomCodeHead}
+        globalCustomCodeBody={globalSettings.globalCustomCodeBody}
+        ycodeBadge={globalSettings.ycodeBadge}
+      />
+      {siteVisitor && <SiteAuthLogoutInitializer siteId={qaySiteId} />}
+    </>
   );
 }
 
@@ -468,6 +516,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         robots: { index: false, follow: false },
       };
     }
+  }
+
+  const siteAuthSettings = await getQaySiteAuthSettings(qaySiteId);
+  const metadataSiteVisitor = siteAuthSettings.enabled ? await getQaySiteVisitor(qaySiteId) : null;
+  if (siteAuthSettings.enabled && !metadataSiteVisitor) {
+    return {
+      title: 'Protected Site',
+      description: 'Sign in to view this site.',
+      robots: { index: false, follow: false },
+    };
   }
 
   const { meta, baseUrl } = await unstable_cache(

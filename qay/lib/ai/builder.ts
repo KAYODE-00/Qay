@@ -55,13 +55,15 @@ Rules:
 - Use semantic HTML and Tailwind classes. Put the main page background/text classes on <body>.
 - Use editable real copy, not the user's instruction text.
 - Use strong visual hierarchy, exact palettes from the user, polished spacing, and responsive layouts.
+- Infer the website type from the user's request and stay in that lane. Do not mix unrelated site types unless the user explicitly asks for a hybrid.
+- Do not reuse one fixed layout. Choose the layout architecture to fit the prompt: editorial, dashboard-like, bento, split-screen, magazine, sidebar, grid, product-led, event schedule, portfolio case-study, restaurant menu, service business, community, auth/membership, or another suitable structure.
 - Use relative internal links such as "/about".
 - Style navigation and CTA links as buttons with Tailwind classes; do not leave bare blue/default links.
 - Use absolute image URLs only, preferably Unsplash URLs with width and quality params.
 - Do not include JavaScript, event handlers, onclick, external scripts, GSAP scripts, or application/qay-interactions scripts.
 - Interactions must use only these native QAY data attributes:
-  data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|line-grow|stagger-children"
-  data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold"
+  data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
+  data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
   data-qay-click="toggle"
   data-qay-target="#element-id"
   data-qay-class="hidden"
@@ -75,6 +77,27 @@ Rules:
   <div id="mobile-menu" class="hidden fixed ... flex ...">...</div>
 - For image zoom, put data-qay-hover="img-zoom" on an overflow-hidden wrapper that contains one img.
 - Use data-qay-* tastefully on hero content, cards, timeline rows, image wrappers, and buttons.
+- Ecommerce/storefront hooks:
+  data-qay-commerce="product-grid" on the product listing section or grid wrapper.
+  data-qay-commerce="product-card" on each product card.
+  data-qay-commerce="product-image" on product image wrappers.
+  data-qay-commerce="product-title" on product title text.
+  data-qay-commerce="product-price" on product price text.
+  data-qay-commerce="add-to-cart" on add-to-cart buttons.
+  data-qay-commerce="cart-button" on cart buttons.
+  data-qay-commerce="cart-drawer" on cart drawer/panel wrappers.
+  data-qay-product-handle="sample-handle" and data-qay-product-id="sample-product-id" when useful.
+- If the user asks for ecommerce, store, shop, products, cart, collection, checkout, boutique, fashion, perfume, food ordering, marketplace, or catalog:
+  create a premium storefront with nav, hero, featured collections/products, product cards, cart button, trust/shipping block, product detail or collection section, newsletter/contact footer.
+  Use the commerce hooks above. Keep checkout links as styled buttons but do not add JavaScript.
+- If the user asks for an auth-protected site, membership site, portal, login, signup, dashboard, private community, course, SaaS app, or client portal:
+  include public marketing pages only if requested, and also generate dedicated auth pages using data-qay-page wrappers for Login, Sign up, Forgot password, and Reset password when useful.
+  Auth forms must use QAY auth hooks:
+    data-qay-site-auth-form="signin|signup|forgot-password|reset-password"
+    data-qay-site-auth-error
+    data-qay-site-auth-success
+  Login page slug must be "login"; sign up slug must be "signup"; forgot password slug must be "forgot-password"; reset password slug must be "reset-password".
+  Keep auth page links relative: /login, /signup, /forgot-password, /reset-password.
 - Do not rely on custom CSS classes for layout or interaction behavior. Tailwind utilities must carry the design.
 - A small <style> tag is allowed only for font-family helper classes such as .serif; do not put animations or toggles in CSS.
 - Never output a single paragraph containing the prompt.`;
@@ -675,11 +698,43 @@ ${prompt}
 Silent checklist:
 - The output is actual website HTML, not the prompt.
 - The output is a complete HTML document with body classes for the page background and base text color.
-- The page has nav, hero, 2-4 sections, and footer.
+- The page has the sections needed for the requested website type, usually nav, hero, 2-4 focused sections, and footer for marketing/content sites.
+- The layout is not copied from any reference example. It is purpose-built for the exact site type and prompt.
+- The site type is not mixed with unrelated patterns unless the user requested that hybrid.
 - The design has strong composition, responsive grids, premium spacing, and meaningful copy.
 - Text and images are represented as normal HTML elements.
 - Interactions use only QAY data attributes. No interaction script, GSAP script, or custom JavaScript.
 - CTA links and nav links are visually styled as buttons or deliberate navigation items, never browser-default links.
+- Use the full QAY motion vocabulary when appropriate:
+  data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
+  data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
+  data-qay-click="toggle" with data-qay-target and data-qay-class="hidden"
+  Optional tuning: data-qay-duration, data-qay-hover-duration, data-qay-y, data-qay-x, data-qay-ease.
+- If this is an ecommerce/storefront request, include QAY commerce hooks:
+  data-qay-commerce="product-grid" on product grids,
+  data-qay-commerce="product-card" on cards,
+  data-qay-commerce="product-image" on image wrappers,
+  data-qay-commerce="product-title" on titles,
+  data-qay-commerce="product-price" on prices,
+  data-qay-commerce="add-to-cart" on add-to-cart buttons,
+  data-qay-commerce="cart-button" on cart buttons,
+  data-qay-product-handle and data-qay-product-id on product cards/buttons when useful.
+- Ecommerce pages should include product grid, product cards, cart button, product detail/featured section, trust/shipping row, and footer. Use placeholder products until Medusa is connected.
+- If this is an auth-protected, membership, SaaS, portal, course, or private-community request, include auth pages when useful:
+  <div data-qay-page="Login" data-qay-slug="login">...<form data-qay-site-auth-form="signin">...</form>...</div>
+  <div data-qay-page="Sign up" data-qay-slug="signup">...<form data-qay-site-auth-form="signup">...</form>...</div>
+  <div data-qay-page="Forgot password" data-qay-slug="forgot-password">...<form data-qay-site-auth-form="forgot-password">...</form>...</div>
+  <div data-qay-page="Reset password" data-qay-slug="reset-password">...<form data-qay-site-auth-form="reset-password">...</form>...</div>
+  Auth forms should include email/password inputs, a submit button, data-qay-site-auth-error, data-qay-site-auth-success, and relative links between auth pages.
+- If the request needs multiple pages, put each page inside a direct wrapper:
+  <div data-qay-page="Homepage" data-qay-slug="/">...</div>
+  <div data-qay-page="Shop" data-qay-slug="shop">...</div>
+  <div data-qay-page="Product" data-qay-slug="product">...</div>
+  <div data-qay-page="Login" data-qay-slug="login">...</div>
+  <div data-qay-page="Sign up" data-qay-slug="signup">...</div>
+  <div data-qay-page="About" data-qay-slug="about">...</div>
+  <div data-qay-page="Contact" data-qay-slug="contact">...</div>
+- Use multi-page wrappers only when they are useful. Generate at most 5 pages.
 
   Return only HTML.`;
 }
@@ -705,6 +760,10 @@ function inferSiteTitle(prompt: string) {
   return words.length ? words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'QAY Studio';
 }
 
+function isCommercePrompt(prompt: string) {
+  return /\b(e-?commerce|store|shop|cart|checkout|product|products|catalog|collection|boutique|fashion|perfume|food ordering|marketplace|medusa)\b/i.test(prompt);
+}
+
 function localFallbackHtml(input: GenerateAiLayersInput) {
   const title = escapeHtml(inferSiteTitle(input.prompt));
   const description = escapeHtml(
@@ -720,6 +779,95 @@ function localFallbackHtml(input: GenerateAiLayersInput) {
   <h2 class="max-w-2xl text-3xl font-semibold tracking-normal md:text-5xl">${title}</h2>
   <p class="mt-4 max-w-xl text-base leading-7 text-black/65">${description}</p>
 </section>`;
+  }
+
+  if (isCommercePrompt(input.prompt)) {
+    return `<main class="min-h-screen bg-[#0D0D0D] text-[#F8F4EC]">
+  <nav class="mx-auto flex max-w-7xl items-center justify-between px-6 py-6" data-qay-animate="fade-in">
+    <a href="/" class="text-sm font-semibold uppercase tracking-[0.28em]">${title}</a>
+    <div class="hidden items-center gap-6 text-sm text-white/65 md:flex">
+      <a href="/shop" class="transition hover:text-white">Shop</a>
+      <a href="/about" class="transition hover:text-white">About</a>
+      <a href="/contact" class="transition hover:text-white">Contact</a>
+    </div>
+    <button type="button" class="rounded-full border border-white/15 px-4 py-2 text-sm text-white" data-qay-commerce="cart-button" data-qay-hover="scale">Cart (0)</button>
+  </nav>
+  <section class="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-[1.05fr_0.95fr] md:items-center md:py-28">
+    <div data-qay-animate="slide-up" data-qay-y="36">
+      <p class="mb-5 inline-flex rounded-full border border-[#C9A84C]/35 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#C9A84C]">New collection</p>
+      <h1 class="max-w-4xl text-5xl font-semibold leading-[0.92] tracking-normal md:text-7xl lg:text-8xl">${title}</h1>
+      <p class="mt-8 max-w-2xl text-lg leading-8 text-white/65">${description}</p>
+      <div class="mt-10 flex flex-wrap gap-3">
+        <a href="/shop" class="rounded-full bg-[#F8F4EC] px-6 py-3 text-sm font-semibold text-[#0D0D0D]" data-qay-hover="scale-btn">Shop the drop</a>
+        <a href="/about" class="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white" data-qay-hover="scale">Our story</a>
+      </div>
+    </div>
+    <div class="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/40" data-qay-hover="img-zoom" data-qay-animate="scale-in">
+      <img src="https://images.unsplash.com/photo-1541643600914-78b084683702?w=1200&auto=format&q=85" alt="Featured product" class="aspect-[4/5] w-full rounded-[1.5rem] object-cover" />
+    </div>
+  </section>
+  <section class="border-y border-white/10 bg-[#F8F4EC] px-6 py-20 text-[#111111]" data-qay-commerce="product-grid">
+    <div class="mx-auto flex max-w-7xl flex-col gap-10">
+      <div class="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Featured products</p>
+          <h2 class="mt-3 text-4xl font-semibold leading-tight md:text-6xl">Built to sell beautifully.</h2>
+        </div>
+        <a href="/shop" class="self-start rounded-full border border-black/15 px-5 py-3 text-sm font-semibold text-black md:self-end">View all products</a>
+      </div>
+      <div class="grid gap-5 md:grid-cols-3">
+        <article class="group overflow-hidden rounded-[1.5rem] border border-black/10 bg-white" data-qay-commerce="product-card" data-qay-product-handle="signature-product" data-qay-product-id="sample-product-1" data-qay-animate="scroll-reveal" data-qay-hover="luxe-lift">
+          <div class="overflow-hidden bg-[#efe8da]" data-qay-commerce="product-image" data-qay-hover="img-zoom">
+            <img src="https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=900&auto=format&q=85" alt="Signature product" class="aspect-[4/5] w-full object-cover" />
+          </div>
+          <div class="p-5">
+            <h3 class="text-2xl font-semibold" data-qay-commerce="product-title">Signature product</h3>
+            <p class="mt-2 text-sm leading-6 text-black/55">A premium product description that can later map to your Medusa catalog.</p>
+            <div class="mt-5 flex items-center justify-between gap-4">
+              <span class="font-semibold" data-qay-commerce="product-price">$49</span>
+              <button type="button" class="rounded-full bg-black px-5 py-3 text-sm font-semibold text-white" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-1">Add to cart</button>
+            </div>
+          </div>
+        </article>
+        <article class="group overflow-hidden rounded-[1.5rem] border border-black/10 bg-white md:translate-y-8" data-qay-commerce="product-card" data-qay-product-handle="premium-bundle" data-qay-product-id="sample-product-2" data-qay-animate="scroll-reveal" data-qay-hover="luxe-lift">
+          <div class="overflow-hidden bg-[#efe8da]" data-qay-commerce="product-image" data-qay-hover="img-zoom">
+            <img src="https://images.unsplash.com/photo-1615634260167-c8cdede054de?w=900&auto=format&q=85" alt="Premium bundle" class="aspect-[4/5] w-full object-cover" />
+          </div>
+          <div class="p-5">
+            <h3 class="text-2xl font-semibold" data-qay-commerce="product-title">Premium bundle</h3>
+            <p class="mt-2 text-sm leading-6 text-black/55">Bundle storytelling, variant notes, or limited inventory messaging.</p>
+            <div class="mt-5 flex items-center justify-between gap-4">
+              <span class="font-semibold" data-qay-commerce="product-price">$89</span>
+              <button type="button" class="rounded-full bg-black px-5 py-3 text-sm font-semibold text-white" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-2">Add to cart</button>
+            </div>
+          </div>
+        </article>
+        <article class="group overflow-hidden rounded-[1.5rem] border border-black/10 bg-white" data-qay-commerce="product-card" data-qay-product-handle="limited-drop" data-qay-product-id="sample-product-3" data-qay-animate="scroll-reveal" data-qay-hover="luxe-lift">
+          <div class="overflow-hidden bg-[#efe8da]" data-qay-commerce="product-image" data-qay-hover="img-zoom">
+            <img src="https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=900&auto=format&q=85" alt="Limited drop" class="aspect-[4/5] w-full object-cover" />
+          </div>
+          <div class="p-5">
+            <h3 class="text-2xl font-semibold" data-qay-commerce="product-title">Limited drop</h3>
+            <p class="mt-2 text-sm leading-6 text-black/55">A launch-ready card that imports as editable QAY layers.</p>
+            <div class="mt-5 flex items-center justify-between gap-4">
+              <span class="font-semibold" data-qay-commerce="product-price">$129</span>
+              <button type="button" class="rounded-full bg-black px-5 py-3 text-sm font-semibold text-white" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-3">Add to cart</button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+  <section class="mx-auto grid max-w-7xl gap-6 px-6 py-20 md:grid-cols-3">
+    <div class="rounded-3xl border border-white/10 p-6" data-qay-animate="scroll-reveal"><h2 class="text-xl font-semibold">Fast checkout path</h2><p class="mt-3 text-sm leading-6 text-white/60">Checkout buttons are ready for Medusa wiring once connected.</p></div>
+    <div class="rounded-3xl border border-white/10 p-6" data-qay-animate="scroll-reveal"><h2 class="text-xl font-semibold">Shipping clarity</h2><p class="mt-3 text-sm leading-6 text-white/60">Use this block for shipping, returns, and trust promises.</p></div>
+    <div class="rounded-3xl border border-white/10 p-6" data-qay-animate="scroll-reveal"><h2 class="text-xl font-semibold">Catalog-ready</h2><p class="mt-3 text-sm leading-6 text-white/60">Product hooks survive import and can be mapped to Medusa later.</p></div>
+  </section>
+  <footer class="mx-auto flex max-w-7xl flex-col gap-4 border-t border-white/10 px-6 py-10 text-sm text-white/50 md:flex-row md:items-center md:justify-between">
+    <p>© ${new Date().getFullYear()} ${title}</p>
+    <a href="/contact" class="text-white">Contact</a>
+  </footer>
+</main>`;
   }
 
   return `<main class="min-h-screen bg-[#11141A] text-[#F6F3ED]">

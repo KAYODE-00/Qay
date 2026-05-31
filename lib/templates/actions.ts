@@ -52,4 +52,51 @@ export const actionTemplates: Record<string, BlockTemplate> = {
       }
     }
   },
+  logoutButton: {
+    icon: 'cursor-default',
+    name: 'Logout button',
+    template: {
+      name: 'button',
+      customName: 'Logout button',
+      classes: ['flex', 'flex-row', 'items-center', 'justify-center', 'text-[#FFFFFF]', 'pr-[16px]', 'pl-[16px]', 'h-[38px]', 'text-[14px]', 'rounded-[12px]', 'bg-[#171717]'],
+      children: [
+        getTemplateRef('text', {
+          settings: {
+            tag: 'span',
+          },
+          classes: [],
+          design: {},
+          restrictions: { editText: true },
+          variables: {
+            text: {
+              type: 'dynamic_rich_text',
+              data: {
+                content: getTiptapTextContent('Log out')
+              }
+            }
+          }
+        }),
+      ],
+      attributes: {
+        type: 'button',
+        'data-qay-site-auth': 'logout',
+      },
+      design: {
+        typography: {
+          isActive: true,
+          color: '#ffffff',
+          fontSize: '14px',
+        },
+        spacing: {
+          isActive: true,
+          paddingLeft: '16',
+          paddingRight: '16',
+        },
+        backgrounds: {
+          backgroundColor: '#171717',
+          isActive: true
+        }
+      }
+    }
+  },
 };

@@ -5,10 +5,8 @@ import { QAY_PLANS, type QayPlanKey } from '@/qay/lib/billing/plan-limits';
 
 const plans = [
   { key: 'free', body: 'Create unlimited draft sites and publish two while you test, learn, and shape your workflow.' },
-  { key: 'starter', body: 'For personal sites and early client projects that need a clean custom domain path.' },
-  { key: 'pro', body: 'Built for freelancers shipping client sites with CMS, forms, analytics, and handoff.' },
-  { key: 'studio', body: 'For small teams that need shared workflows, template publishing, and deeper reporting.' },
-  { key: 'agency', body: 'For larger agencies that want higher limits, white-label direction, and priority support.' },
+  { key: 'starter', body: 'For builders ready to publish client work with custom domains, demo links, and cleaner handoff.' },
+  { key: 'pro', body: 'Private access for advanced publishing, deeper client workflows, and features still being prepared for wider release.' },
 ] as const;
 
 export default function PricingPage() {
@@ -33,7 +31,7 @@ export default function PricingPage() {
             Start at zero, grow when the workflow pays you back, and keep a clear path from solo builder to agency team.
           </p>
         </div>
-        <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-12 grid max-w-6xl gap-4 md:grid-cols-3">
           {plans.map(({ key, body }) => {
             const plan = QAY_PLANS[key as QayPlanKey];
             const unavailable = !plan.isAvailable;
@@ -47,7 +45,7 @@ export default function PricingPage() {
                   <div className="text-sm uppercase tracking-[0.2em] text-white/45">{plan.name}</div>
                   {unavailable && (
                     <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/45">
-                      Soon
+                      Private
                     </span>
                   )}
                 </div>
@@ -71,13 +69,12 @@ export default function PricingPage() {
                     Start free
                   </Link>
                 ) : unavailable ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="mt-6 inline-flex h-10 w-full cursor-not-allowed items-center justify-center rounded-md border border-white/10 text-sm font-medium text-white/45"
+                  <Link
+                    href="/help"
+                    className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md border border-white/10 text-sm font-medium text-white/60 transition hover:bg-white/10 hover:text-white"
                   >
-                    Coming soon
-                  </button>
+                    Request access
+                  </Link>
                 ) : (
                   <UpgradeModal plan={plan.key} />
                 )}

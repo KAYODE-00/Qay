@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, Settings, Sparkles } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
-import { htmlToLayers } from '@/lib/html-layer-converter';
+import { htmlToPageImports } from '@/lib/html-layer-converter';
 import { QayLogo } from '@/qay/components/QayLogo';
 import type { QaySite } from '@/qay/types';
 import type { QayAccountProfile } from '@/qay/lib/account';
@@ -291,11 +291,13 @@ export function TemplatesDashboardClient({ profile }: Props) {
           body: JSON.stringify({ prompt, mode: 'page', output: 'html' }),
         });
         const aiPayload = await aiResponse.json();
-        const generatedLayers = aiPayload.data?.html
-          ? htmlToLayers(aiPayload.data.html)
-          : aiPayload.data?.layers;
+        const generatedPages = aiPayload.data?.html
+          ? htmlToPageImports(aiPayload.data.html, 'Homepage')
+          : aiPayload.data?.layers
+            ? [{ name: 'Homepage', layers: aiPayload.data.layers }]
+            : [];
 
-        if (!aiResponse.ok || !generatedLayers?.length) {
+        if (!aiResponse.ok || generatedPages.length === 0) {
           setError(aiPayload.details || aiPayload.error || 'We could not build this site.');
           setIsApplying(false);
           return;
@@ -305,7 +307,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
         const importResponse = await fetch(`/api/qay/sites/${site.id}/import-html`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ layers: generatedLayers, pageName: 'Homepage' }),
+          body: JSON.stringify({ pages: generatedPages, pageName: generatedPages[0]?.name || 'Homepage' }),
         });
         const importPayload = await importResponse.json();
 
@@ -346,9 +348,9 @@ export function TemplatesDashboardClient({ profile }: Props) {
 
     try {
       const html = pendingImportHtml;
-      const layers = htmlToLayers(html);
+      const pages = htmlToPageImports(html, 'Homepage');
 
-      if (layers.length === 0) {
+      if (pages.length === 0) {
         throw new Error('No valid HTML elements found');
       }
 
@@ -378,7 +380,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
       const response = await fetch(`/api/qay/sites/${site.id}/import-html`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ layers, pageName: 'Homepage' }),
+        body: JSON.stringify({ pages, pageName: pages[0]?.name || 'Homepage' }),
       });
       const payload = await response.json();
 

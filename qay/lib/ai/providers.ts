@@ -14,6 +14,22 @@ type AiProvider = {
   canRepairJson?: boolean;
 };
 
+type ProviderFailure = {
+  provider: string;
+  message: string;
+  limited: boolean;
+};
+
+export class AiProviderLimitsError extends Error {
+  failures: ProviderFailure[];
+
+  constructor(failures: ProviderFailure[]) {
+    super(`All configured AI providers are out of usable quota or rate limited. ${failures.map((failure) => `${failure.provider}: ${failure.message}`).join(' | ')}`);
+    this.name = 'AiProviderLimitsError';
+    this.failures = failures;
+  }
+}
+
 const DEFAULT_AI_TIMEOUT_MS = Number(process.env.QAY_AI_PROVIDER_TIMEOUT_MS || 18000);
 const HTML_AI_TIMEOUT_MS = Number(process.env.QAY_AI_HTML_PROVIDER_TIMEOUT_MS || 12000);
 
@@ -311,6 +327,28 @@ function canTryNextProvider(error: unknown) {
   );
 }
 
+function isProviderLimitError(error: unknown) {
+  const status = (error as { status?: number })?.status;
+  const message = getErrorMessage(error).toLowerCase();
+
+  return (
+    status === 402 ||
+    status === 429 ||
+    status === 503 ||
+    message.includes('rate') ||
+    message.includes('quota') ||
+    message.includes('credit') ||
+    message.includes('balance') ||
+    message.includes('billing') ||
+    message.includes('payment') ||
+    message.includes('insufficient') ||
+    message.includes('too low') ||
+    message.includes('upgrade') ||
+    message.includes('overloaded') ||
+    message.includes('temporarily unavailable')
+  );
+}
+
 function isInvalidJsonError(error: unknown) {
   const message = getErrorMessage(error).toLowerCase();
   return (
@@ -341,7 +379,7 @@ export async function callWithFallbackDetailed<T = unknown>(
   validate?: (text: string) => T
 ): Promise<ProviderResult<T>> {
   const available = sortProvidersForRequest(PROVIDERS.filter((provider) => provider.available()), system);
-  const failures: string[] = [];
+  const failures: ProviderFailure[] = [];
 
   for (const provider of available) {
     try {
@@ -371,7 +409,11 @@ export async function callWithFallbackDetailed<T = unknown>(
       console.log(`[AI] Success with ${provider.name}`);
       return { text, provider: provider.name, model: provider.model, value };
     } catch (error) {
-      failures.push(`${provider.name}: ${getErrorMessage(error)}`);
+      failures.push({
+        provider: provider.name,
+        message: getErrorMessage(error),
+        limited: isProviderLimitError(error),
+      });
 
       if (canTryNextProvider(error)) {
         console.warn(`[AI] ${provider.name} failed: ${getErrorMessage(error)}. Trying next...`);
@@ -386,7 +428,12 @@ export async function callWithFallbackDetailed<T = unknown>(
     throw new Error('No AI provider is configured. Add an Anthropic, OpenAI, Groq, OpenRouter, or Gemini API key.');
   }
 
-  throw new Error(`All AI providers failed or are rate limited. ${failures.join(' | ')}`);
+  if (failures.length > 0 && failures.every((failure) => failure.limited)) {
+    console.error('[AI] All configured AI providers are unavailable due to quota, balance, rate limits, or temporary capacity:', failures);
+    throw new AiProviderLimitsError(failures);
+  }
+
+  throw new Error(`All AI providers failed or are rate limited. ${failures.map((failure) => `${failure.provider}: ${failure.message}`).join(' | ')}`);
 }
 
 export async function callWithFallback(prompt: string, system: string): Promise<string> {

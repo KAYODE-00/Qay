@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Layer } from '@/types';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
-import { htmlToLayers } from '@/lib/html-layer-converter';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { htmlToLayers, htmlToPageImports } from '@/lib/html-layer-converter';
 import { findLayerById } from '@/lib/layer-utils';
 import { useEditorStore } from '@/stores/useEditorStore';
 import { usePagesStore } from '@/stores/usePagesStore';
@@ -32,6 +33,11 @@ type GenerateResponse = {
   };
   error?: string;
   details?: string;
+  code?: string;
+  providers?: Array<{
+    provider: string;
+    message: string;
+  }>;
 };
 
 function historyKey(siteId: string | null) {
@@ -86,6 +92,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
   const draftsByPageId = usePagesStore((state) => state.draftsByPageId);
   const updateLayer = usePagesStore((state) => state.updateLayer);
   const setDraftLayers = usePagesStore((state) => state.setDraftLayers);
+  const loadPages = usePagesStore((state) => state.loadPages);
 
   const [siteId, setSiteId] = useState<string | null>(null);
   const [mode, setMode] = useState<AiMode>('selected');
@@ -95,6 +102,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
   const [isGenerating, setIsGenerating] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isBusyDialogOpen, setIsBusyDialogOpen] = useState(false);
 
   const draft = currentPageId ? draftsByPageId[currentPageId] : null;
   const selectedIds = useMemo(() => {
@@ -180,12 +188,43 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       const body = (await response.json()) as GenerateResponse;
 
       if (!response.ok || !body.data) {
+        if (body.code === 'AI_PROVIDER_LIMITS_REACHED') {
+          console.error('[QAY AI Builder] All configured AI providers are out of quota, balance, or rate-limit capacity:', body.providers || body.details || body.error);
+          setIsBusyDialogOpen(true);
+          throw new Error('AI is currently busy. Please try again shortly.');
+        }
+
         throw new Error(body.details || body.error || 'We could not generate this design.');
       }
 
-      const generatedLayers = body.data.html
+      const generatedPages = body.data.html ? htmlToPageImports(body.data.html, 'Homepage') : [];
+
+      if (mode === 'page' && generatedPages.length > 1 && siteId) {
+        const importResponse = await fetch(`/api/qay/sites/${siteId}/import-html`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ pages: generatedPages, pageName: generatedPages[0]?.name || 'Homepage' }),
+        });
+        const importPayload = await importResponse.json().catch(() => null);
+
+        if (!importResponse.ok) {
+          throw new Error(importPayload?.error || 'AI generated pages, but QAY could not create them.');
+        }
+
+        await loadPages();
+        setStatus(`Created ${generatedPages.length} pages.`);
+        setPrompt('');
+        addHistory({
+          prompt: trimmedPrompt,
+          mode,
+          createdAt: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const generatedLayers = generatedPages[0]?.layers || (body.data.html
         ? htmlToLayers(body.data.html)
-        : body.data.layers || [];
+        : body.data.layers || []);
 
       if (generatedLayers.length === 0) {
         throw new Error('AI generated a design QAY could not import. Try again shortly.');
@@ -208,6 +247,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
   };
 
   return (
+    <>
     <section className="fixed right-20 top-20 z-[90] flex max-h-[calc(100vh-7rem)] w-[400px] flex-col overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-2xl">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
@@ -324,5 +364,21 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         </Button>
       </footer>
     </section>
+    <Dialog open={isBusyDialogOpen} onOpenChange={setIsBusyDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>AI is currently busy</DialogTitle>
+          <DialogDescription>
+            QAY tried every configured AI provider, but they are out of quota, rate limited, or temporarily unavailable. Please try again shortly.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" onClick={() => setIsBusyDialogOpen(false)}>
+            Got it
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

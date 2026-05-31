@@ -46,7 +46,7 @@ import FilterableCollection from '@/components/FilterableCollection';
 import LocaleSelector from '@/components/layers/LocaleSelector';
 import { usePagesStore } from '@/stores/usePagesStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import { generateLinkHref, resolveLinkAttrs, isLinkAtCollectionBoundary, type LinkResolutionContext } from '@/lib/link-utils';
+import { generateLinkHref, normalizeSiteHref, resolveLinkAttrs, isLinkAtCollectionBoundary, type LinkResolutionContext } from '@/lib/link-utils';
 import { collectEditorHiddenLayerIds, type HiddenLayerInfo } from '@/lib/animation-utils';
 import AnimationInitializer from '@/components/AnimationInitializer';
 import { transformLayerIdsForInstance, resolveVariableLinks } from '@/lib/resolve-components';
@@ -1778,6 +1778,14 @@ const LayerItem: React.FC<{
       ...(!isEditMode && { suppressHydrationWarning: true }),
     };
 
+    if (!isEditMode && layerLinkContext && typeof elementProps.href === 'string') {
+      elementProps.href = normalizeSiteHref(elementProps.href, {
+        isPreview,
+        previewBasePath,
+        sitePathPrefix,
+      });
+    }
+
     // Apply link attributes for elements rendered as <a> (buttons with links or <a> layers)
     if (htmlTag === 'a' && layer.variables?.link) {
       if (isButtonWithLink) {
@@ -1793,6 +1801,14 @@ const LayerItem: React.FC<{
           elementProps['data-link-disabled'] = 'true';
         }
       }
+    }
+
+    if (isEditMode && htmlTag === 'a') {
+      delete elementProps.href;
+      delete elementProps.target;
+      delete elementProps.rel;
+      elementProps['aria-disabled'] = 'true';
+      elementProps['data-editor-link-disabled'] = 'true';
     }
 
     // Add data-gsap-hidden attribute for elements that should start hidden
@@ -1940,7 +1956,7 @@ const LayerItem: React.FC<{
           // - labels: would focus the associated input
           // - inputs (checkbox, radio): would toggle checked state
           // - select: would open the dropdown
-          if (htmlTag === 'label' || htmlTag === 'input' || htmlTag === 'select') {
+          if (htmlTag === 'label' || htmlTag === 'input' || htmlTag === 'select' || htmlTag === 'a') {
             e.preventDefault();
           }
           // If this layer is inside a component, select the component layer instead

@@ -8,9 +8,23 @@ import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/l
 import { generateColorVariablesCss } from '@/lib/repositories/colorVariableRepository';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import { getQayDemoLinkByToken } from '@/qay/lib/demo-links';
+import { SiteAuthLogoutInitializer } from '@/qay/components/site-auth/SiteAuthLogoutInitializer';
+import { SiteAuthScreen } from '@/qay/components/site-auth/SiteAuthScreen';
+import { getQaySiteAuthSettings, getQaySiteVisitor } from '@/qay/lib/site-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+function getSiteAuthMode(slugPath: string): 'signin' | 'signup' | 'forgot-password' | 'reset-password' {
+  if (slugPath === 'signup') return 'signup';
+  if (slugPath === 'forgot-password') return 'forgot-password';
+  if (slugPath === 'reset-password') return 'reset-password';
+  return 'signin';
+}
+
+function isSiteAuthUtilityPath(slugPath: string) {
+  return ['login', 'signup', 'forgot-password', 'reset-password'].includes(slugPath);
+}
 
 type DemoParams = {
   token: string;
@@ -49,6 +63,23 @@ export default async function QayDemoPage({ params }: { params: Promise<DemoPara
     fetchGlobalPageSettings(),
   ]);
 
+  if (!data && isSiteAuthUtilityPath(slugPath)) {
+    const siteAuthSettings = await getQaySiteAuthSettings(demoLink.site_id);
+    const siteVisitor = siteAuthSettings.enabled ? await getQaySiteVisitor(demoLink.site_id) : null;
+
+    if (siteAuthSettings.enabled && !siteVisitor) {
+      return (
+        <SiteAuthScreen
+          siteId={demoLink.site_id}
+          allowSignup={siteAuthSettings.allowSignup}
+          isPublished={false}
+          previewBasePath={`/demo/${token}`}
+          mode={getSiteAuthMode(slugPath)}
+        />
+      );
+    }
+  }
+
   if (!data) {
     const errorPageData = await fetchErrorPage(404, false, undefined, demoLink.site_id);
     if (!errorPageData) notFound();
@@ -64,6 +95,20 @@ export default async function QayDemoPage({ params }: { params: Promise<DemoPara
         previewBasePath={`/demo/${token}`}
         globalCustomCodeHead={globalSettings.globalCustomCodeHead}
         globalCustomCodeBody={globalSettings.globalCustomCodeBody}
+      />
+    );
+  }
+
+  const siteAuthSettings = await getQaySiteAuthSettings(demoLink.site_id);
+  const siteVisitor = siteAuthSettings.enabled ? await getQaySiteVisitor(demoLink.site_id) : null;
+  if (siteAuthSettings.enabled && !siteVisitor) {
+    return (
+      <SiteAuthScreen
+        siteId={demoLink.site_id}
+        allowSignup={siteAuthSettings.allowSignup}
+        isPublished={false}
+        previewBasePath={`/demo/${token}`}
+        mode={getSiteAuthMode(slugPath)}
       />
     );
   }
@@ -93,24 +138,27 @@ export default async function QayDemoPage({ params }: { params: Promise<DemoPara
   const pageData = data as any;
 
   return (
-    <PageRenderer
-      page={data.page}
-      layers={data.pageLayers.layers || []}
-      components={data.components}
-      generatedCss={draftCSS}
-      colorVariablesCss={colorVariablesCss || undefined}
-      collectionItem={pageData.collectionItem}
-      collectionFields={pageData.collectionFields}
-      pageCollectionSortedItemIds={pageData.pageCollectionSortedItemIds}
-      pageCollectionSortedItemSlugs={pageData.pageCollectionSortedItemSlugs}
-      locale={data.locale}
-      availableLocales={data.availableLocales}
-      isPreview={true}
-      previewBasePath={`/demo/${token}`}
-      translations={data.translations}
-      globalCustomCodeHead={globalSettings.globalCustomCodeHead}
-      globalCustomCodeBody={globalSettings.globalCustomCodeBody}
-    />
+    <>
+      <PageRenderer
+        page={data.page}
+        layers={data.pageLayers.layers || []}
+        components={data.components}
+        generatedCss={draftCSS}
+        colorVariablesCss={colorVariablesCss || undefined}
+        collectionItem={pageData.collectionItem}
+        collectionFields={pageData.collectionFields}
+        pageCollectionSortedItemIds={pageData.pageCollectionSortedItemIds}
+        pageCollectionSortedItemSlugs={pageData.pageCollectionSortedItemSlugs}
+        locale={data.locale}
+        availableLocales={data.availableLocales}
+        isPreview={true}
+        previewBasePath={`/demo/${token}`}
+        translations={data.translations}
+        globalCustomCodeHead={globalSettings.globalCustomCodeHead}
+        globalCustomCodeBody={globalSettings.globalCustomCodeBody}
+      />
+      {siteVisitor && <SiteAuthLogoutInitializer siteId={demoLink.site_id} />}
+    </>
   );
 }
 

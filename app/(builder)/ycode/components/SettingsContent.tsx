@@ -26,7 +26,7 @@ export default function SettingsContent({ children }: SettingsContentProps) {
 
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-0">
-            {SETTINGS_NAV_ITEMS.map((item) => {
+            {SETTINGS_NAV_ITEMS.filter((item) => !item.requiresSite || siteId).map((item) => {
               const itemPath = toCurrentEditorPath(item.path, pathname, siteId);
               const isActive = pathname === item.path || pathname === itemPath.split('?')[0];
 

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { ArrowLeft, BarChart3, Database, FileText, Inbox, LayoutDashboard, PenSquare, Rocket, Settings } from 'lucide-react';
+import { ArrowLeft, BarChart3, Database, FileText, Inbox, LayoutDashboard, PenSquare, Rocket, Settings, Users } from 'lucide-react';
 import { QayLogo } from '@/qay/components/QayLogo';
 import type { QayAccountProfile } from '@/qay/lib/account';
 import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
@@ -20,6 +20,7 @@ const navItems = [
   { key: 'cms', label: 'CMS', icon: Database, href: (siteId: string) => `/client/${siteId}/cms` },
   { key: 'forms', label: 'Forms', icon: Inbox, href: (siteId: string) => `/client/${siteId}/forms` },
   { key: 'analytics', label: 'Analytics', icon: BarChart3, href: (siteId: string) => `/client/${siteId}/analytics` },
+  { key: 'users', label: 'Site users', icon: Users, href: (siteId: string) => `/client/${siteId}/users` },
 ];
 
 export function ClientSidebar({ siteId, siteName, profile }: ClientSidebarProps) {

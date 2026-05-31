@@ -13,6 +13,7 @@ import { actionTemplates } from './actions';
 import { mediaTemplates } from './media';
 import { formTemplates } from './forms';
 import { utilityTemplates } from './utilities';
+import { commerceTemplates } from './commerce';
 import { layoutTemplates } from './layouts';
 
 // Merge all template categories
@@ -23,6 +24,7 @@ const blocks = {
   ...mediaTemplates,
   ...formTemplates,
   ...utilityTemplates,
+  ...commerceTemplates,
 };
 
 /**

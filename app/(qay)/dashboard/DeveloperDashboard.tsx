@@ -11,7 +11,7 @@ import { PendingInvites } from '@/qay/components/client/PendingInvites';
 import type { QayAccountProfile } from '@/qay/lib/account';
 import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
 import { PlanRestrictionDialog } from '@/qay/components/billing/PlanRestrictionDialog';
-import { htmlToLayers } from '@/lib/html-layer-converter';
+import { htmlToPageImports } from '@/lib/html-layer-converter';
 
 type DashboardProps = {
   initialSites: QaySite[];
@@ -99,7 +99,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
       const response = await fetch('/api/qay/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: siteName }),
+        body: JSON.stringify({ name: siteName, skipDefaultPages: creationMode === 'ai' }),
       });
       const payload = await response.json();
 
@@ -124,20 +124,22 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
           body: JSON.stringify({ prompt, mode: 'page', output: 'html' }),
         });
         const aiPayload = await aiResponse.json();
-        const generatedLayers = aiPayload.data?.html
-          ? htmlToLayers(aiPayload.data.html)
-          : aiPayload.data?.layers;
+        const generatedPages = aiPayload.data?.html
+          ? htmlToPageImports(aiPayload.data.html, 'Homepage')
+          : aiPayload.data?.layers
+            ? [{ name: 'Homepage', layers: aiPayload.data.layers }]
+            : [];
 
-        if (!aiResponse.ok || !generatedLayers?.length) {
+        if (!aiResponse.ok || generatedPages.length === 0) {
           setError(aiPayload.details || aiPayload.error || 'We could not build this site.');
           return;
         }
 
         setCreationStatus('Preparing editor...');
-        const applyResponse = await fetch(`/api/qay/ai/sites/${payload.data.id}/apply`, {
+        const applyResponse = await fetch(`/api/qay/sites/${payload.data.id}/import-html`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ layers: generatedLayers }),
+          body: JSON.stringify({ pages: generatedPages, pageName: generatedPages[0]?.name || 'Homepage' }),
         });
         const applyPayload = await applyResponse.json();
 
@@ -172,13 +174,13 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
     setCreationStatus('Importing site...');
 
     try {
-      const layers = htmlToLayers(pendingImportHtml);
+      const importedName = importSiteName.trim() || 'Imported site';
+      const pages = htmlToPageImports(pendingImportHtml, 'Homepage');
 
-      if (layers.length === 0) {
+      if (pages.length === 0) {
         throw new Error('No valid HTML elements found');
       }
 
-      const importedName = importSiteName.trim() || 'Imported site';
       const siteResponse = await fetch('/api/qay/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,7 +204,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
       const response = await fetch(`/api/qay/sites/${site.id}/import-html`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ layers, pageName: 'Homepage' }),
+        body: JSON.stringify({ pages, pageName: pages[0]?.name || 'Homepage' }),
       });
       const payload = await response.json();
 

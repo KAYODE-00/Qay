@@ -38,8 +38,9 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
     fetch(`/api/qay/sites/${currentSiteId}`, { cache: 'no-store' })
       .then((response) => response.ok ? response.json() : null)
       .then((payload) => {
-        if (!cancelled && payload?.data?.live_url) {
-          setTemplateUrl(payload.data.live_url);
+        const nextUrl = payload?.data?.qay_url || payload?.data?.live_url;
+        if (!cancelled && nextUrl) {
+          setTemplateUrl(nextUrl);
         }
       })
       .catch(() => undefined);
@@ -86,7 +87,7 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
 
       const status = payload?.data?.status;
       setMessage(status === 'approved'
-        ? 'Template saved and approved for the gallery.'
+        ? 'Template saved and published to the template gallery.'
         : 'Template saved. It is waiting for review.');
       setName('');
       setDescription('');

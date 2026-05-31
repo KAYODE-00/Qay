@@ -33,7 +33,7 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
   starter: {
     key: 'starter',
     name: 'Starter',
-    price: 9,
+    price: 19,
     currency: 'USD',
     interval: 'month',
     siteLimit: Number.MAX_SAFE_INTEGER,
@@ -46,15 +46,15 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
   pro: {
     key: 'pro',
     name: 'Pro',
-    price: 19,
+    price: 39,
     currency: 'USD',
     interval: 'month',
     siteLimit: Number.MAX_SAFE_INTEGER,
     publishedSiteLimit: 15,
     demoLinkLimit: 100,
     demoLinkTtlHours: 168,
-    isAvailable: true,
-    features: ['Unlimited draft sites', 'Publish 15 sites', '100 demo links', 'Client invites', 'CMS and forms', 'Site analytics'],
+    isAvailable: false,
+    features: ['Everything in Starter', 'Publish 15 sites', '100 demo links', 'Private Pro features', 'Medusa commerce', 'Client invites', 'Advanced CMS and forms', 'Site analytics'],
   },
   studio: {
     key: 'studio',

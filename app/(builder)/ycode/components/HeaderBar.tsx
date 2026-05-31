@@ -40,7 +40,8 @@ import type { QaySite } from '@/qay/types';
 import AiBuilderPanel from '@/qay/components/AiBuilderPanel';
 import UserTemplateDialog from '@/qay/components/UserTemplateDialog';
 import ImportHtmlDialog from './ImportHtmlDialog';
-import { htmlToLayers } from '@/lib/html-layer-converter';
+import { htmlToPageImports } from '@/lib/html-layer-converter';
+import { toast } from 'sonner';
 
 interface HeaderBarProps {
   user: User | null;
@@ -161,16 +162,16 @@ export default function HeaderBar({
       return;
     }
 
-    let importedLayers;
+    let importedPages;
     try {
-      importedLayers = htmlToLayers(html);
+      importedPages = htmlToPageImports(html, options?.pageName || 'Imported page');
     } catch (error) {
       console.error('[QAY import page] Failed to parse HTML:', error);
       window.alert('QAY could not read that HTML. Check the code and try again.');
       return;
     }
 
-    if (!importedLayers.length) {
+    if (!importedPages.length) {
       window.alert('No valid HTML elements were found to import.');
       return;
     }
@@ -180,8 +181,8 @@ export default function HeaderBar({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          layers: importedLayers,
-          pageName: options?.pageName || 'Imported page',
+          pages: importedPages,
+          pageName: options?.pageName || importedPages[0]?.name || 'Imported page',
         }),
       });
       const payload = await response.json().catch(() => null);
@@ -199,6 +200,37 @@ export default function HeaderBar({
     } catch (error) {
       console.error('[QAY import page] Failed to create page:', error);
       window.alert(error instanceof Error ? error.message : 'Unable to import this page.');
+    }
+  };
+
+  const copyDemoLink = async () => {
+    if (!currentQaySiteId) {
+      toast.error('Open this editor from a QAY site before creating a demo link.');
+      return;
+    }
+
+    try {
+      setIsCreatingDemoLink(true);
+      const response = await fetch(`/api/qay/sites/${currentQaySiteId}/demo-links`, { method: 'POST' });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Unable to create demo link');
+      }
+
+      const url = payload?.data?.url;
+      if (typeof url !== 'string' || !url) {
+        throw new Error('Demo link was not returned');
+      }
+
+      await navigator.clipboard?.writeText(url);
+      toast.success('Demo link copied', {
+        description: 'Demo and preview visits are not counted in analytics.',
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to create demo link');
+    } finally {
+      setIsCreatingDemoLink(false);
     }
   };
 
@@ -250,6 +282,7 @@ export default function HeaderBar({
   const [isAiBuilderOpen, setIsAiBuilderOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isImportPageOpen, setIsImportPageOpen] = useState(false);
+  const [isCreatingDemoLink, setIsCreatingDemoLink] = useState(false);
 
   // Get current host after mount
   useEffect(() => {
@@ -657,6 +690,16 @@ export default function HeaderBar({
             </>
           )}
         </div>
+
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={copyDemoLink}
+          disabled={!currentQaySiteId || isCreatingDemoLink}
+          title="Copy demo link"
+        >
+          <Icon name="link" />
+        </Button>
 
         {/* Preview button */}
         <Button

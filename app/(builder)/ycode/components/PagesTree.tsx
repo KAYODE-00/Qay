@@ -55,6 +55,14 @@ function getNodeDisplayName(node: FlattenedPageNode): string {
   }
 }
 
+function isAuthUtilityPage(page: Page) {
+  const specialPage = String((page.settings as Record<string, unknown> | null | undefined)?.qay_special_page || '');
+  return page.error_page === null && (
+    ['login', 'signup', 'forgot-password', 'reset-password'].includes(specialPage)
+    || ['login', 'signup', 'forgot-password', 'reset-password'].includes(page.slug)
+  );
+}
+
 // Helper to check if a node is a descendant of another
 function checkIsDescendant(
   node: FlattenedPageNode,
@@ -87,10 +95,11 @@ function PageRow({
   onDuplicate,
   onRename,
 }: PageRowProps) {
-  // Check if this is an error page or the virtual error pages folder
+  // Check if this is a utility page or the virtual utility pages folder
   const isErrorPage = node.type === 'page' && (node.data as Page).error_page !== null;
+  const isUtilityAuthPage = node.type === 'page' && isAuthUtilityPage(node.data as Page);
   const isVirtualErrorFolder = node.id === 'virtual-error-pages-folder';
-  const isDragDropDisabled = isErrorPage || isVirtualErrorFolder;
+  const isDragDropDisabled = isErrorPage || isUtilityAuthPage || isVirtualErrorFolder;
 
   // Error pages and virtual error folder cannot be dropped on
   const { setNodeRef: setDropRef } = useDroppable({

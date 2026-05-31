@@ -54,7 +54,7 @@ export default function ImportHtmlDialog({
         <DialogHeader>
           <DialogTitle>Convert HTML to layers</DialogTitle>
           <DialogDescription>
-            Tailwind classes become QAY design settings. Normal scripts are ignored, but QAY interaction metadata can be imported safely.
+            Tailwind classes become QAY design settings. Use data-qay-page wrappers for multiple pages and data-qay-commerce hooks for product grids, cart buttons, and add-to-cart buttons.
           </DialogDescription>
         </DialogHeader>
 

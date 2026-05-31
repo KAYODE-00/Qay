@@ -124,8 +124,11 @@ function LoginPageContent() {
             Continue with Google
           </button>
 
-          <div className="mt-6 space-y-3 text-center text-sm text-white/60">
-            <a href="/forgot-password" className="block text-white hover:text-white/80">
+          <div className="mt-4 space-y-3 text-center text-sm text-white/60">
+            <a
+              href="/forgot-password"
+              className="flex h-10 w-full items-center justify-center rounded-md border border-white/15 text-white transition hover:bg-white/5 hover:text-white"
+            >
               Forgot password?
             </a>
             <p>

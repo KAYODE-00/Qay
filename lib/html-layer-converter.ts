@@ -1268,6 +1268,62 @@ export function htmlToLayers(html: string): Layer[] {
 
 // ─── Export: Layers → HTML ───
 
+export type HtmlPageImport = {
+  name: string;
+  slug?: string;
+  layers: Layer[];
+};
+
+function normalizeImportedPageName(value: string | null | undefined, fallback: string) {
+  const name = (value || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+  return name || fallback;
+}
+
+function normalizeImportedPageSlug(value: string | null | undefined) {
+  const slug = (value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\/+|\/+$/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+
+  return slug || undefined;
+}
+
+export function htmlToPageImports(html: string, fallbackPageName = 'Homepage'): HtmlPageImport[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const pageNodes = Array.from(doc.querySelectorAll<HTMLElement>('[data-qay-page]'));
+
+    if (pageNodes.length === 0) {
+      const layers = htmlToLayers(html);
+      return layers.length ? [{ name: fallbackPageName, layers }] : [];
+    }
+
+    return pageNodes
+      .map((node, index) => {
+        const rawName = node.getAttribute('data-qay-page') || node.getAttribute('data-page-name');
+        const rawSlug = node.getAttribute('data-qay-slug') || node.getAttribute('data-page-slug');
+        const name = normalizeImportedPageName(rawName, index === 0 ? fallbackPageName : `Page ${index + 1}`);
+        const layers = htmlToLayers(node.innerHTML.trim() || node.outerHTML);
+
+        return {
+          name,
+          slug: normalizeImportedPageSlug(rawSlug),
+          layers,
+        };
+      })
+      .filter((page) => page.layers.length > 0);
+  } catch (err) {
+    console.warn('htmlToPageImports: failed to parse HTML pages', err);
+    return [];
+  }
+}
+
 const MARK_TO_HTML_TAG: Record<string, string> = {
   bold: 'strong', italic: 'em', underline: 'u', strike: 's',
   subscript: 'sub', superscript: 'sup', code: 'code',

@@ -45,15 +45,18 @@ function getConfiguredOrigin(): URL | null {
   }
 }
 
-function hasExplicitQayBaseDomain(): boolean {
-  return !!normalizeHostLike(
-    process.env.NEXT_PUBLIC_QAY_BASE_DOMAIN || process.env.QAY_BASE_DOMAIN
-  );
-}
-
 function getQayUrlMode(): 'subdomain' | 'path' {
   const raw = process.env.NEXT_PUBLIC_QAY_URL_MODE || process.env.QAY_URL_MODE;
   return raw?.toLowerCase() === 'path' ? 'path' : 'subdomain';
+}
+
+function isLocalOrPreviewHost(hostname: string): boolean {
+  return (
+    hostname === 'localhost'
+    || hostname.endsWith('.localhost')
+    || hostname.endsWith('.vercel.app')
+    || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)
+  );
 }
 
 export function getQayBaseHostname(): string | null {
@@ -97,7 +100,7 @@ export function shouldUsePathBasedQayUrls(baseHost = getQayBaseHost()): boolean 
   }
 
   const hostname = baseHost.split(':')[0]?.toLowerCase() || baseHost.toLowerCase();
-  return hostname.endsWith('.vercel.app') && !hasExplicitQayBaseDomain();
+  return isLocalOrPreviewHost(hostname);
 }
 
 function getSitePathPrefix(siteSlug: string): string {
@@ -122,7 +125,7 @@ export function getQaySiteBaseUrl(
   }
 
   const siteSlug = site.slug.trim().toLowerCase();
-  return `${getQayProtocol()}://${siteSlug}.${baseHost}${getSitePathPrefix(siteSlug)}`;
+  return `${getQayProtocol()}://${siteSlug}.${baseHost}`;
 }
 
 function getQayProtocol(): 'http' | 'https' {

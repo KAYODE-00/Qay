@@ -9,9 +9,13 @@ import { generatePageMetadata, fetchPageRenderSettings } from '@/lib/generate-pa
 import { parseAuthCookie, getPasswordProtection, fetchFoldersForAuth } from '@/lib/page-auth';
 import { getSiteBaseUrl } from '@/lib/url-utils';
 import { QayLogo } from '@/qay/components/QayLogo';
+import { SiteAuthLogoutInitializer } from '@/qay/components/site-auth/SiteAuthLogoutInitializer';
+import { SiteAuthScreen } from '@/qay/components/site-auth/SiteAuthScreen';
 import { getQayRenderHostSubdomain, getQayRenderSiteBaseUrl, getQayRenderSiteId } from '@/qay/lib/render-site';
 import { generatePreviewCss } from '@/qay/lib/preview-css';
 import { recordQayPageView } from '@/qay/lib/analytics';
+import { getQaySiteAuthSettings, getQaySiteVisitor } from '@/qay/lib/site-auth';
+import { QayLandingImage } from '@/qay/components/QayLandingImage';
 import type { Metadata } from 'next';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -131,11 +135,52 @@ export default async function Home({
   if (!data || !data.pageLayers) {
     return (
       <main className="min-h-screen bg-[#070707] text-white">
+        <style>{`
+          @keyframes qayRise {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes qayFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes qayFloat {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-12px) rotate(-1deg); }
+          }
+          @keyframes qaySweep {
+            0% { transform: translateX(-35%); opacity: 0; }
+            18%, 70% { opacity: 1; }
+            100% { transform: translateX(35%); opacity: 0; }
+          }
+          .qay-animate-rise { animation: qayRise 700ms cubic-bezier(0.19, 1, 0.22, 1) both; }
+          .qay-animate-fade { animation: qayFade 900ms ease both; }
+          .qay-animate-float { animation: qayFloat 6s ease-in-out infinite; }
+          .qay-animate-delay-1 { animation-delay: 100ms; }
+          .qay-animate-delay-2 { animation-delay: 220ms; }
+          .qay-animate-delay-3 { animation-delay: 340ms; }
+          .qay-hero-sweep::after {
+            content: "";
+            position: absolute;
+            inset: 14% -18%;
+            background: linear-gradient(100deg, transparent, rgba(255,255,255,0.14), transparent);
+            animation: qaySweep 5.8s ease-in-out infinite;
+            pointer-events: none;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .qay-animate-rise,
+            .qay-animate-fade,
+            .qay-animate-float,
+            .qay-hero-sweep::after {
+              animation: none;
+            }
+          }
+        `}</style>
         <section className="relative overflow-hidden border-b border-white/10">
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(255,255,255,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.055)_1px,transparent_1px)] bg-[size:38px_38px]" />
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(120deg,rgba(255,255,255,0.12),transparent_34%,rgba(255,255,255,0.05)_68%,transparent)]" />
           <div className="mx-auto flex min-h-[92vh] w-full max-w-7xl flex-col px-6 py-6 sm:px-10 lg:px-16">
-            <header className="flex items-center justify-between gap-6">
+            <header className="qay-animate-fade flex items-center justify-between gap-6">
               <a href="/" aria-label="QAY home">
                 <QayLogo theme="dark" imageClassName="h-11 w-auto" />
               </a>
@@ -157,14 +202,14 @@ export default async function Home({
 
             <div className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.03fr_0.97fr]">
               <div className="max-w-3xl">
-                <p className="mb-5 text-sm uppercase tracking-[0.26em] text-white/48">AI builder, visual editor, client handoff</p>
-                <h1 className="text-5xl font-semibold leading-[0.98] tracking-normal text-white sm:text-6xl lg:text-7xl">
+                <p className="qay-animate-rise mb-5 text-sm uppercase tracking-[0.26em] text-white/48">AI builder, visual editor, client handoff</p>
+                <h1 className="qay-animate-rise qay-animate-delay-1 text-5xl font-semibold leading-[0.98] tracking-normal text-white sm:text-6xl lg:text-7xl">
                   QAY builds the site. You keep the control.
                 </h1>
-                <p className="mt-7 max-w-2xl text-lg leading-8 text-white/66">
+                <p className="qay-animate-rise qay-animate-delay-2 mt-7 max-w-2xl text-lg leading-8 text-white/66">
                   A focused website workspace for freelancers and small teams: generate, import, edit, publish, invite clients, and manage every site without mixing projects together.
                 </p>
-                <div className="mt-9 flex flex-wrap gap-3">
+                <div className="qay-animate-rise qay-animate-delay-3 mt-9 flex flex-wrap gap-3">
                   <a href="/signup" className="rounded-md bg-white px-5 py-3 text-sm font-medium text-black transition hover:bg-white/90">
                     Create your first site
                   </a>
@@ -172,7 +217,7 @@ export default async function Home({
                     Open dashboard
                   </a>
                 </div>
-                <div className="mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-white/10 pt-6">
+                <div className="qay-animate-fade qay-animate-delay-3 mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-white/10 pt-6">
                   {[
                     ['AI + import', 'Build faster'],
                     ['2 published', 'Free plan'],
@@ -186,13 +231,11 @@ export default async function Home({
                 </div>
               </div>
 
-              <div className="relative">
-                <div className="overflow-hidden rounded-lg border border-white/12 bg-[#101010] shadow-2xl shadow-black/50">
-                  <img
-                    src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1400&auto=format&fit=crop&q=82"
-                    alt="Modern workspace used as a QAY site preview"
-                    className="h-48 w-full object-cover opacity-80 sm:h-64"
-                  />
+              <div className="qay-animate-rise qay-animate-delay-2 relative">
+                <div className="qay-hero-sweep relative overflow-hidden rounded-lg border border-white/12 bg-[#101010] shadow-2xl shadow-black/50">
+                  <div className="relative h-56 overflow-hidden bg-[radial-gradient(circle_at_50%_12%,rgba(255,255,255,0.2),transparent_38%),linear-gradient(135deg,#111,#050505)] sm:h-72">
+                    <QayLandingImage className="qay-animate-float mx-auto h-full w-full object-contain p-8 opacity-95 sm:p-10" />
+                  </div>
                   <div className="border-t border-white/10 p-4 sm:p-5">
                     <div className="flex items-center justify-between">
                       <div>
@@ -288,6 +331,12 @@ export default async function Home({
 
   // Load all global settings early so error pages also get global custom code
   const globalSettings = await fetchCachedGlobalSettings(qaySiteId);
+  const siteAuthSettings = qaySiteId ? await getQaySiteAuthSettings(qaySiteId) : null;
+  const siteVisitor = siteAuthSettings?.enabled && qaySiteId ? await getQaySiteVisitor(qaySiteId) : null;
+
+  if (siteAuthSettings?.enabled && qaySiteId && !siteVisitor) {
+    return <SiteAuthScreen siteId={qaySiteId} allowSignup={siteAuthSettings.allowSignup} isPublished={true} mode="signin" />;
+  }
 
   // Check password protection for homepage.
   // First evaluate without cookies() so non-protected pages can stay cacheable.
@@ -348,20 +397,23 @@ export default async function Home({
   await recordQayPageView(qaySiteId, '/', headerStore.get('referer'));
 
   return (
-    <PageRenderer
-      page={data.page}
-      layers={data.pageLayers.layers || []}
-      components={data.components}
-      generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
-      colorVariablesCss={globalSettings.colorVariablesCss || undefined}
-      locale={data.locale}
-      availableLocales={data.availableLocales}
-      translations={data.translations}
-      gaMeasurementId={globalSettings.gaMeasurementId}
-      globalCustomCodeHead={globalSettings.globalCustomCodeHead}
-      globalCustomCodeBody={globalSettings.globalCustomCodeBody}
-      ycodeBadge={globalSettings.ycodeBadge}
-    />
+    <>
+      <PageRenderer
+        page={data.page}
+        layers={data.pageLayers.layers || []}
+        components={data.components}
+        generatedCss={siteScopedCss || globalSettings.publishedCss || undefined}
+        colorVariablesCss={globalSettings.colorVariablesCss || undefined}
+        locale={data.locale}
+        availableLocales={data.availableLocales}
+        translations={data.translations}
+        gaMeasurementId={globalSettings.gaMeasurementId}
+        globalCustomCodeHead={globalSettings.globalCustomCodeHead}
+        globalCustomCodeBody={globalSettings.globalCustomCodeBody}
+        ycodeBadge={globalSettings.ycodeBadge}
+      />
+      {qaySiteId && siteVisitor && <SiteAuthLogoutInitializer siteId={qaySiteId} />}
+    </>
   );
 }
 
@@ -437,6 +489,16 @@ export async function generateMetadata(): Promise<Metadata> {
         robots: { index: false, follow: false },
       };
     }
+  }
+
+  const siteAuthSettings = qaySiteId ? await getQaySiteAuthSettings(qaySiteId) : null;
+  const metadataSiteVisitor = siteAuthSettings?.enabled && qaySiteId ? await getQaySiteVisitor(qaySiteId) : null;
+  if (siteAuthSettings?.enabled && qaySiteId && !metadataSiteVisitor) {
+    return {
+      title: 'Protected Site',
+      description: 'Sign in to view this site.',
+      robots: { index: false, follow: false },
+    };
   }
 
   const { meta, baseUrl } = await unstable_cache(

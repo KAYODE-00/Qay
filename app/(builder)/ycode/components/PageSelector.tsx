@@ -37,7 +37,7 @@ interface PageSelectorProps {
   onValueChange: (pageId: string) => void;
   placeholder?: string;
   disabled?: boolean;
-  /** Show error pages in a separate "Error pages" folder. Default: false */
+  /** Show utility pages in a separate folder. Default: false */
   includeErrorPages?: boolean;
   /** Custom class for the trigger button */
   className?: string;
@@ -66,29 +66,35 @@ export default function PageSelector({
   const pages = usePagesStore((state) => state.pages);
   const folders = usePagesStore((state) => state.folders);
 
-  // Separate regular pages from error pages
+  // Separate regular pages from utility pages
   const { regularPages, errorPages } = useMemo(() => {
-    const regular = pages.filter(page => page.error_page === null);
+    const utilitySlugs = ['login', 'signup', 'forgot-password', 'reset-password'];
+    const isUtilityPage = (page: Page) => (
+      page.error_page !== null
+      || utilitySlugs.includes(String((page.settings as Record<string, unknown> | null | undefined)?.qay_special_page || ''))
+      || utilitySlugs.includes(page.slug)
+    );
+    const regular = pages.filter(page => !isUtilityPage(page));
     const errors = pages
-      .filter(page => page.error_page !== null)
+      .filter(isUtilityPage)
       .sort((a, b) => (a.error_page || 0) - (b.error_page || 0));
     return { regularPages: regular, errorPages: errors };
   }, [pages]);
 
-  // Build folder tree from regular (non-error) pages
+  // Build folder tree from regular pages
   const pageTree = useMemo(
     () => buildPageTree(regularPages, folders),
     [regularPages, folders]
   );
 
-  // Virtual "Error pages" folder node
+  // Virtual "Utility pages" folder node
   const errorPagesNode: PageTreeNode | null = useMemo(() => {
     if (!includeErrorPages || errorPages.length === 0) return null;
 
     const virtualFolder: PageFolder = {
       id: 'virtual-error-pages-folder',
-      name: 'Error pages',
-      slug: 'error-pages',
+      name: 'Utility pages',
+      slug: 'utility-pages',
       page_folder_id: null,
       depth: 0,
       order: 999999,

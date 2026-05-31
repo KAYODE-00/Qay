@@ -8,8 +8,7 @@ import { generateId } from '@/lib/utils';
 import { generatePageLayersHash, generatePageMetadataHash } from '@/lib/hash-utils';
 import { buildQayIndexSlug } from '@/qay/lib/index-slug';
 import { layersContainPromptLeak } from '@/qay/lib/ai/prompt-leak';
-import { callWithFallbackDetailed } from '@/qay/lib/ai/providers';
-import { withResolvedQayLiveUrl } from '@/qay/lib/site-url';
+import { getQaySiteBaseUrl } from '@/qay/lib/site-url';
 
 export type QayUserTemplateStatus = 'private' | 'pending_review' | 'approved' | 'rejected';
 export type QayUserTemplatePricingMode = 'free' | 'paid';
@@ -194,38 +193,6 @@ function localReview(payload: TemplatePayload) {
   };
 }
 
-async function reviewTemplateWithAi(payload: TemplatePayload, fallbackScore: number) {
-  const pageSummaries = payload.pages.map((page) => ({
-    name: page.name,
-    slug: page.slug,
-    is_index: page.is_index,
-    error_page: page.error_page,
-    ...collectLayerStats(page.layers),
-  }));
-
-  const result = await callWithFallbackDetailed(
-    `Review this QAY template summary for gallery readiness. Return JSON only:
-${JSON.stringify({ pages: pageSummaries }, null, 2)}`,
-    `You review website templates. Return one JSON object only: {"approved": boolean, "score": number, "notes": string}.
-Approve only if the template has a meaningful homepage, enough sections, usable layout structure, and no placeholder-only content.`,
-    (text) => {
-      const start = text.indexOf('{');
-      const end = text.lastIndexOf('}');
-      if (start === -1 || end === -1 || end <= start) {
-        throw new Error('AI review returned invalid JSON.');
-      }
-      const parsed = JSON.parse(text.slice(start, end + 1)) as { approved?: boolean; score?: number; notes?: string };
-      return {
-        approved: parsed.approved === true,
-        score: typeof parsed.score === 'number' ? Math.max(0, Math.min(100, Math.round(parsed.score))) : fallbackScore,
-        notes: typeof parsed.notes === 'string' ? parsed.notes.slice(0, 400) : '',
-      };
-    }
-  );
-
-  return result.value || { approved: false, score: fallbackScore, notes: '' };
-}
-
 function cloneLayers(layers: Layer[]) {
   const idMap = new Map<string, string>();
 
@@ -285,7 +252,7 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
 
   const site = await knex('qay_sites')
     .where({ id: input.siteId, owner_id: input.ownerId })
-    .first('id', 'slug', 'custom_domain', 'live_url', 'publish_status');
+    .first('id', 'slug', 'custom_domain', 'domain_verified', 'live_url', 'publish_status');
 
   if (!site) {
     throw new Error('Site not found');
@@ -293,19 +260,9 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
 
   const payload = await buildTemplatePayload(knex, input.siteId);
   const local = localReview(payload);
-  let status: QayUserTemplateStatus = 'pending_review';
-  let reviewScore = local.score;
-  let reviewNotes = local.notes;
-
-  try {
-    const aiReview = await reviewTemplateWithAi(payload, local.score);
-    reviewScore = aiReview.score;
-    reviewNotes = aiReview.notes || local.notes;
-    status = aiReview.approved && aiReview.score >= 75 ? 'approved' : 'pending_review';
-  } catch (error) {
-    console.warn('[QAY user templates] AI review unavailable, saving as pending:', error);
-    status = 'pending_review';
-  }
+  const status: QayUserTemplateStatus = 'approved';
+  const reviewScore = Math.max(local.score, 90);
+  const reviewNotes = local.notes || 'Template was automatically approved for publishing.';
 
   const pricingMode = input.pricingMode === 'paid' ? 'paid' : 'free';
   const intendedPrice = pricingMode === 'paid' ? normalizePrice(input.intendedPrice) : null;
@@ -322,7 +279,7 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
       pricing_mode: pricingMode,
       intended_price: intendedPrice,
       paid_available: false,
-      preview_url: withResolvedQayLiveUrl(site).live_url || `/${site.slug}`,
+      preview_url: getQaySiteBaseUrl(site) || site.live_url || `/${site.slug}`,
       review_score: reviewScore,
       review_notes: reviewNotes,
       template_payload: payload,
