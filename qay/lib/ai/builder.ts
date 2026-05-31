@@ -98,6 +98,7 @@ Rules:
     data-qay-site-auth-success
   Login page slug must be "login"; sign up slug must be "signup"; forgot password slug must be "forgot-password"; reset password slug must be "reset-password".
   Keep auth page links relative: /login, /signup, /forgot-password, /reset-password.
+- For multi-page sites, mirror QAY's import flow: Homepage first, then every extra page as a separate direct sibling wrapper with data-qay-page and data-qay-slug. Do not nest page wrappers inside another page.
 - Do not rely on custom CSS classes for layout or interaction behavior. Tailwind utilities must carry the design.
 - A small <style> tag is allowed only for font-family helper classes such as .serif; do not put animations or toggles in CSS.
 - Never output a single paragraph containing the prompt.`;
@@ -734,6 +735,8 @@ Silent checklist:
   <div data-qay-page="Sign up" data-qay-slug="signup">...</div>
   <div data-qay-page="About" data-qay-slug="about">...</div>
   <div data-qay-page="Contact" data-qay-slug="contact">...</div>
+- This must match the QAY import dialog flow: Homepage first, each additional page as its own sibling wrapper, all pages returned together in one HTML response.
+- Do not put a full HTML document inside each wrapper. Put the page body content inside each wrapper.
 - Use multi-page wrappers only when they are useful. Generate at most 5 pages.
 
   Return only HTML.`;

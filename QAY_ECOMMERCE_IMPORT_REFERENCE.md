@@ -57,7 +57,9 @@ The generated site should include only the sections that make sense for the prom
 
 ## Multi-Page Import
 
-Wrap each page with `data-qay-page`. QAY will create separate pages.
+The import dialog starts with Homepage. Paste the homepage code first, click **Add page** for every extra page, then import all pages together.
+
+AI output should mirror that flow by wrapping each page with `data-qay-page`. QAY will create separate pages. Keep `Homepage` first, then output each additional page as a direct sibling wrapper.
 
 ```html
 <div data-qay-page="Homepage" data-qay-slug="/">
@@ -72,6 +74,8 @@ Wrap each page with `data-qay-page`. QAY will create separate pages.
   <!-- contact page HTML -->
 </div>
 ```
+
+Do not nest page wrappers inside each other. Do not put a full `<!DOCTYPE html>` document inside every wrapper. For multi-page output, use one grouped HTML response containing all page wrappers.
 
 Useful ecommerce pages:
 
