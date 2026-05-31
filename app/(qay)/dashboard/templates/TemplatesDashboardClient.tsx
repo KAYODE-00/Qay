@@ -541,126 +541,128 @@ export function TemplatesDashboardClient({ profile }: Props) {
           <div className="mt-12 flex min-h-72 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-sm text-white/55">
             Loading templates...
           </div>
-        ) : filteredTemplates.length === 0 ? (
-          <div className="mt-12 flex min-h-72 flex-col items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-center">
-            <LayoutTemplate className="size-8 text-white/35" />
-            <p className="mt-3 text-sm text-white/60">No templates found in this category.</p>
-          </div>
         ) : (
           <>
-          {(userTemplates.length > 0 || communityTemplates.length > 0) && (
-            <div className="mt-8 space-y-8">
-              {userTemplates.length > 0 && (
-                <section>
-                  <div className="flex items-end justify-between gap-4">
-                    <div>
-                      <h2 className="text-xl font-semibold tracking-normal">My templates</h2>
-                      <p className="mt-1 text-sm text-white/45">Templates you saved from your sites.</p>
+            {(userTemplates.length > 0 || communityTemplates.length > 0) && (
+              <div className="mt-8 space-y-8">
+                {userTemplates.length > 0 && (
+                  <section>
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <h2 className="text-xl font-semibold tracking-normal">My templates</h2>
+                        <p className="mt-1 text-sm text-white/45">Templates you saved from your sites.</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {userTemplates.map((template) => (
-                      <article key={template.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs uppercase tracking-wide text-white/35">{template.category}</p>
-                            <h3 className="mt-1 text-base font-medium">{template.name}</h3>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {userTemplates.map((template) => (
+                        <article key={template.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-white/35">{template.category}</p>
+                              <h3 className="mt-1 text-base font-medium">{template.name}</h3>
+                            </div>
+                            <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/55">
+                              {template.status.replace('_', ' ')}
+                            </span>
                           </div>
-                          <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/55">
-                            {template.status.replace('_', ' ')}
-                          </span>
+                          <p className="mt-3 line-clamp-2 text-sm text-white/50">{template.description || 'Reusable QAY template.'}</p>
+                          {template.pricing_mode === 'paid' && (
+                            <p className="mt-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/45">
+                              Price saved for later. Paid template sales are not live yet.
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => createSiteFromUserTemplate(template)}
+                            disabled={isApplying}
+                            className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Create project
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {communityTemplates.length > 0 && (
+                  <section>
+                    <h2 className="text-xl font-semibold tracking-normal">Community</h2>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {communityTemplates.map((template) => (
+                        <article key={template.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                          <p className="text-xs uppercase tracking-wide text-white/35">{template.category}</p>
+                          <h3 className="mt-1 text-base font-medium">{template.name}</h3>
+                          <p className="mt-3 line-clamp-2 text-sm text-white/50">{template.description || 'Reusable QAY template.'}</p>
+                          <button
+                            type="button"
+                            onClick={() => createSiteFromUserTemplate(template)}
+                            disabled={isApplying}
+                            className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Create project
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+
+            {filteredTemplates.length > 0 ? (
+              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredTemplates.map((template) => (
+                  <article key={template.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+                    <div className="relative aspect-[72/85] overflow-hidden bg-white/[0.04]">
+                      {template.preview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={template.preview} alt=""
+                          className="h-full w-full object-cover object-top"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-white/20">
+                          {template.name.slice(0, 1)}
                         </div>
-                        <p className="mt-3 line-clamp-2 text-sm text-white/50">{template.description || 'Reusable QAY template.'}</p>
-                        {template.pricing_mode === 'paid' && (
-                          <p className="mt-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/45">
-                            Price saved for later. Paid template sales are not live yet.
-                          </p>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h2 className="truncate text-base font-medium">{template.name}</h2>
+                          <p className="mt-1 line-clamp-2 text-sm text-white/50">{template.description}</p>
+                        </div>
+                        {template.livePreviewUrl && (
+                          <a
+                            href={template.livePreviewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Preview ${template.name}`}
+                            className="flex size-9 shrink-0 items-center justify-center rounded-md border border-white/10 text-white/60 transition hover:bg-white/5 hover:text-white"
+                          >
+                            <ExternalLink className="size-4" />
+                          </a>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => createSiteFromUserTemplate(template)}
-                          disabled={isApplying}
-                          className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Create project
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {communityTemplates.length > 0 && (
-                <section>
-                  <h2 className="text-xl font-semibold tracking-normal">Community</h2>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {communityTemplates.map((template) => (
-                      <article key={template.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-xs uppercase tracking-wide text-white/35">{template.category}</p>
-                        <h3 className="mt-1 text-base font-medium">{template.name}</h3>
-                        <p className="mt-3 line-clamp-2 text-sm text-white/50">{template.description || 'Reusable QAY template.'}</p>
-                        <button
-                          type="button"
-                          onClick={() => createSiteFromUserTemplate(template)}
-                          disabled={isApplying}
-                          className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Create project
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              )}
-            </div>
-          )}
-
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredTemplates.map((template) => (
-              <article key={template.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
-                <div className="relative aspect-[72/85] overflow-hidden bg-white/[0.04]">
-                  {template.preview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={template.preview} alt=""
-                      className="h-full w-full object-cover object-top"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-white/20">
-                      {template.name.slice(0, 1)}
-                    </div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="truncate text-base font-medium">{template.name}</h2>
-                      <p className="mt-1 line-clamp-2 text-sm text-white/50">{template.description}</p>
-                    </div>
-                    {template.livePreviewUrl && (
-                      <a
-                        href={template.livePreviewUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`Preview ${template.name}`}
-                        className="flex size-9 shrink-0 items-center justify-center rounded-md border border-white/10 text-white/60 transition hover:bg-white/5 hover:text-white"
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUseTemplate(template)}
+                        disabled={isApplying}
+                        className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <ExternalLink className="size-4" />
-                      </a>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleUseTemplate(template)}
-                    disabled={isApplying}
-                    className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Create project
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+                        Create project
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : userTemplates.length === 0 && communityTemplates.length === 0 ? (
+              <div className="mt-12 flex min-h-72 flex-col items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-center">
+                <LayoutTemplate className="size-8 text-white/35" />
+                <p className="mt-3 text-sm text-white/60">No templates yet. Create your own or import a site to get started.</p>
+              </div>
+            ) : null}
           </>
         )}
       </section>

@@ -8,6 +8,7 @@ import {
 import { getKnexClient, closeKnexClient } from '@/lib/knex-client';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { hasQayAdminAccess } from '@/qay/lib/admin-access';
 import { ensureQayPageSiteUniqueness } from '@/qay/lib/page-site-uniqueness';
 import { buildQayIndexSlug } from '@/qay/lib/index-slug';
 import { ensureQaySiteComponentsTable } from '@/qay/lib/site-components';
@@ -673,6 +674,14 @@ export async function POST(
 
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  const isAdmin = await hasQayAdminAccess(user);
+  if (!isAdmin) {
+    return NextResponse.json(
+      { error: 'Only admins can apply original templates.' },
+      { status: 403 }
+    );
   }
 
   const { templateId } = await params;
