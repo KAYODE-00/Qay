@@ -150,9 +150,9 @@ export default function ImportHtmlDialog({
         className="gap-0"
       >
         <DialogHeader>
-          <DialogTitle>Convert HTML to layers</DialogTitle>
+          <DialogTitle>Import website code</DialogTitle>
           <DialogDescription>
-            Tailwind classes become QAY design settings. Paste the homepage first, add more pages when needed, then import all pages together.
+            Paste your homepage first. Add more pages when needed, then import the full site into this editor.
           </DialogDescription>
         </DialogHeader>
 
