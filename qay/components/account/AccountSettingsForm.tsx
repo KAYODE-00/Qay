@@ -153,7 +153,10 @@ export function AccountSettingsForm({ profile, role = profile.account_type }: Ac
           <div className="flex size-20 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-xl font-semibold text-muted-foreground">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt="" className="size-full object-cover" />
+              <img
+                src={avatarUrl} alt=""
+                className="size-full object-cover"
+              />
             ) : (
               (fullName || profile.email || 'Q').slice(0, 1).toUpperCase()
             )}

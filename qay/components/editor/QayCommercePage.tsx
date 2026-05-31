@@ -202,7 +202,10 @@ export function QayCommercePage() {
           <Button onClick={saveSettings} disabled={isSaving || isLoading}>
             {isSaving ? 'Saving...' : 'Save connection'}
           </Button>
-          <Button type="button" variant="outline" onClick={testProducts} disabled={isTesting || !settings.connected}>
+          <Button
+            type="button" variant="outline"
+            onClick={testProducts} disabled={isTesting || !settings.connected}
+          >
             {isTesting ? 'Testing...' : 'Test products'}
           </Button>
           <span className="text-xs text-muted-foreground">
@@ -222,7 +225,10 @@ export function QayCommercePage() {
             {products.map((product) => (
               <article key={product.id} className="overflow-hidden rounded-md border">
                 {product.thumbnail ? (
-                  <img src={product.thumbnail} alt={product.title} className="h-32 w-full object-cover" />
+                  <img
+                    src={product.thumbnail} alt={product.title}
+                    className="h-32 w-full object-cover"
+                  />
                 ) : (
                   <div className="h-32 bg-muted" />
                 )}

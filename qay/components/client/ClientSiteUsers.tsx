@@ -105,8 +105,14 @@ export function ClientSiteUsers({ siteId }: ClientSiteUsersProps) {
             </p>
           </div>
           <div className="flex gap-2">
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users" className="h-9 w-56" />
-            <Button size="sm" variant="secondary" onClick={loadUsers} disabled={isLoading}>
+            <Input
+              value={query} onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search users" className="h-9 w-56"
+            />
+            <Button
+              size="sm" variant="secondary"
+              onClick={loadUsers} disabled={isLoading}
+            >
               {isLoading ? 'Loading...' : 'Refresh'}
             </Button>
           </div>

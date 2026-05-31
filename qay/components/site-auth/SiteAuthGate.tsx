@@ -187,12 +187,18 @@ export function SiteAuthGate({ siteId, allowSignup, variant = 'page', defaultMod
 
         <div className="mt-5 flex flex-wrap gap-3 text-sm text-white/58">
           {activeMode === 'signin' && (
-            <button type="button" className="transition hover:text-white" onClick={() => setMode('forgot-password')}>
+            <button
+              type="button" className="transition hover:text-white"
+              onClick={() => setMode('forgot-password')}
+            >
               Forgot password?
             </button>
           )}
           {(activeMode === 'forgot-password' || activeMode === 'reset-password') && (
-            <button type="button" className="transition hover:text-white" onClick={() => setMode('signin')}>
+            <button
+              type="button" className="transition hover:text-white"
+              onClick={() => setMode('signin')}
+            >
               Back to sign in
             </button>
           )}
