@@ -18,6 +18,7 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Portfolio');
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [pricingMode, setPricingMode] = useState<'free' | 'paid'>('free');
   const [intendedPrice, setIntendedPrice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,6 +76,7 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
           name,
           description,
           category,
+          thumbnailUrl,
           pricingMode,
           intendedPrice: pricingMode === 'paid' ? Number(intendedPrice) : null,
         }),
@@ -91,6 +93,7 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
         : 'Template saved. It is waiting for review.');
       setName('');
       setDescription('');
+      setThumbnailUrl('');
       setIntendedPrice('');
       setPricingMode('free');
     } catch (err) {
@@ -155,6 +158,21 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
               className="w-full rounded-md border border-border bg-background px-3 py-2 outline-none transition focus:border-foreground"
               placeholder="A clean homepage for studios, consultants, or service brands."
             />
+          </label>
+
+          <label className="block space-y-2 text-sm">
+            <span className="font-medium">Template thumbnail</span>
+            <input
+              value={thumbnailUrl}
+              onChange={(event) => setThumbnailUrl(event.target.value)}
+              type="url"
+              maxLength={1000}
+              className="h-10 w-full rounded-md border border-border bg-background px-3 outline-none transition focus:border-foreground"
+              placeholder="https://example.com/template-preview.jpg"
+            />
+            <span className="block text-xs text-muted-foreground">
+              Add an image URL for the template card. You can leave this empty.
+            </span>
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">

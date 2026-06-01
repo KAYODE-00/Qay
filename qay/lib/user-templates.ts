@@ -40,6 +40,7 @@ type SubmitTemplateInput = {
   category: string;
   pricingMode: QayUserTemplatePricingMode;
   intendedPrice: number | null;
+  thumbnailUrl: string;
 };
 
 type ApplyTemplateInput = {
@@ -75,6 +76,7 @@ async function ensureUserTemplatesTable(knex: Knex) {
       intended_price numeric(10, 2),
       paid_available boolean NOT NULL DEFAULT false,
       preview_url text,
+      thumbnail_url text,
       review_score integer,
       review_notes text,
       template_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -85,6 +87,73 @@ async function ensureUserTemplatesTable(knex: Knex) {
   await knex.raw('CREATE INDEX IF NOT EXISTS qay_user_templates_owner_id_idx ON qay_user_templates(owner_id)');
   await knex.raw('CREATE INDEX IF NOT EXISTS qay_user_templates_status_idx ON qay_user_templates(status)');
   await knex.raw('CREATE INDEX IF NOT EXISTS qay_user_templates_category_idx ON qay_user_templates(category)');
+  await knex.raw('ALTER TABLE qay_user_templates ADD COLUMN IF NOT EXISTS thumbnail_url text');
+}
+
+function normalizeTemplateUrl(value: string) {
+  const trimmed = value.trim().slice(0, 1000);
+  if (!trimmed) return '';
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return url.toString();
+    }
+  } catch {
+    return '';
+  }
+
+  return '';
+}
+
+function normalizeLayers(value: unknown): Layer[] {
+  if (Array.isArray(value)) return value as Layer[];
+  if (typeof value !== 'string') return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed as Layer[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeTemplatePayload(value: unknown): TemplatePayload | null {
+  const parsed = typeof value === 'string'
+    ? (() => {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    })()
+    : value;
+
+  if (!parsed || typeof parsed !== 'object') return null;
+  const payload = parsed as Partial<TemplatePayload>;
+  if (!Array.isArray(payload.pages)) return null;
+
+  const normalizedPages = payload.pages.map((page) => {
+    const rawPage = page && typeof page === 'object' ? page as Partial<TemplatePageSnapshot> : {};
+    return {
+      id: String(rawPage.id || ''),
+      name: String(rawPage.name || 'Page'),
+      slug: String(rawPage.slug || ''),
+      is_index: Boolean(rawPage.is_index),
+      is_dynamic: Boolean(rawPage.is_dynamic),
+      error_page: typeof rawPage.error_page === 'number' ? rawPage.error_page : null,
+      page_folder_id: typeof rawPage.page_folder_id === 'string' ? rawPage.page_folder_id : null,
+      order: Number(rawPage.order ?? 0),
+      depth: Number(rawPage.depth ?? 0),
+      settings: rawPage.settings && typeof rawPage.settings === 'object' ? rawPage.settings : {},
+      layers: normalizeLayers(rawPage.layers),
+    };
+  });
+
+  return {
+    version: 1,
+    pages: normalizedPages,
+  };
 }
 
 function collectLayerStats(layers: Layer[]) {
@@ -141,7 +210,7 @@ async function buildTemplatePayload(knex: Knex, siteId: string): Promise<Templat
   const layerMap = new Map<string, Layer[]>();
   for (const row of layerRows) {
     if (!layerMap.has(row.page_id)) {
-      layerMap.set(row.page_id, Array.isArray(row.layers) ? row.layers : []);
+      layerMap.set(row.page_id, normalizeLayers(row.layers));
     }
   }
 
@@ -280,6 +349,7 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
       intended_price: intendedPrice,
       paid_available: false,
       preview_url: getQaySiteBaseUrl(site) || site.live_url || `/${site.slug}`,
+      thumbnail_url: normalizeTemplateUrl(input.thumbnailUrl),
       review_score: reviewScore,
       review_notes: reviewNotes,
       template_payload: payload,
@@ -297,13 +367,13 @@ export async function listUserTemplates(userId: string) {
 
   const ownTemplates = await knex('qay_user_templates')
     .where('owner_id', userId)
-    .select('id', 'name', 'description', 'category', 'status', 'pricing_mode', 'intended_price', 'paid_available', 'preview_url', 'review_score', 'review_notes', 'created_at', 'updated_at')
+    .select('id', 'name', 'description', 'category', 'status', 'pricing_mode', 'intended_price', 'paid_available', 'preview_url', 'thumbnail_url', 'review_score', 'review_notes', 'created_at', 'updated_at')
     .orderBy('updated_at', 'desc');
 
   const communityTemplates = await knex('qay_user_templates')
     .where('status', 'approved')
     .whereNot('owner_id', userId)
-    .select('id', 'name', 'description', 'category', 'status', 'pricing_mode', 'intended_price', 'paid_available', 'preview_url', 'review_score', 'created_at', 'updated_at')
+    .select('id', 'name', 'description', 'category', 'status', 'pricing_mode', 'intended_price', 'paid_available', 'preview_url', 'thumbnail_url', 'review_score', 'created_at', 'updated_at')
     .orderBy('updated_at', 'desc')
     .limit(48);
 
@@ -341,7 +411,7 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
     throw new Error('Template not found');
   }
 
-  const payload = template.template_payload as TemplatePayload;
+  const payload = normalizeTemplatePayload(template.template_payload);
   if (!payload?.pages?.length) {
     throw new Error('Template has no pages to apply.');
   }
@@ -394,12 +464,12 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
         created_at: now,
         updated_at: now,
       };
-      const layers = cloneLayers(page.layers || []);
+      const layers = cloneLayers(normalizeLayers(page.layers));
 
       await trx('pages').insert(pageRecord);
       await trx('page_layers').insert({
         page_id: pageId,
-        layers,
+        layers: JSON.stringify(layers),
         is_published: false,
         content_hash: generatePageLayersHash({ layers, generated_css: null }),
         created_at: now,

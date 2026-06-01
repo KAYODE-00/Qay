@@ -34,6 +34,8 @@ type UserTemplate = {
   pricing_mode: 'free' | 'paid';
   intended_price: number | string | null;
   paid_available: boolean;
+  preview_url?: string | null;
+  thumbnail_url?: string | null;
   review_score?: number | null;
   review_notes?: string | null;
 };
@@ -555,7 +557,22 @@ export function TemplatesDashboardClient({ profile }: Props) {
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {userTemplates.map((template) => (
-                        <article key={template.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                        <article key={template.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+                          <div className="aspect-[72/48] bg-white/[0.04]">
+                            {template.thumbnail_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={template.thumbnail_url}
+                                alt=""
+                                className="h-full w-full object-cover object-top"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-white/20">
+                                {template.name.slice(0, 1)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="text-xs uppercase tracking-wide text-white/35">{template.category}</p>
@@ -579,6 +596,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                           >
                             Create project
                           </button>
+                          </div>
                         </article>
                       ))}
                     </div>
@@ -590,7 +608,22 @@ export function TemplatesDashboardClient({ profile }: Props) {
                     <h2 className="text-xl font-semibold tracking-normal">Community</h2>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {communityTemplates.map((template) => (
-                        <article key={template.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                        <article key={template.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+                          <div className="aspect-[72/48] bg-white/[0.04]">
+                            {template.thumbnail_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={template.thumbnail_url}
+                                alt=""
+                                className="h-full w-full object-cover object-top"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-white/20">
+                                {template.name.slice(0, 1)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-4">
                           <p className="text-xs uppercase tracking-wide text-white/35">{template.category}</p>
                           <h3 className="mt-1 text-base font-medium">{template.name}</h3>
                           <p className="mt-3 line-clamp-2 text-sm text-white/50">{template.description || 'Reusable QAY template.'}</p>
@@ -602,6 +635,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                           >
                             Create project
                           </button>
+                          </div>
                         </article>
                       ))}
                     </div>
