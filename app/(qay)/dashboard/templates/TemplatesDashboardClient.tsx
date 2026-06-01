@@ -87,6 +87,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedUserTemplate, setSelectedUserTemplate] = useState<UserTemplate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isApplying, setIsApplying] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -198,46 +199,26 @@ export function TemplatesDashboardClient({ profile }: Props) {
       setError(err instanceof Error ? err.message : 'Failed to apply template');
     } finally {
       setIsApplying(false);
+      setSelectedUserTemplate(null);
     }
   }
 
-  async function createSiteFromUserTemplate(template: UserTemplate) {
-    setIsApplying(true);
+  function handleUseUserTemplate(template: UserTemplate) {
     setError(null);
     setNotice(null);
-
-    try {
-      const response = await fetch('/api/qay/sites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: template.name, skipDefaultPages: true }),
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        if (payload.code === 'SITE_LIMIT_REACHED') {
-          setRestriction({
-            title: 'Site limit reached',
-            message: payload.error || 'Your current plan cannot create more sites. Upgrade to continue.',
-          });
-          setIsApplying(false);
-          return;
-        }
-        throw new Error(payload.error || 'Unable to create site');
-      }
-
-      const site = payload.data as QaySite;
-      await applyUserTemplate(template, site.id, `/dashboard/sites/${site.id}/editor`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create site');
-      setIsApplying(false);
-    }
+    setSelectedTemplate(null);
+    setSelectedUserTemplate(template);
+    setSiteName(template.name);
+    setCreationMode('blank');
+    setIsCreateOpen(true);
+    setNotice('Create a new project from this template. It will appear in your dashboard.');
   }
 
   function handleUseTemplate(template: Template) {
     setNotice(null);
     setError(null);
     setSelectedTemplate(template);
+    setSelectedUserTemplate(null);
     setSiteName(template.name);
     setCreationMode('blank');
     setIsCreateOpen(true);
@@ -262,7 +243,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
       const response = await fetch('/api/qay/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: siteName, skipDefaultPages: Boolean(selectedTemplate || creationMode === 'ai') }),
+        body: JSON.stringify({ name: siteName, skipDefaultPages: Boolean(selectedTemplate || selectedUserTemplate || creationMode === 'ai') }),
       });
       const payload = await response.json();
 
@@ -285,6 +266,8 @@ export function TemplatesDashboardClient({ profile }: Props) {
 
       if (selectedTemplate) {
         await applyTemplate(selectedTemplate, site.id, `/dashboard/sites/${site.id}/editor`);
+      } else if (selectedUserTemplate) {
+        await applyUserTemplate(selectedUserTemplate, site.id, `/dashboard/sites/${site.id}/editor`);
       } else if (creationMode === 'ai') {
         setCreationStatus('Building with AI...');
         const aiResponse = await fetch('/api/qay/ai/generate', {
@@ -590,7 +573,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                           )}
                           <button
                             type="button"
-                            onClick={() => createSiteFromUserTemplate(template)}
+                            onClick={() => handleUseUserTemplate(template)}
                             disabled={isApplying}
                             className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
                           >
@@ -629,7 +612,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                           <p className="mt-3 line-clamp-2 text-sm text-white/50">{template.description || 'Reusable QAY template.'}</p>
                           <button
                             type="button"
-                            onClick={() => createSiteFromUserTemplate(template)}
+                            onClick={() => handleUseUserTemplate(template)}
                             disabled={isApplying}
                             className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
                           >
@@ -707,10 +690,14 @@ export function TemplatesDashboardClient({ profile }: Props) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold tracking-normal">
-                  {selectedTemplate ? 'Create project from template' : creationMode === 'ai' ? 'Build with AI' : 'Create site'}
+                  {selectedTemplate || selectedUserTemplate ? 'Create project from template' : creationMode === 'ai' ? 'Build with AI' : 'Create site'}
                 </h2>
                 <p className="mt-1 text-sm text-white/55">
-                  {selectedTemplate ? `We'll start a fresh site from ${selectedTemplate.name}.` : creationMode === 'ai' ? 'Describe the site and QAY will draft the first page.' : 'Create a new site for your import.'}
+                  {selectedTemplate || selectedUserTemplate
+                    ? `We'll start a fresh site from ${(selectedTemplate || selectedUserTemplate)?.name}.`
+                    : creationMode === 'ai'
+                      ? 'Describe the site and QAY will draft the first page.'
+                      : 'Create a new site for your import.'}
                 </p>
               </div>
               <button
@@ -718,6 +705,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                 onClick={() => {
                   setIsCreateOpen(false);
                   setSelectedTemplate(null);
+                  setSelectedUserTemplate(null);
                   setCreationMode('blank');
                   setNotice(null);
                 }}
@@ -728,7 +716,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
             </div>
 
             <div className="mt-6 space-y-4">
-              {!selectedTemplate && (
+              {!selectedTemplate && !selectedUserTemplate && (
                 <div className="grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-1">
                   <button
                     type="button"
@@ -756,7 +744,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                   className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
                 />
               </label>
-              {creationMode === 'ai' && !selectedTemplate && (
+              {creationMode === 'ai' && !selectedTemplate && !selectedUserTemplate && (
                 <label className="block space-y-2 text-sm text-white/75">
                   <span>What should we build?</span>
                   <textarea
@@ -778,7 +766,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
                 disabled={isApplying}
                 className="h-11 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isApplying ? (creationMode === 'ai' ? 'Building...' : 'Creating...') : selectedTemplate ? 'Create project' : creationMode === 'ai' ? 'Build and open editor' : 'Create site'}
+                {isApplying ? (creationMode === 'ai' ? 'Building...' : 'Creating...') : selectedTemplate || selectedUserTemplate ? 'Create project' : creationMode === 'ai' ? 'Build and open editor' : 'Create site'}
               </button>
             </div>
           </form>
