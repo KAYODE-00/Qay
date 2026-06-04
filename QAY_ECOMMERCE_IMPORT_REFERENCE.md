@@ -167,10 +167,14 @@ data-qay-commerce="product-grid"
 data-qay-commerce="product-card"
 data-qay-commerce="product-image"
 data-qay-commerce="product-title"
+data-qay-commerce="product-description"
 data-qay-commerce="product-price"
 data-qay-commerce="add-to-cart"
 data-qay-commerce="cart-button"
 data-qay-commerce="cart-drawer"
+data-qay-commerce="cart-items"
+data-qay-commerce="cart-count"
+data-qay-commerce="checkout-button"
 data-qay-product-id="sample-product-id"
 data-qay-product-handle="sample-product-handle"
 ```
@@ -240,7 +244,7 @@ data-qay-x="0"
 data-qay-ease="power2.out"
 
 If this is ecommerce, use:
-data-qay-commerce="product-grid|product-card|product-image|product-title|product-price|add-to-cart|cart-button|cart-drawer"
+data-qay-commerce="product-grid|product-card|product-image|product-title|product-description|product-price|add-to-cart|cart-button|cart-drawer|cart-items|cart-count|checkout-button"
 data-qay-product-id="sample-product-id"
 data-qay-product-handle="sample-product-handle"
 

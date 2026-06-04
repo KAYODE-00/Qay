@@ -82,10 +82,14 @@ Rules:
   data-qay-commerce="product-card" on each product card.
   data-qay-commerce="product-image" on product image wrappers.
   data-qay-commerce="product-title" on product title text.
+  data-qay-commerce="product-description" on product description text.
   data-qay-commerce="product-price" on product price text.
   data-qay-commerce="add-to-cart" on add-to-cart buttons.
   data-qay-commerce="cart-button" on cart buttons.
   data-qay-commerce="cart-drawer" on cart drawer/panel wrappers.
+  data-qay-commerce="cart-items" inside cart drawers.
+  data-qay-commerce="cart-count" for standalone cart count text.
+  data-qay-commerce="checkout-button" on checkout buttons.
   data-qay-product-handle="sample-handle" and data-qay-product-id="sample-product-id" when useful.
 - If the user asks for ecommerce, store, shop, products, cart, collection, checkout, boutique, fashion, perfume, food ordering, marketplace, or catalog:
   create a premium storefront with nav, hero, featured collections/products, product cards, cart button, trust/shipping block, product detail or collection section, newsletter/contact footer.
@@ -716,9 +720,13 @@ Silent checklist:
   data-qay-commerce="product-card" on cards,
   data-qay-commerce="product-image" on image wrappers,
   data-qay-commerce="product-title" on titles,
+  data-qay-commerce="product-description" on descriptions,
   data-qay-commerce="product-price" on prices,
   data-qay-commerce="add-to-cart" on add-to-cart buttons,
   data-qay-commerce="cart-button" on cart buttons,
+  data-qay-commerce="cart-drawer" on cart drawer wrappers,
+  data-qay-commerce="cart-items" inside cart drawers,
+  data-qay-commerce="checkout-button" on checkout buttons,
   data-qay-product-handle and data-qay-product-id on product cards/buttons when useful.
 - Ecommerce pages should include product grid, product cards, cart button, product detail/featured section, trust/shipping row, and footer. Use placeholder products until Medusa is connected.
 - If this is an auth-protected, membership, SaaS, portal, course, or private-community request, include auth pages when useful:

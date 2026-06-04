@@ -12,6 +12,7 @@ export type QayMedusaProduct = {
   handle: string | null;
   thumbnail: string | null;
   description: string | null;
+  price: string | null;
   status?: string | null;
 };
 
@@ -52,7 +53,10 @@ export async function fetchMedusaProducts(settings: QayMedusaCommerceSettings): 
     return [];
   }
 
-  const params = new URLSearchParams({ limit: '24' });
+  const params = new URLSearchParams({
+    limit: '24',
+    fields: '*variants.calculated_price',
+  });
   if (resolved.regionId) params.set('region_id', resolved.regionId);
   if (resolved.salesChannelId) params.set('sales_channel_id', resolved.salesChannelId);
 
@@ -72,12 +76,26 @@ export async function fetchMedusaProducts(settings: QayMedusaCommerceSettings): 
   const result = await response.json();
   const products = Array.isArray(result?.products) ? result.products : [];
 
-  return products.map((product: Record<string, unknown>) => ({
-    id: String(product.id || ''),
-    title: String(product.title || 'Untitled product'),
-    handle: typeof product.handle === 'string' ? product.handle : null,
-    thumbnail: typeof product.thumbnail === 'string' ? product.thumbnail : null,
-    description: typeof product.description === 'string' ? product.description : null,
-    status: typeof product.status === 'string' ? product.status : null,
-  })).filter((product: QayMedusaProduct) => product.id);
+  return products.map((product: Record<string, unknown>) => {
+    const variants = Array.isArray(product.variants) ? product.variants as Array<Record<string, unknown>> : [];
+    const calculated = variants[0]?.calculated_price && typeof variants[0].calculated_price === 'object'
+      ? variants[0].calculated_price as Record<string, unknown>
+      : null;
+    const amount = typeof calculated?.calculated_amount === 'number'
+      ? calculated.calculated_amount
+      : typeof calculated?.original_amount === 'number'
+        ? calculated.original_amount
+        : null;
+    const currency = typeof calculated?.currency_code === 'string' ? calculated.currency_code.toUpperCase() : '';
+
+    return {
+      id: String(product.id || ''),
+      title: String(product.title || 'Untitled product'),
+      handle: typeof product.handle === 'string' ? product.handle : null,
+      thumbnail: typeof product.thumbnail === 'string' ? product.thumbnail : null,
+      description: typeof product.description === 'string' ? product.description : null,
+      price: amount === null ? null : `${currency ? `${currency} ` : ''}${amount}`,
+      status: typeof product.status === 'string' ? product.status : null,
+    };
+  }).filter((product: QayMedusaProduct) => product.id);
 }
