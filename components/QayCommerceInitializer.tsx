@@ -116,10 +116,11 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
   useEffect(() => {
     if (!siteId) return;
 
+    const currentSiteId = siteId;
     let cancelled = false;
 
     async function init() {
-      updateCartUi(siteId);
+      updateCartUi(currentSiteId);
       bindCartControls();
 
       const productCards = Array.from(document.querySelectorAll('[data-qay-commerce="product-card"]'));
@@ -127,7 +128,7 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
 
       let products: QayCommerceProduct[] = [];
       try {
-        const response = await fetch(`/api/qay/commerce/${siteId}/products`, { cache: 'no-store' });
+        const response = await fetch(`/api/qay/commerce/${currentSiteId}/products`, { cache: 'no-store' });
         const payload = await response.json().catch(() => null);
         products = Array.isArray(payload?.data) ? payload.data : [];
       } catch (error) {
@@ -160,7 +161,7 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
         button.addEventListener('click', () => {
           const productId = button.getAttribute('data-qay-product-id');
           const product = products.find((item) => item.id === productId) || products[0];
-          if (product) addToCart(siteId, product);
+          if (product) addToCart(currentSiteId, product);
         });
       });
 
