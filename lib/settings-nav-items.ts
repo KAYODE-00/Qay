@@ -18,5 +18,4 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'redirects', label: 'Redirects', path: '/ycode/settings/redirects' },
   { id: 'email', label: 'Email', path: '/ycode/settings/email' },
   { id: 'templates', label: 'Templates', path: '/ycode/settings/templates' },
-  { id: 'updates', label: 'Updates', path: '/ycode/settings/updates' },
 ];
