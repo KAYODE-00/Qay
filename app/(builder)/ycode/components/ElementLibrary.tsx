@@ -1095,7 +1095,7 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
       window.location.reload();
     } catch (error) {
       console.error('Failed to delete layout:', error);
-      alert('Failed to delete layout. Check console for details.');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete layout.');
     }
   };
 

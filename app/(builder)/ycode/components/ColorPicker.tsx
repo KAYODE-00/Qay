@@ -29,6 +29,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import SettingsPanel from './SettingsPanel';
+import { toast } from 'sonner';
 
 import { useColorVariablesStore } from '@/stores/useColorVariablesStore';
 
@@ -1385,7 +1386,7 @@ export default function ColorPicker({
   const handleEyeDropper = async () => {
     // Check if EyeDropper API is supported
     if (!('EyeDropper' in window)) {
-      alert('EyeDropper API is not supported in your browser. Try using Chrome, Edge, or Opera.');
+      toast.error('EyeDropper is not supported in this browser. Try Chrome, Edge, or Opera.');
       return;
     }
 
@@ -1421,7 +1422,7 @@ export default function ColorPicker({
 
     // Check if EyeDropper API is supported
     if (!('EyeDropper' in window)) {
-      alert('EyeDropper API is not supported in your browser. Try using Chrome, Edge, or Opera.');
+      toast.error('EyeDropper is not supported in this browser. Try Chrome, Edge, or Opera.');
       return;
     }
 

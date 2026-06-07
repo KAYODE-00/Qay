@@ -132,7 +132,19 @@ function bindCartControls() {
     if ((button as HTMLElement).dataset.qayCheckoutBound === 'true') return;
     (button as HTMLElement).dataset.qayCheckoutBound = 'true';
     button.addEventListener('click', () => {
-      window.alert('Checkout connection is ready for Medusa checkout wiring. Cart items are saved locally for this preview.');
+      document.querySelectorAll('[data-qay-commerce="cart-drawer"]').forEach((drawer) => {
+        const existingNotice = drawer.querySelector('[data-qay-commerce="checkout-notice"]');
+        if (existingNotice) {
+          existingNotice.textContent = 'Checkout is ready for Medusa wiring. Cart items are saved for this site.';
+          return;
+        }
+
+        const notice = document.createElement('div');
+        notice.setAttribute('data-qay-commerce', 'checkout-notice');
+        notice.className = 'mt-3 rounded-lg border border-current/10 px-3 py-2 text-sm opacity-75';
+        notice.textContent = 'Checkout is ready for Medusa wiring. Cart items are saved for this site.';
+        button.insertAdjacentElement('afterend', notice);
+      });
     });
   });
 }

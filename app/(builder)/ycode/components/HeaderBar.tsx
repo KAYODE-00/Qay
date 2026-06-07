@@ -158,7 +158,7 @@ export default function HeaderBar({
 
   const importHtmlAsPage = async (html: string, options?: { pageName?: string }) => {
     if (!currentQaySiteId) {
-      window.alert('Open this editor from a QAY site before importing a page.');
+      toast.error('Open this editor from a QAY site before importing a page.');
       return;
     }
 
@@ -167,12 +167,12 @@ export default function HeaderBar({
       importedPages = htmlToPageImports(html, options?.pageName || 'Imported page');
     } catch (error) {
       console.error('[QAY import page] Failed to parse HTML:', error);
-      window.alert('QAY could not read that HTML. Check the code and try again.');
+      toast.error('QAY could not read that HTML. Check the code and try again.');
       return;
     }
 
     if (!importedPages.length) {
-      window.alert('No valid HTML elements were found to import.');
+      toast.error('No valid HTML elements were found to import.');
       return;
     }
 
@@ -199,7 +199,7 @@ export default function HeaderBar({
       }
     } catch (error) {
       console.error('[QAY import page] Failed to create page:', error);
-      window.alert(error instanceof Error ? error.message : 'Unable to import this page.');
+      toast.error(error instanceof Error ? error.message : 'Unable to import this page.');
     }
   };
 

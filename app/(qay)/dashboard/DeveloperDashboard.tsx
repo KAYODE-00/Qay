@@ -12,6 +12,7 @@ import type { QayAccountProfile } from '@/qay/lib/account';
 import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
 import { PlanRestrictionDialog } from '@/qay/components/billing/PlanRestrictionDialog';
 import { htmlToPageImports } from '@/lib/html-layer-converter';
+import { toast } from 'sonner';
 
 type DashboardProps = {
   initialSites: QaySite[];
@@ -237,11 +238,11 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
 
       if (!response.ok) {
         setSites(previousSites);
-        window.alert(payload.error || 'Unable to delete site');
+        toast.error(payload.error || 'Unable to delete site');
       }
     } catch (err) {
       setSites(previousSites);
-      window.alert(err instanceof Error ? err.message : 'Unable to delete site');
+      toast.error(err instanceof Error ? err.message : 'Unable to delete site');
     }
   }
 
