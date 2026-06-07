@@ -48,12 +48,12 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const hasAdmin = await hasQayAdminAccess(user);
-  const hasPro = getQayPlanRank(getUserQayPlan(user)) >= getQayPlanRank('pro');
-  if (!hasAdmin && !hasPro) {
+  const hasPaidPlan = getQayPlanRank(getUserQayPlan(user)) >= getQayPlanRank('starter');
+  if (!hasAdmin && !hasPaidPlan) {
     return NextResponse.json(
       {
-        error: 'Commerce is a private Pro feature for now.',
-        code: 'PRO_PLAN_REQUIRED',
+        error: 'Commerce is available on paid plans. Upgrade to Starter or Pro to connect Medusa.',
+        code: 'PAID_PLAN_REQUIRED',
       },
       { status: 403 }
     );

@@ -16,6 +16,10 @@ function getRequestOrigin(request: Request) {
   return `${url.protocol}//${url.host}`;
 }
 
+function isBillingTestMode() {
+  return String(process.env.QAY_BILLING_TEST_MODE || '').toLowerCase() === 'true';
+}
+
 function getHeader(request: Request, name: string) {
   return request.headers.get(name)?.trim().toUpperCase() || '';
 }
@@ -67,6 +71,18 @@ export async function POST(request: Request) {
     }
 
     const origin = getRequestOrigin(request);
+
+    if (isBillingTestMode()) {
+      return NextResponse.json({
+        data: {
+          provider: 'test',
+          link: `${origin}/pricing?billing=test&plan=${plan}`,
+          plan,
+          test_mode: true,
+        },
+      });
+    }
+
     const provider = chooseBillingProvider(request);
     const checkoutInput = {
       plan,

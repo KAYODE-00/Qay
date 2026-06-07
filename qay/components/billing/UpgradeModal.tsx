@@ -63,6 +63,11 @@ export function UpgradeModal({ plan }: UpgradeModalProps) {
           Payment could not be verified. Please try again.
         </p>
       )}
+      {billingStatus === 'test' && (
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+          Billing test mode is on. Checkout was not sent to a live payment provider.
+        </p>
+      )}
       {error && (
         <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
           {error}

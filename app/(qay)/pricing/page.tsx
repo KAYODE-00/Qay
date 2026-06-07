@@ -5,8 +5,8 @@ import { QAY_PLANS, type QayPlanKey } from '@/qay/lib/billing/plan-limits';
 
 const plans = [
   { key: 'free', body: 'Create unlimited draft sites and publish two while you test, learn, and shape your workflow.' },
-  { key: 'starter', body: 'For builders ready to publish client work with custom domains, demo links, and cleaner handoff.' },
-  { key: 'pro', body: 'Private access for advanced publishing, deeper client workflows, and features still being prepared for wider release.' },
+  { key: 'starter', body: 'For builders ready to publish client work with custom domains, demo links, commerce blocks, and cleaner handoff.' },
+  { key: 'pro', body: 'For serious builders who need more published sites, advanced commerce, client flows, auth, analytics, and stronger delivery.' },
 ] as const;
 
 export default function PricingPage() {
@@ -45,7 +45,7 @@ export default function PricingPage() {
                   <div className="text-sm uppercase tracking-[0.2em] text-white/45">{plan.name}</div>
                   {unavailable && (
                     <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/45">
-                      Private
+                      Coming soon
                     </span>
                   )}
                 </div>
