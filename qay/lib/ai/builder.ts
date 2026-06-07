@@ -93,6 +93,9 @@ Rules:
   data-qay-commerce="cart-count" for standalone cart count text.
   data-qay-commerce="checkout-button" on checkout buttons.
   data-qay-product-handle="sample-handle" and data-qay-product-id="sample-product-id" when useful.
+- Every ecommerce product card must include a visible, styled Add to cart button:
+  <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="same-product-id">Add to cart</button>
+  Match the button data-qay-product-id to the product card id.
 - If the user asks for ecommerce, store, shop, products, cart, collection, checkout, boutique, fashion, perfume, food ordering, marketplace, or catalog:
   create a premium storefront with nav, hero, featured collections/products, product cards, cart button, trust/shipping block, product detail or collection section, newsletter/contact footer.
   Use the commerce hooks above. Keep checkout links as styled buttons but do not add JavaScript.
@@ -735,7 +738,7 @@ Silent checklist:
   data-qay-commerce="cart-items" inside cart drawers,
   data-qay-commerce="checkout-button" on checkout buttons,
   data-qay-product-handle and data-qay-product-id on product cards/buttons when useful.
-- Ecommerce pages should include product grid, product cards, cart button, product detail/featured section, trust/shipping row, and footer. Use placeholder products until Medusa is connected.
+- Ecommerce pages should include product grid, product cards, visible Add to cart buttons inside every product card, cart button, product detail/featured section, trust/shipping row, and footer. Use placeholder products until Medusa is connected.
 - If this is an auth-protected, membership, SaaS, portal, course, or private-community request, include auth pages when useful:
   <div data-qay-page="Login" data-qay-slug="login">...<form data-qay-site-auth-form="signin">...</form>...</div>
   <div data-qay-page="Sign up" data-qay-slug="signup">...<form data-qay-site-auth-form="signup">...</form>...</div>

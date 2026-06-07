@@ -172,6 +172,8 @@ Good defaults by use:
 
 Use these only for ecommerce/storefront prompts.
 
+Every ecommerce product card must include a visible, styled Add to cart button. Do not rely on the whole card being clickable. The button must use `type="button"`, `data-qay-commerce="add-to-cart"`, and the same `data-qay-product-id` as its product card.
+
 ```html
 data-qay-commerce="product-grid"
 data-qay-commerce="product-card"
@@ -190,6 +192,22 @@ data-qay-product-handle="sample-product-handle"
 ```
 
 These hooks are preserved by the importer and will be used for Medusa mapping.
+
+Required product card structure:
+
+```html
+<article data-qay-commerce="product-card" data-qay-product-id="sample-product-1" data-qay-product-handle="signature-product">
+  <div data-qay-commerce="product-image">
+    <img src="https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=900&auto=format&q=85" alt="Signature product" />
+  </div>
+  <h2 data-qay-commerce="product-title">Signature product</h2>
+  <p data-qay-commerce="product-description">Short product description.</p>
+  <span data-qay-commerce="product-price">$49</span>
+  <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-1">
+    Add to cart
+  </button>
+</article>
+```
 
 ## Auth Hooks
 
@@ -260,6 +278,9 @@ data-qay-commerce="product-grid|product-card|product-image|product-title|product
 data-qay-product-id="sample-product-id"
 data-qay-product-handle="sample-product-handle"
 
+Every product card must include a visible styled button:
+<button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="same-product-id">Add to cart</button>
+
 If this is auth/membership/portal/SaaS/private community, generate dedicated auth pages if useful:
 <div data-qay-page="Login" data-qay-slug="login">...</div>
 <div data-qay-page="Sign up" data-qay-slug="signup">...</div>
@@ -297,8 +318,9 @@ These examples show hooks only. They are not layout templates.
     <img src="https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=900&auto=format&q=85" alt="Signature product" />
   </div>
   <h2 data-qay-commerce="product-title">Signature product</h2>
+  <p data-qay-commerce="product-description">A short product description.</p>
   <span data-qay-commerce="product-price">$49</span>
-  <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-1">Add to cart</button>
+  <button type="button" class="rounded-md bg-black px-4 py-2 text-sm font-medium text-white" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-1">Add to cart</button>
 </article>
 ```
 
