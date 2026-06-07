@@ -35,6 +35,7 @@ If the site needs deep backend behavior, use hooks and placeholder UI until the 
 - Choose the website type from the prompt and stay in that lane.
 - Do not mix ecommerce, portfolio, SaaS, auth, restaurant, etc. unless the prompt asks for a hybrid.
 - Do not reuse the same layout every time. Pick a fresh architecture based on the site type.
+- If the prompt asks for light mode, dark mode, or both, use Tailwind `dark:` classes and accessible contrast. Do not require JavaScript for theme switching unless QAY adds a native theme hook.
 
 ## Layout Guidance
 
@@ -186,12 +187,23 @@ data-qay-commerce="cart-button"
 data-qay-commerce="cart-drawer"
 data-qay-commerce="cart-items"
 data-qay-commerce="cart-count"
+data-qay-commerce="cart-close"
+data-qay-commerce="cart-cancel"
 data-qay-commerce="checkout-button"
 data-qay-product-id="sample-product-id"
 data-qay-product-handle="sample-product-handle"
 ```
 
 These hooks are preserved by the importer and will be used for Medusa mapping.
+
+Cart behavior requirements:
+
+- Include a visible cart button in nav/header with `data-qay-commerce="cart-button"` and text like `Cart (0)`.
+- Include a cart drawer/modal with `data-qay-commerce="cart-drawer"` and `hidden` in its class list.
+- Inside the drawer, include `data-qay-commerce="cart-items"`.
+- Include a visible checkout button with `data-qay-commerce="checkout-button"`.
+- Include a visible cancel/close button with `data-qay-commerce="cart-cancel"` or `data-qay-commerce="cart-close"`.
+- QAY increments the cart button/count automatically when `data-qay-commerce="add-to-cart"` is clicked.
 
 Required product card structure:
 
@@ -275,11 +287,17 @@ data-qay-ease: power1.out, power2.out, power3.out, expo.out, or back.out(1.2)
 
 If this is ecommerce, use:
 data-qay-commerce="product-grid|product-card|product-image|product-title|product-description|product-price|add-to-cart|cart-button|cart-drawer|cart-items|cart-count|checkout-button"
+Also use cart-close or cart-cancel inside cart drawer/modals.
 data-qay-product-id="sample-product-id"
 data-qay-product-handle="sample-product-handle"
 
 Every product card must include a visible styled button:
 <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="same-product-id">Add to cart</button>
+
+Every ecommerce page should include a cart button, hidden cart drawer/modal, cart items container, cancel/close button, and checkout button. The cart count must be visible as `Cart (0)` or via a separate `data-qay-commerce="cart-count"` element.
+
+For light/dark ecommerce themes, use Tailwind dark variants such as:
+<main class="bg-white text-black dark:bg-[#0D0D0D] dark:text-white">...</main>
 
 If this is auth/membership/portal/SaaS/private community, generate dedicated auth pages if useful:
 <div data-qay-page="Login" data-qay-slug="login">...</div>
@@ -322,6 +340,22 @@ These examples show hooks only. They are not layout templates.
   <span data-qay-commerce="product-price">$49</span>
   <button type="button" class="rounded-md bg-black px-4 py-2 text-sm font-medium text-white" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-1">Add to cart</button>
 </article>
+```
+
+### Cart Drawer
+
+```html
+<button type="button" data-qay-commerce="cart-button" data-qay-cart-label="Cart">Cart (0)</button>
+
+<aside data-qay-commerce="cart-drawer" class="hidden fixed right-4 top-20 z-50 w-[min(360px,calc(100vw-32px))] rounded-xl border border-black/10 bg-white p-5 text-black shadow-2xl dark:border-white/10 dark:bg-[#111111] dark:text-white">
+  <div class="flex items-center justify-between gap-3">
+    <h2>Cart</h2>
+    <button type="button" data-qay-commerce="cart-close">Close</button>
+  </div>
+  <div data-qay-commerce="cart-items">Your cart is empty.</div>
+  <button type="button" data-qay-commerce="checkout-button">Checkout</button>
+  <button type="button" data-qay-commerce="cart-cancel">Cancel</button>
+</aside>
 ```
 
 ### Login Form

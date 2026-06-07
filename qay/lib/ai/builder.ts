@@ -91,14 +91,16 @@ Rules:
   data-qay-commerce="cart-drawer" on cart drawer/panel wrappers.
   data-qay-commerce="cart-items" inside cart drawers.
   data-qay-commerce="cart-count" for standalone cart count text.
+  data-qay-commerce="cart-close" or data-qay-commerce="cart-cancel" on cart drawer close/cancel buttons.
   data-qay-commerce="checkout-button" on checkout buttons.
   data-qay-product-handle="sample-handle" and data-qay-product-id="sample-product-id" when useful.
 - Every ecommerce product card must include a visible, styled Add to cart button:
   <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="same-product-id">Add to cart</button>
   Match the button data-qay-product-id to the product card id.
 - If the user asks for ecommerce, store, shop, products, cart, collection, checkout, boutique, fashion, perfume, food ordering, marketplace, or catalog:
-  create a premium storefront with nav, hero, featured collections/products, product cards, cart button, trust/shipping block, product detail or collection section, newsletter/contact footer.
+  create a premium storefront with nav, hero, featured collections/products, product cards, cart button, hidden cart drawer/modal, cart items container, cart cancel/close button, checkout button, trust/shipping block, product detail or collection section, newsletter/contact footer.
   Use the commerce hooks above. Keep checkout links as styled buttons but do not add JavaScript.
+- If the user asks for light mode, dark mode, luxury dark, clean light, or theme support, use Tailwind classes and dark: variants with strong contrast. Do not add JavaScript theme toggles.
 - If the user asks for an auth-protected site, membership site, portal, login, signup, dashboard, private community, course, SaaS app, or client portal:
   include public marketing pages only if requested, and also generate dedicated auth pages using data-qay-page wrappers for Login, Sign up, Forgot password, and Reset password when useful.
   Auth forms must use QAY auth hooks:
@@ -736,9 +738,11 @@ Silent checklist:
   data-qay-commerce="cart-button" on cart buttons,
   data-qay-commerce="cart-drawer" on cart drawer wrappers,
   data-qay-commerce="cart-items" inside cart drawers,
+  data-qay-commerce="cart-close" or data-qay-commerce="cart-cancel" on drawer close/cancel buttons,
   data-qay-commerce="checkout-button" on checkout buttons,
   data-qay-product-handle and data-qay-product-id on product cards/buttons when useful.
-- Ecommerce pages should include product grid, product cards, visible Add to cart buttons inside every product card, cart button, product detail/featured section, trust/shipping row, and footer. Use placeholder products until Medusa is connected.
+- Ecommerce pages should include product grid, product cards, visible Add to cart buttons inside every product card, cart button with visible count, hidden cart drawer/modal, cart items container, cart cancel/close button, checkout button, product detail/featured section, trust/shipping row, and footer. Use placeholder products until Medusa is connected.
+- If theme support is requested, use light/dark Tailwind variants such as bg-white text-black dark:bg-[#0D0D0D] dark:text-white.
 - If this is an auth-protected, membership, SaaS, portal, course, or private-community request, include auth pages when useful:
   <div data-qay-page="Login" data-qay-slug="login">...<form data-qay-site-auth-form="signin">...</form>...</div>
   <div data-qay-page="Sign up" data-qay-slug="signup">...<form data-qay-site-auth-form="signup">...</form>...</div>
@@ -813,6 +817,15 @@ function localFallbackHtml(input: GenerateAiLayersInput) {
     </div>
     <button type="button" class="rounded-full border border-white/15 px-4 py-2 text-sm text-white" data-qay-commerce="cart-button" data-qay-hover="scale">Cart (0)</button>
   </nav>
+  <aside class="hidden fixed right-4 top-20 z-50 w-[min(380px,calc(100vw-32px))] rounded-3xl border border-white/10 bg-[#111111] p-5 text-white shadow-2xl shadow-black/50" data-qay-commerce="cart-drawer">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-xl font-semibold">Cart</h2>
+      <button type="button" class="rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-white" data-qay-commerce="cart-close">Close</button>
+    </div>
+    <div class="mt-4 text-sm text-white/65" data-qay-commerce="cart-items">Your cart is empty.</div>
+    <button type="button" class="mt-5 w-full rounded-full bg-[#F8F4EC] px-5 py-3 text-sm font-semibold text-[#0D0D0D]" data-qay-commerce="checkout-button">Checkout</button>
+    <button type="button" class="mt-2 w-full rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white" data-qay-commerce="cart-cancel">Cancel</button>
+  </aside>
   <section class="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-[1.05fr_0.95fr] md:items-center md:py-28">
     <div data-qay-animate="slide-up" data-qay-y="36">
       <p class="mb-5 inline-flex rounded-full border border-[#C9A84C]/35 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#C9A84C]">New collection</p>

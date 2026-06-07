@@ -17,6 +17,19 @@ type CartItem = {
   quantity: number;
 };
 
+function productFromCard(card: Element, fallbackIndex: number): QayCommerceProduct {
+  const id = card.getAttribute('data-qay-product-id') || `qay-product-${fallbackIndex + 1}`;
+  const title =
+    card.querySelector('[data-qay-commerce="product-title"]')?.textContent?.trim() ||
+    `Product ${fallbackIndex + 1}`;
+  const handle = card.getAttribute('data-qay-product-handle');
+  const description = card.querySelector('[data-qay-commerce="product-description"]')?.textContent?.trim() || null;
+  const price = card.querySelector('[data-qay-commerce="product-price"]')?.textContent?.trim() || null;
+  const thumbnail = card.querySelector('[data-qay-commerce="product-image"] img')?.getAttribute('src') || null;
+
+  return { id, title, handle, description, price, thumbnail };
+}
+
 function setText(root: Element, selector: string, value: string) {
   const target = root.querySelector(selector);
   if (target) target.textContent = value;
@@ -84,6 +97,12 @@ function toggleCartDrawer() {
   });
 }
 
+function closeCartDrawer() {
+  document.querySelectorAll('[data-qay-commerce="cart-drawer"]').forEach((drawer) => {
+    drawer.classList.add('hidden');
+  });
+}
+
 function addToCart(siteId: string, product: QayCommerceProduct) {
   const items = readCart(siteId);
   const existing = items.find((item) => item.id === product.id);
@@ -101,6 +120,12 @@ function bindCartControls() {
     if ((button as HTMLElement).dataset.qayCartBound === 'true') return;
     (button as HTMLElement).dataset.qayCartBound = 'true';
     button.addEventListener('click', toggleCartDrawer);
+  });
+
+  document.querySelectorAll('[data-qay-commerce="cart-close"], [data-qay-commerce="cart-cancel"]').forEach((button) => {
+    if ((button as HTMLElement).dataset.qayCartCloseBound === 'true') return;
+    (button as HTMLElement).dataset.qayCartCloseBound = 'true';
+    button.addEventListener('click', closeCartDrawer);
   });
 
   document.querySelectorAll('[data-qay-commerce="checkout-button"]').forEach((button) => {
@@ -135,10 +160,10 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
         console.warn('[QAY commerce] Product fetch failed:', error);
       }
 
-      if (cancelled || products.length === 0) return;
+      if (cancelled) return;
 
       productCards.forEach((card, index) => {
-        const product = products[index % products.length];
+        const product = products[index % products.length] || productFromCard(card, index);
         if (!product) return;
 
         card.setAttribute('data-qay-product-id', product.id);
@@ -155,12 +180,20 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
         });
       });
 
+      const productById = new Map<string, QayCommerceProduct>();
+      productCards.forEach((card, index) => {
+        const fallbackProduct = productFromCard(card, index);
+        const product = products[index % products.length] || fallbackProduct;
+        productById.set(product.id, product);
+        productById.set(fallbackProduct.id, product);
+      });
+
       document.querySelectorAll('[data-qay-commerce="add-to-cart"]').forEach((button) => {
         if ((button as HTMLElement).dataset.qayCommerceBound === 'true') return;
         (button as HTMLElement).dataset.qayCommerceBound = 'true';
         button.addEventListener('click', () => {
           const productId = button.getAttribute('data-qay-product-id');
-          const product = products.find((item) => item.id === productId) || products[0];
+          const product = productById.get(productId || '') || products.find((item) => item.id === productId) || products[0];
           if (product) addToCart(currentSiteId, product);
         });
       });

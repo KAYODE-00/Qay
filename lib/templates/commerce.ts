@@ -259,7 +259,20 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
       classes: ['hidden', 'fixed', 'right-[20px]', 'top-[90px]', 'z-50', 'w-[min(360px,calc(100vw-40px))]', 'rounded-[20px]', 'border', 'border-[#000000]/10', 'bg-[#ffffff]', 'p-[20px]', 'text-[#111111]', 'shadow-2xl'],
       attributes: { 'data-qay-commerce': 'cart-drawer' },
       children: [
-        textRef('Cart', 'h3', ['text-[20px]', 'font-[800]']),
+        {
+          name: 'div',
+          classes: ['flex', 'items-center', 'justify-between', 'gap-[12px]'],
+          children: [
+            textRef('Cart', 'h3', ['text-[20px]', 'font-[800]']),
+            {
+              name: 'button',
+              customName: 'Close cart button',
+              classes: ['rounded-[999px]', 'border', 'border-[#000000]/10', 'px-[12px]', 'py-[7px]', 'text-[12px]', 'font-[700]', 'text-[#111111]'],
+              attributes: { type: 'button', 'data-qay-commerce': 'cart-close' },
+              children: [textRef('Close', 'span')],
+            },
+          ],
+        },
         {
           name: 'div',
           customName: 'Cart items',
@@ -273,6 +286,13 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
           classes: ['mt-[18px]', 'h-[44px]', 'w-full', 'rounded-[999px]', 'bg-[#111111]', 'text-[13px]', 'font-[700]', 'text-[#ffffff]'],
           attributes: { type: 'button', 'data-qay-commerce': 'checkout-button' },
           children: [textRef('Checkout', 'span')],
+        },
+        {
+          name: 'button',
+          customName: 'Cancel cart button',
+          classes: ['mt-[8px]', 'h-[40px]', 'w-full', 'rounded-[999px]', 'border', 'border-[#000000]/10', 'text-[13px]', 'font-[700]', 'text-[#111111]'],
+          attributes: { type: 'button', 'data-qay-commerce': 'cart-cancel' },
+          children: [textRef('Cancel', 'span')],
         },
       ],
     },
