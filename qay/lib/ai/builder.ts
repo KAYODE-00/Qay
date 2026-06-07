@@ -87,6 +87,7 @@ Rules:
   data-qay-commerce="product-description" on product description text.
   data-qay-commerce="product-price" on product price text.
   data-qay-commerce="add-to-cart" on add-to-cart buttons.
+  data-qay-commerce="remove-from-cart" on remove-from-cart buttons when useful.
   data-qay-commerce="cart-button" on cart buttons.
   data-qay-commerce="cart-drawer" on cart drawer/panel wrappers.
   data-qay-commerce="cart-items" inside cart drawers.
@@ -96,6 +97,9 @@ Rules:
   data-qay-product-handle="sample-handle" and data-qay-product-id="sample-product-id" when useful.
 - Every ecommerce product card must include a visible, styled Add to cart button:
   <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="same-product-id">Add to cart</button>
+  Match the button data-qay-product-id to the product card id.
+- Remove buttons must use:
+  <button type="button" data-qay-commerce="remove-from-cart" data-qay-product-id="same-product-id">Remove</button>
   Match the button data-qay-product-id to the product card id.
 - If the user asks for ecommerce, store, shop, products, cart, collection, checkout, boutique, fashion, perfume, food ordering, marketplace, or catalog:
   create a premium storefront with nav, hero, featured collections/products, product cards, cart button, hidden cart drawer/modal, cart items container, cart cancel/close button, checkout button, trust/shipping block, product detail or collection section, newsletter/contact footer.
@@ -735,6 +739,7 @@ Silent checklist:
   data-qay-commerce="product-description" on descriptions,
   data-qay-commerce="product-price" on prices,
   data-qay-commerce="add-to-cart" on add-to-cart buttons,
+  data-qay-commerce="remove-from-cart" on remove-from-cart buttons when useful,
   data-qay-commerce="cart-button" on cart buttons,
   data-qay-commerce="cart-drawer" on cart drawer wrappers,
   data-qay-commerce="cart-items" inside cart drawers,

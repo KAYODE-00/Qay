@@ -325,4 +325,34 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
       children: [textRef('Cart (0)', 'span')],
     },
   },
+  addToCartButton: {
+    icon: 'box',
+    name: 'Add to cart button',
+    template: {
+      name: 'button',
+      customName: 'Add to cart button',
+      classes: ['inline-flex', 'items-center', 'justify-center', 'rounded-[999px]', 'bg-[#111111]', 'px-[18px]', 'py-[10px]', 'text-[13px]', 'font-[700]', 'text-[#ffffff]'],
+      attributes: {
+        type: 'button',
+        'data-qay-commerce': 'add-to-cart',
+        'data-qay-product-id': 'sample-product-1',
+      },
+      children: [textRef('Add to cart', 'span')],
+    },
+  },
+  removeFromCartButton: {
+    icon: 'box',
+    name: 'Remove from cart button',
+    template: {
+      name: 'button',
+      customName: 'Remove from cart button',
+      classes: ['inline-flex', 'items-center', 'justify-center', 'rounded-[999px]', 'border', 'border-[#000000]/10', 'bg-[#ffffff]', 'px-[18px]', 'py-[10px]', 'text-[13px]', 'font-[700]', 'text-[#111111]'],
+      attributes: {
+        type: 'button',
+        'data-qay-commerce': 'remove-from-cart',
+        'data-qay-product-id': 'sample-product-1',
+      },
+      children: [textRef('Remove from cart', 'span')],
+    },
+  },
 };

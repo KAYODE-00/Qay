@@ -30,6 +30,21 @@ function productFromCard(card: Element, fallbackIndex: number): QayCommerceProdu
   return { id, title, handle, description, price, thumbnail };
 }
 
+function productFromButton(button: Element, fallbackIndex: number): QayCommerceProduct {
+  const id = button.getAttribute('data-qay-product-id') || `qay-product-${fallbackIndex + 1}`;
+  const card = button.closest('[data-qay-commerce="product-card"]');
+  if (card) return productFromCard(card, fallbackIndex);
+
+  return {
+    id,
+    title: button.getAttribute('data-qay-product-title') || 'Selected product',
+    handle: button.getAttribute('data-qay-product-handle'),
+    description: null,
+    price: null,
+    thumbnail: null,
+  };
+}
+
 function setText(root: Element, selector: string, value: string) {
   const target = root.querySelector(selector);
   if (target) target.textContent = value;
@@ -86,7 +101,7 @@ function updateCartUi(siteId: string) {
     if (!list) return;
 
     list.innerHTML = items.length
-      ? items.map((item) => `<div class="flex items-center justify-between gap-3 border-b border-current/10 py-3"><span>${escapeHtml(item.title)}</span><span>x${item.quantity}</span></div>`).join('')
+      ? items.map((item) => `<div class="flex items-center justify-between gap-3 border-b border-current/10 py-3"><span>${escapeHtml(item.title)}</span><span>x${item.quantity}</span><button type="button" class="rounded-full border border-current/15 px-3 py-1 text-xs" data-qay-commerce="remove-from-cart" data-qay-product-id="${escapeHtml(item.id)}">Remove</button></div>`).join('')
       : '<div class="py-3 opacity-60">Your cart is empty.</div>';
   });
 }
@@ -115,11 +130,36 @@ function addToCart(siteId: string, product: QayCommerceProduct) {
   updateCartUi(siteId);
 }
 
-function bindCartControls() {
+function removeFromCart(siteId: string, productId: string) {
+  const items = readCart(siteId);
+  const existing = items.find((item) => item.id === productId);
+  if (!existing) return;
+
+  const nextItems = existing.quantity <= 1
+    ? items.filter((item) => item.id !== productId)
+    : items.map((item) => (item.id === productId ? { ...item, quantity: item.quantity - 1 } : item));
+
+  writeCart(siteId, nextItems);
+  updateCartUi(siteId);
+}
+
+function bindCartControls(siteId: string) {
   document.querySelectorAll('[data-qay-commerce="cart-button"]').forEach((button) => {
     if ((button as HTMLElement).dataset.qayCartBound === 'true') return;
     (button as HTMLElement).dataset.qayCartBound = 'true';
     button.addEventListener('click', toggleCartDrawer);
+  });
+
+  document.querySelectorAll('[data-qay-commerce="cart-drawer"]').forEach((drawer) => {
+    if ((drawer as HTMLElement).dataset.qayCartDrawerBound === 'true') return;
+    (drawer as HTMLElement).dataset.qayCartDrawerBound = 'true';
+    drawer.addEventListener('click', (event) => {
+      const target = event.target instanceof Element
+        ? event.target.closest('[data-qay-commerce="remove-from-cart"]')
+        : null;
+      const productId = target?.getAttribute('data-qay-product-id');
+      if (productId) removeFromCart(siteId, productId);
+    });
   });
 
   document.querySelectorAll('[data-qay-commerce="cart-close"], [data-qay-commerce="cart-cancel"]').forEach((button) => {
@@ -158,10 +198,12 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
 
     async function init() {
       updateCartUi(currentSiteId);
-      bindCartControls();
+      bindCartControls(currentSiteId);
 
       const productCards = Array.from(document.querySelectorAll('[data-qay-commerce="product-card"]'));
-      if (productCards.length === 0) return;
+      const addButtons = Array.from(document.querySelectorAll('[data-qay-commerce="add-to-cart"]'));
+      const removeButtons = Array.from(document.querySelectorAll('[data-qay-commerce="remove-from-cart"]'));
+      if (productCards.length === 0 && addButtons.length === 0 && removeButtons.length === 0) return;
 
       let products: QayCommerceProduct[] = [];
       try {
@@ -190,6 +232,10 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
           button.setAttribute('type', 'button');
           button.setAttribute('data-qay-product-id', product.id);
         });
+        card.querySelectorAll('[data-qay-commerce="remove-from-cart"]').forEach((button) => {
+          button.setAttribute('type', 'button');
+          button.setAttribute('data-qay-product-id', product.id);
+        });
       });
 
       const productById = new Map<string, QayCommerceProduct>();
@@ -200,13 +246,25 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
         productById.set(fallbackProduct.id, product);
       });
 
-      document.querySelectorAll('[data-qay-commerce="add-to-cart"]').forEach((button) => {
+      addButtons.forEach((button, index) => {
         if ((button as HTMLElement).dataset.qayCommerceBound === 'true') return;
         (button as HTMLElement).dataset.qayCommerceBound = 'true';
         button.addEventListener('click', () => {
           const productId = button.getAttribute('data-qay-product-id');
-          const product = productById.get(productId || '') || products.find((item) => item.id === productId) || products[0];
+          const product = productById.get(productId || '')
+            || products.find((item) => item.id === productId)
+            || products[0]
+            || productFromButton(button, index);
           if (product) addToCart(currentSiteId, product);
+        });
+      });
+
+      removeButtons.filter((button) => !button.closest('[data-qay-commerce="cart-drawer"]')).forEach((button) => {
+        if ((button as HTMLElement).dataset.qayCommerceRemoveBound === 'true') return;
+        (button as HTMLElement).dataset.qayCommerceRemoveBound = 'true';
+        button.addEventListener('click', () => {
+          const productId = button.getAttribute('data-qay-product-id');
+          if (productId) removeFromCart(currentSiteId, productId);
         });
       });
 

@@ -183,6 +183,7 @@ data-qay-commerce="product-title"
 data-qay-commerce="product-description"
 data-qay-commerce="product-price"
 data-qay-commerce="add-to-cart"
+data-qay-commerce="remove-from-cart"
 data-qay-commerce="cart-button"
 data-qay-commerce="cart-drawer"
 data-qay-commerce="cart-items"
@@ -204,6 +205,7 @@ Cart behavior requirements:
 - Include a visible checkout button with `data-qay-commerce="checkout-button"`.
 - Include a visible cancel/close button with `data-qay-commerce="cart-cancel"` or `data-qay-commerce="cart-close"`.
 - QAY increments the cart button/count automatically when `data-qay-commerce="add-to-cart"` is clicked.
+- QAY decrements/removes matching items automatically when `data-qay-commerce="remove-from-cart"` is clicked with a matching `data-qay-product-id`.
 
 Required product card structure:
 
@@ -286,13 +288,17 @@ data-qay-x: -100 to 100
 data-qay-ease: power1.out, power2.out, power3.out, expo.out, or back.out(1.2)
 
 If this is ecommerce, use:
-data-qay-commerce="product-grid|product-card|product-image|product-title|product-description|product-price|add-to-cart|cart-button|cart-drawer|cart-items|cart-count|checkout-button"
+data-qay-commerce="product-grid|product-card|product-image|product-title|product-description|product-price|add-to-cart|remove-from-cart|cart-button|cart-drawer|cart-items|cart-count|checkout-button"
+Also use remove-from-cart when a product card or cart drawer needs a visible remove action.
 Also use cart-close or cart-cancel inside cart drawer/modals.
 data-qay-product-id="sample-product-id"
 data-qay-product-handle="sample-product-handle"
 
 Every product card must include a visible styled button:
 <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="same-product-id">Add to cart</button>
+
+Use remove buttons when useful:
+<button type="button" data-qay-commerce="remove-from-cart" data-qay-product-id="same-product-id">Remove</button>
 
 Every ecommerce page should include a cart button, hidden cart drawer/modal, cart items container, cancel/close button, and checkout button. The cart count must be visible as `Cart (0)` or via a separate `data-qay-commerce="cart-count"` element.
 
@@ -339,6 +345,7 @@ These examples show hooks only. They are not layout templates.
   <p data-qay-commerce="product-description">A short product description.</p>
   <span data-qay-commerce="product-price">$49</span>
   <button type="button" class="rounded-md bg-black px-4 py-2 text-sm font-medium text-white" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-1">Add to cart</button>
+  <button type="button" class="rounded-md border border-black/10 px-4 py-2 text-sm font-medium text-black" data-qay-commerce="remove-from-cart" data-qay-product-id="sample-product-1">Remove</button>
 </article>
 ```
 

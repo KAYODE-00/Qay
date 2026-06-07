@@ -479,7 +479,11 @@ const LayerItem: React.FC<{
   const lock = useCollaborationPresenceStore((state) => state.resourceLocks[lockKey]);
   // Check if locked by another user (only compute when lock exists)
   const isLockedByOther = !!(lock && lock.user_id !== currentUserId && Date.now() <= lock.expires_at);
-  const classesString = getClassesString(layer);
+  const rawClassesString = getClassesString(layer);
+  const isCommerceCartDrawer = layer.attributes?.['data-qay-commerce'] === 'cart-drawer';
+  const classesString = isEditMode && isCommerceCartDrawer
+    ? rawClassesString.split(/\s+/).filter((className) => className !== 'hidden').join(' ')
+    : rawClassesString;
   // Collection layer data (from repeaters/loops) - separate from page collection data
   // Use layer's pre-resolved values if present (from SSR), otherwise use prop from parent
   const collectionLayerItemId = layer._collectionItemId || collectionItemId;
