@@ -614,7 +614,7 @@ export default function GeneralSettingsPage() {
                           <div>
                             <FieldLabel>Auth protected site</FieldLabel>
                             <FieldDescription>
-                              Private Pro feature. When enabled, visitors must create or use an account scoped only to this site.
+                              When enabled, visitors must create or use an account scoped only to this site.
                             </FieldDescription>
                           </div>
                           <Switch

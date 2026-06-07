@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
-import { hasQayAdminAccess } from '@/qay/lib/admin-access';
-import { getQayPlanRank, getUserQayPlan } from '@/qay/lib/billing/plan-limits';
 import { getQaySiteAccess } from '@/qay/lib/site-access';
 import { listQaySiteSettings, setQaySiteSettings } from '@/qay/lib/site-settings';
 import type { QaySiteAuthSettings } from '@/qay/lib/site-auth';
@@ -46,18 +44,6 @@ export async function PATCH(request: Request, context: RouteContext) {
   const access = await getQaySiteAccess(siteId);
   if (!access.allowed || access.role !== 'owner') {
     return NextResponse.json({ error: 'Only the site owner can update auth settings.' }, { status: 403 });
-  }
-
-  const hasAdmin = await hasQayAdminAccess(user);
-  const hasPro = getQayPlanRank(getUserQayPlan(user)) >= getQayPlanRank('pro');
-  if (!hasAdmin && !hasPro) {
-    return NextResponse.json(
-      {
-        error: 'Auth protected sites are a private Pro feature.',
-        code: 'PRO_PLAN_REQUIRED',
-      },
-      { status: 403 }
-    );
   }
 
   const body = await request.json().catch(() => null);

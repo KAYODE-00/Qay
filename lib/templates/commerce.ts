@@ -20,6 +20,21 @@ function textRef(text: string, tag: 'span' | 'p' | 'h2' | 'h3' = 'p', classes: s
   });
 }
 
+function imageVariables(src: string, alt: string) {
+  return {
+    image: {
+      src: {
+        type: 'dynamic_text',
+        data: { content: src },
+      },
+      alt: {
+        type: 'dynamic_text',
+        data: { content: alt },
+      },
+    },
+  } as const;
+}
+
 function productCard(title: string, price: string, tag: string) {
   return {
     name: 'div',
@@ -123,9 +138,11 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
               classes: ['h-full', 'w-full', 'object-cover'],
               settings: {
                 tag: 'img',
-                src: 'https://images.unsplash.com/photo-1541643600914-78b084683702?w=1400&auto=format&q=80',
-                alt: 'Premium product display',
               },
+              variables: imageVariables(
+                'https://images.unsplash.com/photo-1541643600914-78b084683702?w=1400&auto=format&q=80',
+                'Premium product display'
+              ),
             },
           ],
         },
@@ -181,9 +198,11 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
               classes: ['aspect-[4/5]', 'w-full', 'object-cover'],
               settings: {
                 tag: 'img',
-                src: 'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=1000&auto=format&q=80',
-                alt: 'Product image',
               },
+              variables: imageVariables(
+                'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=1000&auto=format&q=80',
+                'Product image'
+              ),
             },
           ],
         },
