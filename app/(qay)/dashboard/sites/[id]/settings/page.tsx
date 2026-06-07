@@ -30,38 +30,38 @@ export default async function SiteSettingsPage({ params }: PageProps) {
   const site = data as QaySite;
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] px-6 py-10 text-white">
+    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto w-full max-w-3xl">
-        <a href="/dashboard" className="text-sm text-white/60 hover:text-white">
+        <a href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
           Back to dashboard
         </a>
 
-        <section className="mt-8 rounded-lg border border-white/10 bg-white/[0.03] p-6">
+        <section className="mt-8 rounded-lg border border-border bg-card p-6 shadow-sm">
           <h1 className="text-2xl font-semibold tracking-normal">{site.name}</h1>
-          <p className="mt-2 text-sm text-white/55">Manage your site details, publishing, and domain options.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Manage your site details, publishing, and domain options.</p>
 
           <dl className="mt-8 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-md border border-white/10 bg-black p-4">
-              <dt className="text-xs uppercase tracking-wide text-white/40">Slug</dt>
-              <dd className="mt-2 text-sm text-white">{site.slug}</dd>
+            <div className="rounded-md border border-border bg-background p-4">
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Slug</dt>
+              <dd className="mt-2 text-sm text-foreground">{site.slug}</dd>
             </div>
-            <div className="rounded-md border border-white/10 bg-black p-4">
-              <dt className="text-xs uppercase tracking-wide text-white/40">Status</dt>
-              <dd className="mt-2 text-sm text-white">{site.publish_status || 'draft'}</dd>
+            <div className="rounded-md border border-border bg-background p-4">
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Status</dt>
+              <dd className="mt-2 text-sm text-foreground">{site.publish_status || 'draft'}</dd>
             </div>
-            <div className="rounded-md border border-white/10 bg-black p-4">
-              <dt className="text-xs uppercase tracking-wide text-white/40">Custom domain</dt>
-              <dd className="mt-2 text-sm text-white">{site.custom_domain || 'Not connected'}</dd>
+            <div className="rounded-md border border-border bg-background p-4">
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Custom domain</dt>
+              <dd className="mt-2 text-sm text-foreground">{site.custom_domain || 'Not connected'}</dd>
             </div>
-            <div className="rounded-md border border-white/10 bg-black p-4">
-              <dt className="text-xs uppercase tracking-wide text-white/40">Plan</dt>
-              <dd className="mt-2 text-sm text-white">{site.plan || 'free'}</dd>
+            <div className="rounded-md border border-border bg-background p-4">
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Plan</dt>
+              <dd className="mt-2 text-sm text-foreground">{site.plan || 'free'}</dd>
             </div>
           </dl>
 
           <a
             href={`/dashboard/sites/${site.id}/editor`}
-            className="mt-8 inline-flex h-10 items-center rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90"
+            className="mt-8 inline-flex h-10 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90"
           >
             Open editor
           </a>

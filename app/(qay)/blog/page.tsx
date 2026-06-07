@@ -14,27 +14,26 @@ const posts = [
 
 export default function BlogPage() {
   return (
-    <main className="min-h-screen bg-[#0a0a0a] px-6 py-10 text-white sm:px-10 lg:px-16">
+    <main className="min-h-screen bg-background px-6 py-10 text-foreground sm:px-10 lg:px-16">
       <div className="mx-auto max-w-5xl">
         <div className="flex items-center justify-between">
-          <QayLogo />
-          <Link href="/" className="text-sm text-[#e5e5e5] transition hover:text-white">
+          <QayLogo theme="light" />
+          <Link href="/" className="text-sm text-muted-foreground transition hover:text-foreground">
             Back to QAY
           </Link>
         </div>
         <div className="mt-16">
-          <p className="text-sm uppercase tracking-[0.24em] text-white/45">Blog</p>
+          <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Blog</p>
           <h1
-            className="mt-4 text-5xl sm:text-6xl"
-            style={{ fontFamily: "'Bebas Neue', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" }}
+            className="mt-4 text-5xl font-semibold tracking-normal sm:text-6xl"
           >
             Notes for builders
           </h1>
           <div className="mt-10 grid gap-4">
             {posts.map((post) => (
-              <article key={post.title} className="rounded-lg border border-white/10 bg-white/[0.03] p-6">
+              <article key={post.title} className="rounded-lg border border-border bg-card p-6">
                 <h2 className="text-xl font-medium">{post.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-[#e5e5e5]">{post.body}</p>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">{post.body}</p>
               </article>
             ))}
           </div>

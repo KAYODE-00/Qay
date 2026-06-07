@@ -9,25 +9,24 @@ const items = [
 
 export default function HelpPage() {
   return (
-    <main className="min-h-screen bg-[#0a0a0a] px-6 py-10 text-white sm:px-10 lg:px-16">
+    <main className="min-h-screen bg-background px-6 py-10 text-foreground sm:px-10 lg:px-16">
       <div className="mx-auto max-w-4xl">
         <div className="flex items-center justify-between">
-          <QayLogo />
-          <Link href="/" className="text-sm text-[#e5e5e5] transition hover:text-white">
+          <QayLogo theme="light" />
+          <Link href="/" className="text-sm text-muted-foreground transition hover:text-foreground">
             Back to QAY
           </Link>
         </div>
         <div className="mt-16">
-          <p className="text-sm uppercase tracking-[0.24em] text-white/45">Help</p>
+          <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Help</p>
           <h1
-            className="mt-4 text-5xl sm:text-6xl"
-            style={{ fontFamily: "'Bebas Neue', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" }}
+            className="mt-4 text-5xl font-semibold tracking-normal sm:text-6xl"
           >
             A calmer place to get unblocked
           </h1>
           <div className="mt-8 space-y-4">
             {items.map((item) => (
-              <div key={item} className="rounded-lg border border-white/10 bg-white/[0.03] p-5 text-sm leading-7 text-[#e5e5e5]">
+              <div key={item} className="rounded-lg border border-border bg-card p-5 text-sm leading-7 text-muted-foreground">
                 {item}
               </div>
             ))}

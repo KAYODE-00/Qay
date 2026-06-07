@@ -11,23 +11,22 @@ const plans = [
 
 export default function PricingPage() {
   return (
-    <main className="min-h-screen bg-[#0a0a0a] px-6 py-10 text-white sm:px-10 lg:px-16">
+    <main className="min-h-screen bg-background px-6 py-10 text-foreground sm:px-10 lg:px-16">
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center justify-between">
-          <QayLogo />
-          <Link href="/" className="text-sm text-[#e5e5e5] transition hover:text-white">
+          <QayLogo theme="light" />
+          <Link href="/" className="text-sm text-muted-foreground transition hover:text-foreground">
             Back to QAY
           </Link>
         </div>
         <div className="mt-16 max-w-3xl">
-          <p className="text-sm uppercase tracking-[0.24em] text-white/45">Pricing</p>
+          <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Pricing</p>
           <h1
-            className="mt-4 text-5xl sm:text-6xl"
-            style={{ fontFamily: "'Bebas Neue', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" }}
+            className="mt-4 text-5xl font-semibold tracking-normal sm:text-6xl"
           >
             Pricing that stays on your side
           </h1>
-          <p className="mt-5 text-base leading-8 text-[#e5e5e5]">
+          <p className="mt-5 text-base leading-8 text-muted-foreground">
             Start at zero, grow when the workflow pays you back, and keep a clear path from solo builder to agency team.
           </p>
         </div>
@@ -39,24 +38,23 @@ export default function PricingPage() {
             return (
               <div
                 key={plan.key}
-                className={`rounded-lg border p-6 ${unavailable ? 'border-white/10 bg-white/[0.015] opacity-65' : 'border-white/10 bg-white/[0.03]'}`}
+                className={`rounded-lg border p-6 ${unavailable ? 'border-border bg-card opacity-65' : 'border-border bg-card'}`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm uppercase tracking-[0.2em] text-white/45">{plan.name}</div>
+                  <div className="text-sm uppercase tracking-[0.2em] text-muted-foreground">{plan.name}</div>
                   {unavailable && (
-                    <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/45">
+                    <span className="rounded-full border border-border px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                       Coming soon
                     </span>
                   )}
                 </div>
                 <div
-                  className="mt-4 text-5xl"
-                  style={{ fontFamily: "'Bebas Neue', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" }}
+                  className="mt-4 text-5xl font-semibold tracking-normal"
                 >
                   {plan.price === 0 ? '$0' : `$${plan.price}/mo`}
                 </div>
-                <p className="mt-3 text-sm leading-6 text-[#e5e5e5]">{body}</p>
-                <ul className="mt-5 space-y-2 text-sm text-[#e5e5e5]">
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
+                <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
                   {plan.features.map((feature) => (
                     <li key={feature}>- {feature}</li>
                   ))}
@@ -64,14 +62,14 @@ export default function PricingPage() {
                 {plan.key === 'free' ? (
                   <Link
                     href="/signup"
-                    className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md border border-white/15 text-sm font-medium text-white transition hover:bg-white/10"
+                    className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md border border-border text-sm font-medium text-foreground transition hover:bg-accent"
                   >
                     Start free
                   </Link>
                 ) : unavailable ? (
                   <Link
                     href="/help"
-                    className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md border border-white/10 text-sm font-medium text-white/60 transition hover:bg-white/10 hover:text-white"
+                    className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md border border-border text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
                   >
                     Request access
                   </Link>

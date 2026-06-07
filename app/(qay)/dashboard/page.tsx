@@ -9,11 +9,11 @@ import { getQayAccountProfile } from '@/qay/lib/account';
 
 function DashboardSetupNotice({ message }: { message: string }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0a0a0a] px-6 text-white">
-      <section className="w-full max-w-xl rounded-lg border border-white/10 bg-white/[0.03] p-6">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/45">QAY</p>
+    <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+      <section className="w-full max-w-xl rounded-lg border border-border bg-card p-6 shadow-sm">
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">QAY</p>
         <h1 className="mt-3 text-2xl font-semibold tracking-normal">Dashboard is almost ready</h1>
-        <p className="mt-3 text-sm leading-6 text-white/65">{message}</p>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p>
       </section>
     </main>
   );

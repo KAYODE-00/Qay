@@ -134,7 +134,7 @@ export default async function Home({
   // If no published homepage exists, show default landing page
   if (!data || !data.pageLayers) {
     return (
-      <main className="min-h-screen bg-[#070707] text-white">
+      <main className="min-h-screen bg-background text-foreground">
         <style>{`
           @keyframes qayRise {
             from { opacity: 0; transform: translateY(24px); }
@@ -176,25 +176,25 @@ export default async function Home({
             }
           }
         `}</style>
-        <section className="relative overflow-hidden border-b border-white/10">
-          <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(255,255,255,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.055)_1px,transparent_1px)] bg-[size:38px_38px]" />
-          <div className="absolute inset-0 -z-10 bg-[linear-gradient(120deg,rgba(255,255,255,0.12),transparent_34%,rgba(255,255,255,0.05)_68%,transparent)]" />
+        <section className="relative overflow-hidden border-b border-border">
+          <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(0,0,0,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.045)_1px,transparent_1px)] bg-[size:38px_38px]" />
+          <div className="absolute inset-0 -z-10 bg-[linear-gradient(120deg,rgba(0,0,0,0.06),transparent_34%,rgba(0,0,0,0.025)_68%,transparent)]" />
           <div className="mx-auto flex min-h-[92vh] w-full max-w-7xl flex-col px-6 py-6 sm:px-10 lg:px-16">
             <header className="qay-animate-fade flex items-center justify-between gap-6">
               <a href="/" aria-label="QAY home">
                 <QayLogo theme="dark" imageClassName="h-11 w-auto" />
               </a>
-              <nav className="hidden items-center gap-8 text-sm text-white/62 md:flex">
-                <a href="#features" className="transition hover:text-white">Features</a>
-                <a href="#workflow" className="transition hover:text-white">Workflow</a>
-                <a href="/pricing" className="transition hover:text-white">Pricing</a>
-                <a href="/help" className="transition hover:text-white">Help</a>
+              <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
+                <a href="#features" className="transition hover:text-foreground">Features</a>
+                <a href="#workflow" className="transition hover:text-foreground">Workflow</a>
+                <a href="/pricing" className="transition hover:text-foreground">Pricing</a>
+                <a href="/help" className="transition hover:text-foreground">Help</a>
               </nav>
               <div className="flex items-center gap-2">
-                <a href="/login" className="rounded-md border border-white/12 px-4 py-2 text-sm text-white/78 transition hover:bg-white/10 hover:text-white">
+                <a href="/login" className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground">
                   Sign in
                 </a>
-                <a href="/signup" className="rounded-md bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-white/90">
+                <a href="/signup" className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/90">
                   Start free
                 </a>
               </div>
@@ -202,61 +202,61 @@ export default async function Home({
 
             <div className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.03fr_0.97fr]">
               <div className="max-w-3xl">
-                <p className="qay-animate-rise mb-5 text-sm uppercase tracking-[0.26em] text-white/48">AI builder, visual editor, client handoff</p>
-                <h1 className="qay-animate-rise qay-animate-delay-1 text-5xl font-semibold leading-[0.98] tracking-normal text-white sm:text-6xl lg:text-7xl">
+                <p className="qay-animate-rise mb-5 text-sm uppercase tracking-[0.26em] text-muted-foreground">AI builder, visual editor, client handoff</p>
+                <h1 className="qay-animate-rise qay-animate-delay-1 text-5xl font-semibold leading-[0.98] tracking-normal text-foreground sm:text-6xl lg:text-7xl">
                   QAY builds the site. You keep the control.
                 </h1>
-                <p className="qay-animate-rise qay-animate-delay-2 mt-7 max-w-2xl text-lg leading-8 text-white/66">
+                <p className="qay-animate-rise qay-animate-delay-2 mt-7 max-w-2xl text-lg leading-8 text-muted-foreground">
                   A focused website workspace for freelancers and small teams: generate, import, edit, publish, invite clients, and manage every site without mixing projects together.
                 </p>
                 <div className="qay-animate-rise qay-animate-delay-3 mt-9 flex flex-wrap gap-3">
-                  <a href="/signup" className="rounded-md bg-white px-5 py-3 text-sm font-medium text-black transition hover:bg-white/90">
+                  <a href="/signup" className="rounded-md bg-foreground px-5 py-3 text-sm font-medium text-background transition hover:bg-foreground/90">
                     Create your first site
                   </a>
-                  <a href="/dashboard" className="rounded-md border border-white/15 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10">
+                  <a href="/dashboard" className="rounded-md border border-border px-5 py-3 text-sm font-medium text-foreground transition hover:bg-accent">
                     Open dashboard
                   </a>
                 </div>
-                <div className="qay-animate-fade qay-animate-delay-3 mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-white/10 pt-6">
+                <div className="qay-animate-fade qay-animate-delay-3 mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-border pt-6">
                   {[
                     ['AI + import', 'Build faster'],
                     ['2 published', 'Free plan'],
                     ['Per-site data', 'Clean handoff'],
                   ].map(([value, label]) => (
                     <div key={value}>
-                      <div className="text-sm font-medium text-white">{value}</div>
-                      <div className="mt-1 text-xs text-white/45">{label}</div>
+                      <div className="text-sm font-medium text-foreground">{value}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{label}</div>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div className="qay-animate-rise qay-animate-delay-2 relative">
-                <div className="qay-hero-sweep relative overflow-hidden rounded-lg border border-white/12 bg-[#101010] shadow-2xl shadow-black/50">
-                  <div className="relative h-56 overflow-hidden bg-[radial-gradient(circle_at_50%_12%,rgba(255,255,255,0.2),transparent_38%),linear-gradient(135deg,#111,#050505)] sm:h-72">
+                <div className="qay-hero-sweep relative overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                  <div className="relative h-56 overflow-hidden bg-muted sm:h-72">
                     <QayLandingImage className="qay-animate-float mx-auto h-full w-full object-contain p-8 opacity-95 sm:p-10" />
                   </div>
-                  <div className="border-t border-white/10 p-4 sm:p-5">
+                  <div className="border-t border-border p-4 sm:p-5">
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-sm font-medium">Studio launch</div>
-                        <div className="mt-1 text-xs text-white/45">Imported HTML, AI polish, client review</div>
+                        <div className="mt-1 text-xs text-muted-foreground">Imported HTML, AI polish, client review</div>
                       </div>
                       <span className="rounded-full border border-emerald-400/30 px-3 py-1 text-xs text-emerald-200">Published</span>
                     </div>
                     <div className="mt-5 grid gap-3 sm:grid-cols-3">
                       {['Design', 'CMS', 'Analytics'].map((item) => (
-                        <div key={item} className="rounded-md border border-white/10 bg-white/[0.035] p-3">
-                          <div className="h-12 rounded bg-white/[0.06]" />
-                          <div className="mt-3 text-xs text-white/58">{item}</div>
+                        <div key={item} className="rounded-md border border-border bg-background p-3">
+                          <div className="h-12 rounded bg-muted" />
+                          <div className="mt-3 text-xs text-muted-foreground">{item}</div>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
-                <div className="absolute -bottom-5 -left-4 hidden w-56 rounded-lg border border-white/12 bg-black/86 p-4 shadow-xl shadow-black/40 backdrop-blur md:block">
-                  <div className="text-xs uppercase tracking-[0.2em] text-white/42">Client mode</div>
-                  <div className="mt-3 text-sm text-white/78">Approve text, images, and CMS edits without exposing builder controls.</div>
+                <div className="absolute -bottom-5 -left-4 hidden w-56 rounded-lg border border-border bg-card p-4 shadow-sm md:block">
+                  <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Client mode</div>
+                  <div className="mt-3 text-sm text-foreground/80">Approve text, images, and CMS edits without exposing builder controls.</div>
                 </div>
               </div>
             </div>
@@ -265,8 +265,8 @@ export default async function Home({
 
         <section id="features" className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16">
           <div className="max-w-2xl">
-            <p className="text-sm uppercase tracking-[0.24em] text-white/42">What is inside</p>
-            <h2 className="mt-4 text-4xl font-semibold leading-tight text-white sm:text-5xl">Everything needed to ship client sites from one workspace.</h2>
+            <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">What is inside</p>
+            <h2 className="mt-4 text-4xl font-semibold leading-tight text-foreground sm:text-5xl">Everything needed to ship client sites from one workspace.</h2>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {[
@@ -277,18 +277,18 @@ export default async function Home({
               ['Publishing controls', 'Preview, publish, connect domains, manage slugs, and track site URLs.'],
               ['Analytics', 'View page views and site activity from the developer dashboard.'],
             ].map(([title, body]) => (
-              <article key={title} className="rounded-lg border border-white/10 bg-white/[0.03] p-5">
-                <h3 className="text-lg font-medium text-white">{title}</h3>
-                <p className="mt-3 text-sm leading-6 text-white/62">{body}</p>
+              <article key={title} className="rounded-lg border border-border bg-card p-5">
+                <h3 className="text-lg font-medium text-foreground">{title}</h3>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
               </article>
             ))}
           </div>
         </section>
 
-        <section id="workflow" className="border-y border-white/10 bg-white/[0.025]">
+        <section id="workflow" className="border-y border-border bg-muted/30">
           <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 sm:px-10 lg:grid-cols-[0.85fr_1.15fr] lg:px-16">
             <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-white/42">Workflow</p>
+              <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Workflow</p>
               <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">From idea to published URL without the usual mess.</h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -298,9 +298,9 @@ export default async function Home({
                 ['03', 'Invite clients for review, approvals, and content updates.'],
                 ['04', 'Publish, connect a domain, and watch analytics from dashboard.'],
               ].map(([step, text]) => (
-                <div key={step} className="rounded-lg border border-white/10 bg-black/35 p-5">
-                  <div className="text-sm tracking-[0.22em] text-white/36">{step}</div>
-                  <p className="mt-5 text-sm leading-6 text-white/70">{text}</p>
+                <div key={step} className="rounded-lg border border-border bg-card p-5">
+                  <div className="text-sm tracking-[0.22em] text-muted-foreground">{step}</div>
+                  <p className="mt-5 text-sm leading-6 text-muted-foreground">{text}</p>
                 </div>
               ))}
             </div>
@@ -308,17 +308,17 @@ export default async function Home({
         </section>
 
         <section className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16">
-          <div className="rounded-lg border border-white/10 bg-white text-black">
+          <div className="rounded-lg border border-border bg-card text-card-foreground">
             <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1fr_0.8fr] lg:p-10">
               <div>
-                <p className="text-sm uppercase tracking-[0.22em] text-black/45">Ready when you are</p>
+                <p className="text-sm uppercase tracking-[0.22em] text-muted-foreground">Ready when you are</p>
                 <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">Start free. Upgrade only when the work needs it.</h2>
               </div>
               <div className="flex flex-col justify-end gap-3 sm:flex-row lg:flex-col">
-                <a href="/signup" className="rounded-md bg-black px-5 py-3 text-center text-sm font-medium text-white transition hover:bg-black/85">
+                <a href="/signup" className="rounded-md bg-foreground px-5 py-3 text-center text-sm font-medium text-background transition hover:bg-foreground/90">
                   Start building
                 </a>
-                <a href="/pricing" className="rounded-md border border-black/15 px-5 py-3 text-center text-sm font-medium text-black transition hover:bg-black/5">
+                <a href="/pricing" className="rounded-md border border-border px-5 py-3 text-center text-sm font-medium text-foreground transition hover:bg-accent">
                   View pricing
                 </a>
               </div>

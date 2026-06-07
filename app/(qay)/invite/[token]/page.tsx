@@ -106,46 +106,46 @@ export default function QayInviteAcceptPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] px-6 py-10 text-white">
+    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm flex-col justify-center">
         <div className="mb-8 flex justify-center">
-          <QayLogo />
+          <QayLogo theme="light" />
         </div>
 
-        <section className="rounded-lg border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/30">
+        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
           <h1 className="text-center text-2xl font-semibold tracking-normal">Site invitation</h1>
-          <p className="mt-2 text-center text-sm text-white/60">{message}</p>
+          <p className="mt-2 text-center text-sm text-muted-foreground">{message}</p>
 
-          {loading && <p className="mt-8 text-center text-sm text-white/70">Please wait...</p>}
+          {loading && <p className="mt-8 text-center text-sm text-muted-foreground">Please wait...</p>}
 
           {needsPassword && (
             <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-              <label className="block space-y-2 text-sm text-white/75">
+              <label className="block space-y-2 text-sm text-muted-foreground">
                 <span>Password</span>
                 <input
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
-                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
                 />
               </label>
 
-              <label className="block space-y-2 text-sm text-white/75">
+              <label className="block space-y-2 text-sm text-muted-foreground">
                 <span>Confirm password</span>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   required
-                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="h-11 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-11 w-full rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? 'Joining...' : 'Join site'}
               </button>
@@ -159,7 +159,7 @@ export default function QayInviteAcceptPage() {
           )}
 
           {error && (
-            <a href="/login" className="mt-5 block text-center text-sm text-white hover:text-white/80">
+            <a href="/login" className="mt-5 block text-center text-sm text-foreground hover:text-muted-foreground">
               Go to login
             </a>
           )}

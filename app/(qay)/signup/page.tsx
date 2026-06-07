@@ -72,13 +72,13 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] px-6 py-10 text-white">
+    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-xl flex-col justify-center">
         <div className="mb-8 flex justify-center">
-          <QayLogo />
+          <QayLogo theme="light" />
         </div>
 
-        <section className="rounded-lg border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/30">
+        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
           <h1 className="text-center text-2xl font-semibold tracking-normal">Create your account</h1>
 
           {step === 'role' ? (
@@ -93,14 +93,14 @@ export default function SignupPage() {
                       type="button"
                       onClick={() => setRole(item.value)}
                       className={`rounded-lg border p-4 text-left transition ${
-                        selected ? 'border-white bg-white/5' : 'border-white/10 bg-black hover:bg-white/[0.03]'
+                        selected ? 'border-foreground bg-accent' : 'border-border bg-background hover:bg-accent'
                       }`}
                     >
-                      <span className="mb-4 flex size-9 items-center justify-center rounded-full border border-white/20 text-xs text-white/80">
+                      <span className="mb-4 flex size-9 items-center justify-center rounded-full border border-border text-xs text-muted-foreground">
                         {item.mark}
                       </span>
                       <span className="block text-base font-medium">{item.title}</span>
-                      <span className="mt-1 block text-sm leading-5 text-white/60">{item.body}</span>
+                      <span className="mt-1 block text-sm leading-5 text-muted-foreground">{item.body}</span>
                     </button>
                   );
                 })}
@@ -109,53 +109,53 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => setStep('details')}
-                className="h-11 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90"
+                className="h-11 w-full rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90"
               >
                 Continue
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-              <label className="block space-y-2 text-sm text-white/75">
+              <label className="block space-y-2 text-sm text-muted-foreground">
                 <span>Full name</span>
                 <input
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
                   required
-                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
                 />
               </label>
 
-              <label className="block space-y-2 text-sm text-white/75">
+              <label className="block space-y-2 text-sm text-muted-foreground">
                 <span>Email</span>
                 <input
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
-                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
                 />
               </label>
 
-              <label className="block space-y-2 text-sm text-white/75">
+              <label className="block space-y-2 text-sm text-muted-foreground">
                 <span>Password</span>
                 <input
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
-                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
                 />
               </label>
 
-              <label className="block space-y-2 text-sm text-white/75">
+              <label className="block space-y-2 text-sm text-muted-foreground">
                 <span>Confirm password</span>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   required
-                  className="h-11 w-full rounded-md border border-white/15 bg-black px-3 text-white outline-none transition focus:border-white"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
                 />
               </label>
 
@@ -165,14 +165,14 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setStep('role')}
-                  className="h-11 rounded-md border border-white/15 px-4 text-sm font-medium text-white transition hover:bg-white/5"
+                  className="h-11 rounded-md border border-border px-4 text-sm font-medium text-foreground transition hover:bg-accent"
                 >
                   Back
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="h-11 rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-11 rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading ? 'Creating account...' : 'Create account'}
                 </button>
@@ -180,9 +180,9 @@ export default function SignupPage() {
             </form>
           )}
 
-          <p className="mt-6 text-center text-sm text-white/60">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
-            <a href="/login" className="text-white hover:text-white/80">
+            <a href="/login" className="text-foreground hover:text-muted-foreground">
               Sign in
             </a>
           </p>
