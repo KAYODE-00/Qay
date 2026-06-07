@@ -55,6 +55,10 @@ Rules:
 - Use semantic HTML and Tailwind classes. Put the main page background/text classes on <body>.
 - Use editable real copy, not the user's instruction text.
 - Use strong visual hierarchy, exact palettes from the user, polished spacing, and responsive layouts.
+- Production quality is mandatory. Do not output a plain stack, wireframe, generic template, default gray cards, placeholder boxes, or a minimal demo.
+- Every full page must feel like a real launch-ready site: distinctive hero composition, strong type scale, responsive layout, visual assets, polished CTAs, trust/detail sections, and a finished footer.
+- Use at least one real image for normal websites and ecommerce pages unless the user explicitly asks for a text-only/internal tool.
+- Use varied Tailwind utilities: responsive classes, max-width containers, generous spacing, borders/shadows/rounded corners when appropriate, and exact arbitrary colors.
 - Infer the website type from the user's request and stay in that lane. Do not mix unrelated site types unless the user explicitly asks for a hybrid.
 - Do not reuse one fixed layout. Choose the layout architecture to fit the prompt: editorial, dashboard-like, bento, split-screen, magazine, sidebar, grid, product-led, event schedule, portfolio case-study, restaurant menu, service business, community, auth/membership, or another suitable structure.
 - Use relative internal links such as "/about".
@@ -794,6 +798,82 @@ function isCommercePrompt(prompt: string) {
   return /\b(e-?commerce|store|shop|cart|checkout|product|products|catalog|collection|boutique|fashion|perfume|food ordering|marketplace|medusa)\b/i.test(prompt);
 }
 
+function isAuthPrompt(prompt: string) {
+  return /\b(auth|login|sign in|signin|sign up|signup|membership|members|portal|private|dashboard|course|community)\b/i.test(prompt);
+}
+
+function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode) {
+  if (mode === 'selected') {
+    if (html.length < 180 || !/\bclass\s*=/.test(html)) {
+      throw new Error('AI response was not a usable design fragment.');
+    }
+    return;
+  }
+
+  const promptText = normalizeComparisonText(userPrompt);
+  const visibleText = normalizeComparisonText(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+  );
+  const classMatches = html.match(/\bclass\s*=\s*["'][^"']+["']/gi) || [];
+  const classText = classMatches.join(' ');
+  const sectionCount = (html.match(/<section\b/gi) || []).length;
+  const pageWrapperCount = (html.match(/data-qay-page=/gi) || []).length;
+  const motionCount = (html.match(/data-qay-(?:animate|hover|click)=/gi) || []).length;
+  const imageCount = (html.match(/<img\b/gi) || []).length;
+  const linkOrButtonCount = (html.match(/<(?:a|button)\b/gi) || []).length;
+  const hasResponsive = /\b(?:sm|md|lg|xl):/.test(classText);
+  const hasComposition = [
+    /\bgrid\b/.test(classText),
+    /\bflex\b/.test(classText),
+    /\bmax-w-/.test(classText),
+    /\b(?:px|py|p|gap)-/.test(classText),
+    /\brounded/.test(classText),
+    /\bborder/.test(classText),
+    /\bshadow/.test(classText),
+    /\b(?:bg|text)-\[#/.test(classText),
+  ].filter(Boolean).length;
+  const grayCardCount = (classText.match(/\bbg-gray-(?:50|100|200)\b/g) || []).length;
+  const defaultBlueLinks = /\btext-blue-(?:500|600|700)\b/.test(classText);
+  const placeholderCopy = /\blorem ipsum\b|placeholder text|card title|feature title|product name/i.test(html);
+  const promptEchoed =
+    promptText.length > 300 && visibleText.includes(promptText.slice(0, 180));
+  const commerce = isCommercePrompt(userPrompt);
+  const auth = isAuthPrompt(userPrompt);
+
+  if (html.length < 1800 || classMatches.length < 18 || linkOrButtonCount < 2) {
+    throw new Error('AI response was not a usable design. Please try again.');
+  }
+
+  if (sectionCount + pageWrapperCount < 3 || motionCount < 3 || hasComposition < 5 || !hasResponsive) {
+    throw new Error('AI response was not a usable design. Please try again.');
+  }
+
+  if (!auth && imageCount < 1) {
+    throw new Error('AI response was not a usable design. Please try again.');
+  }
+
+  if (grayCardCount > 4 || defaultBlueLinks || placeholderCopy || promptEchoed) {
+    throw new Error('AI response was not a usable design. Please try again.');
+  }
+
+  if (commerce) {
+    const requiredCommerceHooks = [
+      'data-qay-commerce="product-card"',
+      'data-qay-commerce="add-to-cart"',
+      'data-qay-commerce="cart-button"',
+      'data-qay-commerce="cart-drawer"',
+      'data-qay-commerce="cart-items"',
+      'data-qay-commerce="checkout-button"',
+    ];
+    if (!requiredCommerceHooks.every((hook) => html.includes(hook))) {
+      throw new Error('AI ecommerce response was missing required QAY commerce hooks.');
+    }
+  }
+}
+
 function localFallbackHtml(input: GenerateAiLayersInput) {
   const title = escapeHtml(inferSiteTitle(input.prompt));
   const description = escapeHtml(
@@ -903,7 +983,7 @@ function localFallbackHtml(input: GenerateAiLayersInput) {
     <div class="rounded-3xl border border-white/10 p-6" data-qay-animate="scroll-reveal"><h2 class="text-xl font-semibold">Catalog-ready</h2><p class="mt-3 text-sm leading-6 text-white/60">Product hooks survive import and can be mapped to Medusa later.</p></div>
   </section>
   <footer class="mx-auto flex max-w-7xl flex-col gap-4 border-t border-white/10 px-6 py-10 text-sm text-white/50 md:flex-row md:items-center md:justify-between">
-    <p>© ${new Date().getFullYear()} ${title}</p>
+    <p>&copy; ${new Date().getFullYear()} ${title}</p>
     <a href="/contact" class="text-white">Contact</a>
   </footer>
 </main>`;
@@ -967,7 +1047,7 @@ function localFallbackHtml(input: GenerateAiLayersInput) {
     </div>
   </section>
   <footer class="mx-auto flex max-w-7xl flex-col gap-4 border-t border-white/10 px-6 py-10 text-sm text-white/50 md:flex-row md:items-center md:justify-between">
-    <p>© ${new Date().getFullYear()} ${title}</p>
+    <p>&copy; ${new Date().getFullYear()} ${title}</p>
     <a href="/contact" class="text-white transition hover:text-[#F6F3ED]">Contact</a>
   </footer>
 </main>`;
@@ -1001,7 +1081,11 @@ export async function generateQayAiHtml(input: GenerateAiLayersInput): Promise<G
     const providerResult = await callWithFallbackDetailed<string>(
       buildHtmlPrompt(input),
       QAY_AI_HTML_SYSTEM_PROMPT,
-      (text) => extractHtml(text)
+      (text) => {
+        const html = extractHtml(text);
+        assertUsableHtml(html, input.prompt, input.mode || 'page');
+        return html;
+      }
     );
 
     return {

@@ -106,10 +106,12 @@ const OPENROUTER_MODEL = !process.env.OPENROUTER_MODEL || process.env.OPENROUTER
 function sortProvidersForRequest(providers: AiProvider[], system: string) {
   if (!wantsPlainHtml(system)) return providers;
 
-  const fastHtmlOrder = ['groq', 'openrouter', 'gemini', 'openai', 'claude'];
+  const highQualityHtmlOrder = process.env.QAY_AI_FAST_HTML_FIRST === 'true'
+    ? ['groq', 'openai', 'claude', 'gemini', 'openrouter']
+    : ['claude', 'openai', 'gemini', 'groq', 'openrouter'];
   return [...providers].sort((a, b) => {
-    const aIndex = fastHtmlOrder.indexOf(a.name);
-    const bIndex = fastHtmlOrder.indexOf(b.name);
+    const aIndex = highQualityHtmlOrder.indexOf(a.name);
+    const bIndex = highQualityHtmlOrder.indexOf(b.name);
     return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
   });
 }
@@ -315,6 +317,7 @@ function canTryNextProvider(error: unknown) {
     message.includes('did not include importable html') ||
     message.includes('echoed the prompt') ||
     message.includes('not a usable design') ||
+    message.includes('missing required qay') ||
     message.includes('too small') ||
     message.includes('invalid') ||
     message.includes('bad request') ||
