@@ -150,13 +150,23 @@ Use this for mobile nav, drawers, dropdowns, modals, accordions, and cart panels
 
 ### Motion Tuning
 
+These are optional. The AI should choose values inside these ranges based on the design, section weight, and motion direction. Do not reuse the same values everywhere.
+
 ```html
-data-qay-duration="0.6"
-data-qay-hover-duration="0.25"
-data-qay-y="32"
-data-qay-x="0"
-data-qay-ease="power2.out"
+data-qay-duration="0.35 to 1.4"
+data-qay-hover-duration="0.15 to 0.5"
+data-qay-y="-80 to 80"
+data-qay-x="-100 to 100"
+data-qay-ease="power1.out | power2.out | power3.out | expo.out | back.out(1.2)"
 ```
+
+Good defaults by use:
+
+- Hero title: duration `0.8` to `1.4`, y `32` to `80`, ease `power3.out` or `expo.out`.
+- Section/card reveal: duration `0.45` to `0.9`, y `16` to `48`, ease `power2.out`.
+- Side panels: duration `0.6` to `1.0`, x `-80` to `80`, ease `power2.out`.
+- Buttons/hover: hover duration `0.15` to `0.35`, subtle scale/lift only.
+- Luxury/editorial reveal: duration `0.9` to `1.4`, y `24` to `64`, ease `expo.out` or `back.out(1.2)`.
 
 ## Ecommerce Hooks
 
@@ -237,11 +247,13 @@ data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
 data-qay-click="toggle"
 data-qay-target="#element-id"
 data-qay-class="hidden"
-data-qay-duration="0.6"
-data-qay-hover-duration="0.25"
-data-qay-y="32"
-data-qay-x="0"
-data-qay-ease="power2.out"
+
+Optional motion tuning. Choose varied values per element:
+data-qay-duration: 0.35 to 1.4
+data-qay-hover-duration: 0.15 to 0.5
+data-qay-y: -80 to 80
+data-qay-x: -100 to 100
+data-qay-ease: power1.out, power2.out, power3.out, expo.out, or back.out(1.2)
 
 If this is ecommerce, use:
 data-qay-commerce="product-grid|product-card|product-image|product-title|product-description|product-price|add-to-cart|cart-button|cart-drawer|cart-items|cart-count|checkout-button"

@@ -67,11 +67,13 @@ Rules:
   data-qay-click="toggle"
   data-qay-target="#element-id"
   data-qay-class="hidden"
-  data-qay-duration="0.6"
-  data-qay-hover-duration="0.25"
-  data-qay-y="32"
-  data-qay-x="0"
-  data-qay-ease="power2.out"
+- Optional motion tuning should be varied per element, not copied as one preset:
+  data-qay-duration can be 0.35 to 1.4
+  data-qay-hover-duration can be 0.15 to 0.5
+  data-qay-y can be -80 to 80
+  data-qay-x can be -100 to 100
+  data-qay-ease can be power1.out, power2.out, power3.out, expo.out, or back.out(1.2)
+- Pick tuning values that fit the layout: slower/larger for hero reveals, shorter/smaller for cards and buttons, directional x values for side panels.
 - Mobile menus must be implemented by toggling "hidden":
   <button data-qay-click="toggle" data-qay-target="#mobile-menu" data-qay-class="hidden">...</button>
   <div id="mobile-menu" class="hidden fixed ... flex ...">...</div>
@@ -714,7 +716,12 @@ Silent checklist:
   data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
   data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
   data-qay-click="toggle" with data-qay-target and data-qay-class="hidden"
-  Optional tuning: data-qay-duration, data-qay-hover-duration, data-qay-y, data-qay-x, data-qay-ease.
+  Optional tuning should vary per element:
+    data-qay-duration 0.35-1.4,
+    data-qay-hover-duration 0.15-0.5,
+    data-qay-y -80 to 80,
+    data-qay-x -100 to 100,
+    data-qay-ease power1.out, power2.out, power3.out, expo.out, or back.out(1.2).
 - If this is an ecommerce/storefront request, include QAY commerce hooks:
   data-qay-commerce="product-grid" on product grids,
   data-qay-commerce="product-card" on cards,
