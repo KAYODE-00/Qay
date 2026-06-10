@@ -45,6 +45,7 @@ import { useEditorStore } from '@/stores/useEditorStore';
 import { triggerThumbnailGeneration, useComponentsStore } from '@/stores/useComponentsStore';
 import { useEditorActions } from '@/hooks/use-editor-url';
 import type { UseLiveLayerUpdatesReturn } from '@/hooks/use-live-layer-updates';
+import { useResizablePanel } from '@/hooks/use-resizable-panel';
 
 /**
  * Element Button with drag support
@@ -146,6 +147,7 @@ function ElementButton({
 interface ElementLibraryProps {
   isOpen: boolean;
   onClose: () => void;
+  offsetLeft?: number;
   liveLayerUpdates?: UseLiveLayerUpdatesReturn | null;
 }
 
@@ -270,7 +272,7 @@ async function restoreInlinedComponents(
   return newLayer;
 }
 
-export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: ElementLibraryProps) {
+export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, liveLayerUpdates }: ElementLibraryProps) {
   const { addLayerFromTemplate, updateLayer, setDraftLayers, draftsByPageId, pages } = usePagesStore();
   const { currentPageId, selectedLayerId, setSelectedLayerId, editingComponentId, activeBreakpoint, pushComponentNavigation, startCanvasDrag, endCanvasDrag } = useEditorStore();
   const { components, componentDrafts, updateComponentDraft, deleteComponent, getDeletePreview, loadComponentDraft, getComponentById, loadComponents } = useComponentsStore();
@@ -1404,14 +1406,29 @@ export default function ElementLibrary({ isOpen, onClose, liveLayerUpdates }: El
   }
 
   const deleteConfirmDescription = `Are you sure you want to delete "${componentName}"? ${usageSuffix}`;
+  const { width: libraryWidth, startResize } = useResizablePanel({
+    storageKey: 'qay-editor-element-library-width',
+    defaultWidth: 288,
+    minWidth: 256,
+    maxWidth: 560,
+    direction: 'right',
+  });
 
   return (
     <div
       className={cn(
-        'fixed left-64 top-14 bottom-0 w-64 bg-background border-r z-50 flex flex-col',
+        'fixed top-14 bottom-0 bg-background border-r z-50 flex flex-col',
         !isOpen && 'hidden'
       )}
+      style={{ left: offsetLeft, width: libraryWidth }}
     >
+        <div
+          role="separator"
+          aria-label="Resize element library"
+          aria-orientation="vertical"
+          onPointerDown={startResize}
+          className="absolute right-0 top-0 z-30 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-primary/30"
+        />
         {/* Tabs */}
         <Tabs
           value={activeTab} onValueChange={(value) => {

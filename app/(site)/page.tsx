@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { unstable_cache } from 'next/cache';
+import Link from 'next/link';
 import { fetchHomepage, fetchErrorPage, splitPageData, reassemblePageData, slimPageData } from '@/lib/page-fetcher';
 import type { PageData } from '@/lib/page-fetcher';
 import PageRenderer from '@/components/PageRenderer';
@@ -181,22 +182,24 @@ export default async function Home({
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(120deg,rgba(0,0,0,0.06),transparent_34%,rgba(0,0,0,0.025)_68%,transparent)]" />
           <div className="mx-auto flex min-h-[92vh] w-full max-w-7xl flex-col px-6 py-6 sm:px-10 lg:px-16">
             <header className="qay-animate-fade flex items-center justify-between gap-6">
-              <a href="/" aria-label="QAY home">
+              <Link href="/" aria-label="QAY home">
                 <QayLogo theme="dark" imageClassName="h-11 w-auto" />
-              </a>
+              </Link>
               <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
                 <a href="#features" className="transition hover:text-foreground">Features</a>
                 <a href="#workflow" className="transition hover:text-foreground">Workflow</a>
-                <a href="/pricing" className="transition hover:text-foreground">Pricing</a>
-                <a href="/help" className="transition hover:text-foreground">Help</a>
+                <Link href="/compare" className="transition hover:text-foreground">Compare</Link>
+                <Link href="/pricing" className="transition hover:text-foreground">Pricing</Link>
+                <Link href="/feedback" className="transition hover:text-foreground">Feedback</Link>
+                <Link href="/help" className="transition hover:text-foreground">Help</Link>
               </nav>
               <div className="flex items-center gap-2">
-                <a href="/login" className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground">
+                <Link href="/login" className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground">
                   Sign in
-                </a>
-                <a href="/signup" className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/90">
+                </Link>
+                <Link href="/signup" className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/90">
                   Start free
-                </a>
+                </Link>
               </div>
             </header>
 
@@ -210,12 +213,12 @@ export default async function Home({
                   A focused website workspace for freelancers and small teams: generate, import, edit, publish, invite clients, and manage every site without mixing projects together.
                 </p>
                 <div className="qay-animate-rise qay-animate-delay-3 mt-9 flex flex-wrap gap-3">
-                  <a href="/signup" className="rounded-md bg-foreground px-5 py-3 text-sm font-medium text-background transition hover:bg-foreground/90">
+                  <Link href="/signup" className="rounded-md bg-foreground px-5 py-3 text-sm font-medium text-background transition hover:bg-foreground/90">
                     Create your first site
-                  </a>
-                  <a href="/dashboard" className="rounded-md border border-border px-5 py-3 text-sm font-medium text-foreground transition hover:bg-accent">
+                  </Link>
+                  <Link href="/dashboard" className="rounded-md border border-border px-5 py-3 text-sm font-medium text-foreground transition hover:bg-accent">
                     Open dashboard
-                  </a>
+                  </Link>
                 </div>
                 <div className="qay-animate-fade qay-animate-delay-3 mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-border pt-6">
                   {[
@@ -273,9 +276,10 @@ export default async function Home({
               ['AI builder', 'Generate full pages, refine selected sections, and keep prompt history per site.'],
               ['HTML importer', 'Bring in Tailwind HTML and map clean layouts into editable QAY layers.'],
               ['Visual editor', 'Edit layout, content, media, forms, CMS, integrations, and site settings.'],
+              ['Medusa ecommerce', 'Prepare storefront blocks, product grids, carts, and checkout-ready pages powered by Medusa.'],
               ['Client dashboard', 'Let clients see only published/assigned sites and edit approved content.'],
               ['Publishing controls', 'Preview, publish, connect domains, manage slugs, and track site URLs.'],
-              ['Analytics', 'View page views and site activity from the developer dashboard.'],
+              ['Ycode-powered editor', 'Build on a serious visual editor foundation while QAY adds site isolation, AI, billing, client flow, and publishing.'],
             ].map(([title, body]) => (
               <article key={title} className="rounded-lg border border-border bg-card p-5">
                 <h3 className="text-lg font-medium text-foreground">{title}</h3>
@@ -308,6 +312,21 @@ export default async function Home({
         </section>
 
         <section className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16">
+          <div className="mb-8 grid gap-4 md:grid-cols-3">
+            {[
+              ['QAY vs Framer', 'For builders who need import, client handoff, ecommerce prep, and editable published sites.', '/compare/framer'],
+              ['QAY vs Wix', 'For freelancers who want a cleaner professional workspace without the heavy all-in-one lock-in feeling.', '/compare/wix'],
+              ['QAY vs others', 'See where QAY fits against common site builders, page builders, and design-first tools.', '/compare'],
+            ].map(([title, body, href]) => (
+              <Link
+                key={title} href={href}
+                className="rounded-lg border border-border bg-card p-5 transition hover:bg-accent"
+              >
+                <h3 className="text-lg font-medium text-foreground">{title}</h3>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
+              </Link>
+            ))}
+          </div>
           <div className="rounded-lg border border-border bg-card text-card-foreground">
             <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1fr_0.8fr] lg:p-10">
               <div>
@@ -315,16 +334,34 @@ export default async function Home({
                 <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">Start free. Upgrade only when the work needs it.</h2>
               </div>
               <div className="flex flex-col justify-end gap-3 sm:flex-row lg:flex-col">
-                <a href="/signup" className="rounded-md bg-foreground px-5 py-3 text-center text-sm font-medium text-background transition hover:bg-foreground/90">
+                <Link href="/signup" className="rounded-md bg-foreground px-5 py-3 text-center text-sm font-medium text-background transition hover:bg-foreground/90">
                   Start building
-                </a>
-                <a href="/pricing" className="rounded-md border border-border px-5 py-3 text-center text-sm font-medium text-foreground transition hover:bg-accent">
+                </Link>
+                <Link href="/pricing" className="rounded-md border border-border px-5 py-3 text-center text-sm font-medium text-foreground transition hover:bg-accent">
                   View pricing
-                </a>
+                </Link>
               </div>
             </div>
           </div>
         </section>
+        <footer className="border-t border-border">
+          <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10 text-sm text-muted-foreground sm:px-10 lg:px-16">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <QayLogo theme="dark" imageClassName="h-9 w-auto" />
+              <div className="flex flex-wrap gap-5">
+                <Link href="/compare" className="transition hover:text-foreground">Compare</Link>
+                <Link href="/pricing" className="transition hover:text-foreground">Pricing</Link>
+                <Link href="/feedback" className="transition hover:text-foreground">Feedback</Link>
+                <Link href="/help" className="transition hover:text-foreground">Help</Link>
+              </div>
+            </div>
+            <div className="grid gap-3 border-t border-border pt-6 md:grid-cols-3">
+              <p>Ecommerce powered by Medusa.</p>
+              <p>Editor powered by Ycode.</p>
+              <p className="md:text-right">QAY adds AI import, client flow, publishing, billing, and site isolation.</p>
+            </div>
+          </div>
+        </footer>
       </main>
     );
   }
@@ -335,7 +372,10 @@ export default async function Home({
   const siteVisitor = siteAuthSettings?.enabled && qaySiteId ? await getQaySiteVisitor(qaySiteId) : null;
 
   if (siteAuthSettings?.enabled && qaySiteId && !siteVisitor) {
-    return <SiteAuthScreen siteId={qaySiteId} allowSignup={siteAuthSettings.allowSignup} isPublished={true} mode="signin" />;
+    return <SiteAuthScreen
+      siteId={qaySiteId} allowSignup={siteAuthSettings.allowSignup}
+      isPublished={true} mode="signin"
+           />;
   }
 
   // Check password protection for homepage.

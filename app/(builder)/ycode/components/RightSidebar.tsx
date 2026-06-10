@@ -81,6 +81,7 @@ import { useCollectionsStore } from '@/stores/useCollectionsStore';
 import { useLayerStylesStore } from '@/stores/useLayerStylesStore';
 import { useCanvasTextEditorStore } from '@/stores/useCanvasTextEditorStore';
 import { useEditorActions, useEditorUrl } from '@/hooks/use-editor-url';
+import { useResizablePanel } from '@/hooks/use-resizable-panel';
 
 // 5.5 Hooks
 import { useLayerLocks } from '@/hooks/use-layer-locks';
@@ -141,6 +142,13 @@ const RightSidebar = React.memo(function RightSidebar({
   const [activeTab, setActiveTab] = useState<'design' | 'settings' | 'interactions' | undefined>(
     urlState.rightTab || 'design'
   );
+  const { width: sidebarWidth, startResize } = useResizablePanel({
+    storageKey: 'qay-editor-right-sidebar-width',
+    defaultWidth: 256,
+    minWidth: 256,
+    maxWidth: 620,
+    direction: 'left',
+  });
 
   // Track last user-initiated change to prevent URL→state sync loops
   const lastUserChangeRef = useRef<number>(0);
@@ -1752,7 +1760,17 @@ const RightSidebar = React.memo(function RightSidebar({
 
   if (!selectedLayerId || !selectedLayer) {
     return (
-      <div className="w-64 shrink-0 bg-background border-l flex items-center justify-center h-screen">
+      <div
+        className="relative shrink-0 bg-background border-l flex items-center justify-center h-screen"
+        style={{ width: sidebarWidth }}
+      >
+        <div
+          role="separator"
+          aria-label="Resize right sidebar"
+          aria-orientation="vertical"
+          onPointerDown={startResize}
+          className="absolute left-0 top-0 z-30 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-primary/30"
+        />
         <span className="text-xs text-muted-foreground">Select layer</span>
       </div>
     );
@@ -1780,7 +1798,17 @@ const RightSidebar = React.memo(function RightSidebar({
   }
 
   return (
-    <div className="w-64 shrink-0 bg-background border-l flex flex-col p-4 pb-0 h-full overflow-hidden">
+    <div
+      className="relative shrink-0 bg-background border-l flex flex-col p-4 pb-0 h-full overflow-hidden"
+      style={{ width: sidebarWidth }}
+    >
+      <div
+        role="separator"
+        aria-label="Resize right sidebar"
+        aria-orientation="vertical"
+        onPointerDown={startResize}
+        className="absolute left-0 top-0 z-30 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-primary/30"
+      />
       {/* Tabs */}
       <Tabs
         value={activeTab}

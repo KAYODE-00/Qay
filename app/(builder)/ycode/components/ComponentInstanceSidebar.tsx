@@ -23,6 +23,7 @@ import { useEditorStore } from '@/stores/useEditorStore';
 import { useComponentsStore } from '@/stores/useComponentsStore';
 import { usePagesStore } from '@/stores/usePagesStore';
 import { useEditComponent } from '@/hooks/use-edit-component';
+import { useResizablePanel } from '@/hooks/use-resizable-panel';
 import { detachSpecificLayerFromComponent } from '@/lib/component-utils';
 import { EMPTY_OVERRIDES } from '@/lib/variable-utils';
 
@@ -74,6 +75,13 @@ export default function ComponentInstanceSidebar({
   const [variablesOpen, setVariablesOpen] = useState(true);
   const [variablesDialogOpen, setVariablesDialogOpen] = useState(false);
   const [variablesDialogInitialId, setVariablesDialogInitialId] = useState<string | null>(null);
+  const { width: sidebarWidth, startResize } = useResizablePanel({
+    storageKey: 'qay-editor-right-sidebar-width',
+    defaultWidth: 256,
+    minWidth: 256,
+    maxWidth: 620,
+    direction: 'left',
+  });
 
   const openVariablesDialog = useCallback((variableId?: string) => {
     setVariablesDialogInitialId(variableId ?? null);
@@ -166,7 +174,17 @@ export default function ComponentInstanceSidebar({
   }, [selectedLayerId, onLayerUpdate]);
 
   return (
-    <div className="w-64 shrink-0 bg-background border-l flex flex-col p-4 pb-0 h-full overflow-hidden">
+    <div
+      className="relative shrink-0 bg-background border-l flex flex-col p-4 pb-0 h-full overflow-hidden"
+      style={{ width: sidebarWidth }}
+    >
+      <div
+        role="separator"
+        aria-label="Resize right sidebar"
+        aria-orientation="vertical"
+        onPointerDown={startResize}
+        className="absolute left-0 top-0 z-30 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-primary/30"
+      />
       <Tabs
         value=""
         className="flex flex-col min-h-0 gap-0!"

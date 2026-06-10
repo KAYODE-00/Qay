@@ -45,6 +45,13 @@ function maxOutputTokens(system: string) {
   return wantsPlainHtml(system) ? 3600 : 6000;
 }
 
+function requestTemperature(system: string, providerName: string) {
+  if (!wantsPlainHtml(system)) return 0.35;
+  if (providerName === 'groq') return 0.82;
+  if (providerName === 'openrouter') return 0.72;
+  return 0.68;
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, providerName: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -133,7 +140,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: maxOutputTokens(system),
-          temperature: 0.35,
+          temperature: requestTemperature(system, 'claude'),
           system,
           messages: [{ role: 'user', content: prompt }],
         }),
@@ -166,7 +173,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: 'gpt-4o',
           max_tokens: maxOutputTokens(system),
-          temperature: 0.35,
+          temperature: requestTemperature(system, 'openai'),
           ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
             { role: 'system', content: system },
@@ -199,7 +206,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: GROQ_MODEL,
           max_tokens: maxOutputTokens(system),
-          temperature: 0.35,
+          temperature: requestTemperature(system, 'groq'),
           ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
             { role: 'system', content: system },
@@ -234,7 +241,7 @@ export const PROVIDERS: AiProvider[] = [
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
           max_tokens: maxOutputTokens(system),
-          temperature: 0.35,
+          temperature: requestTemperature(system, 'openrouter'),
           ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
             { role: 'system', content: system },
@@ -273,7 +280,7 @@ export const PROVIDERS: AiProvider[] = [
               },
             ],
             generationConfig: {
-              temperature: 0.35,
+              temperature: requestTemperature(system, 'gemini'),
               maxOutputTokens: maxOutputTokens(system),
               ...(!wantsPlainHtml(system) ? { responseMimeType: 'application/json' } : {}),
             },

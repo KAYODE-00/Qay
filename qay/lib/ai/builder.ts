@@ -46,7 +46,7 @@ const ALLOWED_TWEEN_KEYS = new Set(['x', 'y', 'rotation', 'scale', 'skewX', 'ske
 const ALLOWED_BREAKPOINTS = new Set(['mobile', 'tablet', 'desktop']);
 
 export const QAY_AI_HTML_SYSTEM_PROMPT = `You are QAY's AI website designer.
-Generate one complete, premium HTML + Tailwind page or fragment that QAY will import into editable layers.
+Generate complete, premium HTML + Tailwind pages or fragments that QAY will import into editable layers.
 
 Return ONLY HTML. No markdown fences, no explanations, no repeated prompt text.
 
@@ -61,6 +61,8 @@ Rules:
 - Use varied Tailwind utilities: responsive classes, max-width containers, generous spacing, borders/shadows/rounded corners when appropriate, and exact arbitrary colors.
 - Infer the website type from the user's request and stay in that lane. Do not mix unrelated site types unless the user explicitly asks for a hybrid.
 - Do not reuse one fixed layout. Choose the layout architecture to fit the prompt: editorial, dashboard-like, bento, split-screen, magazine, sidebar, grid, product-led, event schedule, portfolio case-study, restaurant menu, service business, community, auth/membership, or another suitable structure.
+- Before writing HTML, silently choose a distinct design direction for this exact request. Vary section order, grid rhythm, hero composition, card shapes, navigation pattern, palette, imagery, and motion values. The QAY reference is only a compatibility contract, not a visual template.
+- Generate copy that belongs to the requested business/site type. Avoid generic phrases like "transform your vision", "elevate your experience", "unlock your potential", "seamless solutions", or "innovative platform" unless the prompt specifically uses them.
 - Use relative internal links such as "/about".
 - Style navigation and CTA links as buttons with Tailwind classes; do not leave bare blue/default links.
 - Use absolute image URLs only, preferably Unsplash URLs with width and quality params.
@@ -118,6 +120,7 @@ Rules:
   Login page slug must be "login"; sign up slug must be "signup"; forgot password slug must be "forgot-password"; reset password slug must be "reset-password".
   Keep auth page links relative: /login, /signup, /forgot-password, /reset-password.
 - For multi-page sites, mirror QAY's import flow: Homepage first, then every extra page as a separate direct sibling wrapper with data-qay-page and data-qay-slug. Do not nest page wrappers inside another page.
+- Decide page count from the prompt. If the request naturally needs more than one page, generate multiple direct sibling data-qay-page wrappers in one response. Examples: ecommerce usually needs Homepage, Shop, Product, and Contact or Cart; business sites often need Homepage, Services/About, and Contact; portfolio sites often need Homepage, Work, About, and Contact; auth/portal sites need Login/Sign up/Forgot/Reset pages when auth is requested.
 - Do not rely on custom CSS classes for layout or interaction behavior. Tailwind utilities must carry the design.
 - A small <style> tag is allowed only for font-family helper classes such as .serif; do not put animations or toggles in CSS.
 - Never output a single paragraph containing the prompt.`;
@@ -698,11 +701,16 @@ function extractHtml(text: string) {
 }
 
 function buildHtmlPrompt({ prompt, mode = 'page', selectedLayers = [] }: GenerateAiLayersInput) {
+  const diversityBrief = buildHtmlDiversityBrief(prompt);
+
   if (mode === 'selected') {
     return `Create a polished HTML/Tailwind replacement fragment for the selected QAY layer(s).
 
 User request:
 ${prompt}
+
+Design direction for this generation:
+${diversityBrief}
 
 Current selected layer JSON, for content/context only:
 ${JSON.stringify(selectedLayers, null, 2)}
@@ -715,13 +723,18 @@ Return only the replacement HTML fragment.`;
 User request:
 ${prompt}
 
+Design direction for this generation:
+${diversityBrief}
+
 Silent checklist:
 - The output is actual website HTML, not the prompt.
 - The output is a complete HTML document with body classes for the page background and base text color.
 - The page has the sections needed for the requested website type, usually nav, hero, 2-4 focused sections, and footer for marketing/content sites.
 - The layout is not copied from any reference example. It is purpose-built for the exact site type and prompt.
+- If the prompt naturally describes a site rather than a single landing page, generate multiple pages in one response using direct sibling data-qay-page wrappers. Do not stop at only the homepage when pages like About, Services, Work, Shop, Product, Contact, Login, or Sign up are needed.
 - The site type is not mixed with unrelated patterns unless the user requested that hybrid.
 - The design has strong composition, responsive grids, premium spacing, and meaningful copy.
+- The visible copy must be specific to the requested niche. Avoid generic filler, placeholder labels, and abstract startup language that could fit any site.
 - Text and images are represented as normal HTML elements.
 - Interactions use only QAY data attributes. No interaction script, GSAP script, or custom JavaScript.
 - CTA links and nav links are visually styled as buttons or deliberate navigation items, never browser-default links.
@@ -802,6 +815,89 @@ function isAuthPrompt(prompt: string) {
   return /\b(auth|login|sign in|signin|sign up|signup|membership|members|portal|private|dashboard|course|community)\b/i.test(prompt);
 }
 
+const HTML_ARCHITECTURES = [
+  'asymmetric editorial hero with a narrow metadata rail and oversized image crop',
+  'split-screen hero with layered product/story panels and a staggered card grid',
+  'bento homepage with one dominant feature tile, compact proof tiles, and a strong footer CTA',
+  'magazine-style layout with side navigation, numbered sections, and mixed media bands',
+  'product-led storefront with collection rails, sticky cart affordance, and trust blocks',
+  'service-business layout with proof-first hero, process timeline, and conversion-focused contact section',
+  'portfolio case-study layout with large visual entries, project metadata, and journal-style details',
+  'community or portal layout with member value blocks, login/signup paths, and private-area previews',
+];
+
+const HTML_SECTION_RHYTHMS = [
+  'alternate dense and airy sections; avoid equal-height cards everywhere',
+  'use one full-bleed media band, then tighter content sections',
+  'mix two-column storytelling with one bento/grid section',
+  'use a sidebar or docked nav feeling on desktop and a compact stacked mobile flow',
+  'lead with proof or product detail instead of a generic hero when that fits the prompt',
+  'make at least one section visually different in background, spacing, or card span',
+];
+
+const HTML_COPY_DIRECTIVES = [
+  'write concrete copy using the site niche, audience, product/service, location, or outcome from the prompt',
+  'name sections with domain-specific words rather than generic labels like Features or Solutions when possible',
+  'make CTAs specific to the goal, such as Book a table, View collection, Start membership, or See case studies',
+  'avoid vague SaaS/agency filler unless the user requested a SaaS or agency site',
+];
+
+const HTML_MOTION_DIRECTIVES = [
+  'use a few larger hero reveals and shorter card reveals with varied data-qay-duration values',
+  'use directional slide-left/slide-right for side panels and scroll-reveal for lower sections',
+  'use img-zoom only on image wrappers and subtle scale/lift on product cards or CTA buttons',
+  'include line-grow or stagger-children where the design has dividers, timelines, or grids',
+];
+
+function pickDesignDirective(items: string[], salt: string, offset: number) {
+  const hash = Array.from(`${salt}:${Date.now()}:${offset}`).reduce((total, char) => total + char.charCodeAt(0), 0);
+  return items[hash % items.length];
+}
+
+function buildHtmlDiversityBrief(prompt: string) {
+  return [
+    `Architecture: ${pickDesignDirective(HTML_ARCHITECTURES, prompt, 1)}.`,
+    `Section rhythm: ${pickDesignDirective(HTML_SECTION_RHYTHMS, prompt, 2)}.`,
+    `Copy direction: ${pickDesignDirective(HTML_COPY_DIRECTIVES, prompt, 3)}.`,
+    `Motion direction: ${pickDesignDirective(HTML_MOTION_DIRECTIVES, prompt, 4)}.`,
+    'Do not reuse the same hero, bento, sidebar, card, or color structure from previous generations.',
+  ].join('\n');
+}
+
+function promptKeywordMatches(promptText: string, visibleText: string) {
+  const ignored = new Set([
+    'create',
+    'build',
+    'design',
+    'website',
+    'landing',
+    'page',
+    'pages',
+    'site',
+    'with',
+    'that',
+    'this',
+    'from',
+    'using',
+    'make',
+    'need',
+    'needs',
+    'should',
+    'about',
+    'modern',
+    'premium',
+    'beautiful',
+    'responsive',
+  ]);
+  const promptWords = Array.from(new Set(promptText.split(' ')))
+    .filter((word) => word.length > 4 && !ignored.has(word));
+
+  if (promptWords.length < 2) return true;
+
+  const matches = promptWords.filter((word) => visibleText.includes(word));
+  return matches.length >= Math.min(3, Math.ceil(promptWords.length * 0.18));
+}
+
 function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode) {
   if (mode === 'selected') {
     if (html.length < 180 || !/\bclass\s*=/.test(html)) {
@@ -837,7 +933,7 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
   ].filter(Boolean).length;
   const grayCardCount = (classText.match(/\bbg-gray-(?:50|100|200)\b/g) || []).length;
   const defaultBlueLinks = /\btext-blue-(?:500|600|700)\b/.test(classText);
-  const placeholderCopy = /\blorem ipsum\b|placeholder text|card title|feature title|product name/i.test(html);
+  const placeholderCopy = /\blorem ipsum\b|placeholder text|card title|feature title|product name|transform your vision|elevate your experience|unlock your potential|seamless solutions|innovative platform/i.test(html);
   const promptEchoed =
     promptText.length > 300 && visibleText.includes(promptText.slice(0, 180));
   const commerce = isCommercePrompt(userPrompt);
@@ -857,6 +953,10 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
 
   if (grayCardCount > 4 || defaultBlueLinks || placeholderCopy || promptEchoed) {
     throw new Error('AI response was not a usable design. Please try again.');
+  }
+
+  if (!promptKeywordMatches(promptText, visibleText)) {
+    throw new Error('AI response copy did not match the requested site. Please try again.');
   }
 
   if (commerce) {

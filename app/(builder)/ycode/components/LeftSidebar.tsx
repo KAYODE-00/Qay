@@ -25,6 +25,7 @@ import { resetBindingsAfterMove } from '@/lib/layer-utils';
 import { useEditorUrl } from '@/hooks/use-editor-url';
 import type { EditorTab } from '@/hooks/use-editor-url';
 import { useLayerLocks } from '@/hooks/use-layer-locks';
+import { useResizablePanel } from '@/hooks/use-resizable-panel';
 
 // 6. Types
 import type { Layer } from '@/types';
@@ -57,6 +58,13 @@ const LeftSidebar = React.memo(function LeftSidebar({
   const { sidebarTab } = useEditorUrl();
   const [showElementLibrary, setShowElementLibrary] = useState(false);
   const [assetMessage, setAssetMessage] = useState<string | null>(null);
+  const { width: sidebarWidth, startResize } = useResizablePanel({
+    storageKey: 'qay-editor-left-sidebar-width',
+    defaultWidth: 256,
+    minWidth: 240,
+    maxWidth: 420,
+    direction: 'right',
+  });
 
   // Optimize store subscriptions - scoped to current page only
   const currentDraft = usePagesStore((state) => currentPageId ? state.draftsByPageId[currentPageId] : null);
@@ -287,7 +295,17 @@ const LeftSidebar = React.memo(function LeftSidebar({
 
   return (
     <>
-      <div className="w-64 shrink-0 bg-background border-r flex overflow-hidden p-4 pb-0">
+      <div
+        className="relative shrink-0 bg-background border-r flex overflow-hidden p-4 pb-0"
+        style={{ width: sidebarWidth }}
+      >
+        <div
+          role="separator"
+          aria-label="Resize left sidebar"
+          aria-orientation="vertical"
+          onPointerDown={startResize}
+          className="absolute right-0 top-0 z-30 h-full w-1 cursor-col-resize bg-transparent transition-colors hover:bg-primary/30"
+        />
         {/* Tabs */}
         <div className="w-full">
           <Tabs
@@ -381,6 +399,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
         <ElementLibrary
           isOpen={showElementLibrary}
           onClose={() => setShowElementLibrary(false)}
+          offsetLeft={sidebarWidth}
           liveLayerUpdates={liveLayerUpdates}
         />
       </Suspense>

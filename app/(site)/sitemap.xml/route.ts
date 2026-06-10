@@ -30,7 +30,7 @@ function getQayAppBaseUrl() {
 
 function generateQayAppSitemapXml() {
   const baseUrl = getQayAppBaseUrl();
-  const routes = ['/', '/pricing', '/help', '/blog'];
+  const routes = ['/', '/pricing', '/compare', '/compare/framer', '/compare/wix', '/feedback', '/help', '/blog'];
   const now = new Date().toISOString();
 
   return `<?xml version="1.0" encoding="UTF-8"?>
