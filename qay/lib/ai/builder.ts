@@ -139,6 +139,22 @@ Rules:
 - A small <style> tag is allowed only for font-family helper classes such as .serif; do not put animations or toggles in CSS.
 - Never output a single paragraph containing the prompt.`;
 
+const QAY_AI_HTML_COMPACT_SYSTEM_PROMPT = `You are QAY's AI website designer.
+Return only HTML. No markdown, no explanations, no repeated prompt text.
+Use semantic HTML and Tailwind classes. Do not use JavaScript, onclick, external scripts, GSAP, or custom animation CSS.
+Create a polished, responsive, launch-ready site for the exact user request. The design must not copy QAY examples or reuse a fixed template. Vary hero composition, navigation, section rhythm, card shapes, imagery, palette, copy, CTAs, and motion.
+Use real, niche-specific copy. Avoid lorem ipsum, Feature 1, Service 1, placeholder boxes, and generic phrases like "transform your vision" or "unlock your potential".
+Use relevant absolute image URLs, preferably Unsplash with w/auto/q params, plus descriptive alt text.
+Full pages with nav must include a small-screen menu button using data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden"; the target must have that id, hidden, and a display class.
+Use QAY motion/state hooks where useful:
+data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
+data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
+data-qay-click="toggle" data-qay-target="#id" data-qay-class="hidden"
+Optional tuning: data-qay-duration 0.35-1.4, data-qay-hover-duration 0.15-0.5, data-qay-y -80..80, data-qay-x -100..100, data-qay-ease power1.out|power2.out|power3.out|expo.out|back.out(1.2).
+For ecommerce, include product grid/cards/images/titles/descriptions/prices, add-to-cart, remove-from-cart where useful, cart button/count, hidden cart drawer, cart items, cart close/cancel, checkout button, product ids/handles, optional variant ids, trust/shipping content, and a checkout page when the store owns checkout UI. Use data-qay-commerce hooks exactly.
+For auth, membership, SaaS account, portal, course, or community flows, include useful auth pages/forms with data-qay-site-auth-form="signin|signup|forgot-password|reset-password", data-qay-site-auth-error, data-qay-site-auth-success, and relative links.
+For multi-page sites, return direct sibling wrappers with Homepage first: <div data-qay-page="Homepage" data-qay-slug="/">...</div>. Generate the natural page set, up to 5 pages, and keep nav hrefs aligned with slugs.`;
+
 export const QAY_AI_BUILDER_SYSTEM_PROMPT = `You are a website builder AI for QAY.
 Generate valid Ycode layer JSON from the user's description.
 You are also an elite frontend engineer, brand designer, and motion designer. The generated page must feel production-ready, intentional, and visually specific to the user's prompt.
@@ -752,6 +768,7 @@ function buildHtmlPrompt({ prompt, mode = 'page', selectedLayers = [] }: Generat
   const diversityBrief = buildHtmlDiversityBrief(prompt);
 
   if (mode === 'selected') {
+    const selectedContext = JSON.stringify(selectedLayers, null, 2).slice(0, 2500);
     return `Create a polished HTML/Tailwind replacement fragment for the selected QAY layer(s).
 
 User request:
@@ -760,13 +777,13 @@ ${prompt}
 Design direction for this generation:
 ${diversityBrief}
 
-Current selected layer JSON, for content/context only:
-${JSON.stringify(selectedLayers, null, 2)}
+Selected layer context, truncated:
+${selectedContext}
 
 Return only the replacement HTML fragment.`;
   }
 
-  return `Create a complete premium HTML/Tailwind page for QAY import.
+  return `Generate import-ready QAY HTML.
 
 User request:
 ${prompt}
@@ -774,73 +791,17 @@ ${prompt}
 Design direction for this generation:
 ${diversityBrief}
 
-Silent checklist:
-- The output is actual website HTML, not the prompt.
-- The output is a complete HTML document with body classes for the page background and base text color.
-- The page has the sections needed for the requested website type, usually nav, hero, 2-4 focused sections, and footer for marketing/content sites.
-- The layout is not copied from any reference example. It is purpose-built for the exact site type and prompt.
-- The QAY hook list is only an editor/import compatibility contract. Do not let the examples determine the visual design.
-- The site can be any type. Infer the type and produce a matching visual language, section structure, vocabulary, imagery, CTAs, and page set.
-- If the prompt naturally describes a site rather than a single landing page, generate multiple pages in one response using direct sibling data-qay-page wrappers. Do not stop at only the homepage when pages like About, Services, Work, Shop, Product, Contact, Login, or Sign up are needed.
-- If nav links point to pages that do not exist in the response, either generate those pages or change the nav to anchors/sections that exist.
-- The site type is not mixed with unrelated patterns unless the user requested that hybrid.
-- The design has strong composition, responsive grids, premium spacing, and meaningful copy.
-- The visible copy must be specific to the requested niche. Avoid generic filler, placeholder labels, and abstract startup language that could fit any site.
-- The copy must feel coherent across every page: same brand, same audience, same offer, same tone.
-- Choose images that match the site type and use descriptive alt text. Prefer Unsplash URLs with w, auto=format, and q params.
-- Text and images are represented as normal HTML elements.
-- Interactions use only QAY data attributes. No interaction script, GSAP script, or custom JavaScript.
-- Use QAY state hooks for simple state: mobile menus, modals, drawers, accordions, dropdowns, filters, and cart panels must use data-qay-click="toggle", data-qay-target, and data-qay-class="hidden".
-- Every toggle target must include a unique id, hidden when closed, and a display class such as flex, grid, or block.
-- CTA links and nav links are visually styled as buttons or deliberate navigation items, never browser-default links.
-- Full-page navigation must include a mobile hamburger/menu toggle with QAY state hooks. Do not rely on a desktop-only nav or CSS-only hidden links for mobile navigation.
-- On some editorial, dashboard, portfolio, or luxury concepts, a menu/drawer pattern may also be visible on desktop if it improves the design.
-- Use the full QAY motion vocabulary when appropriate:
-  data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
-  data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
-  data-qay-click="toggle" with data-qay-target and data-qay-class="hidden"
-  Optional tuning should vary per element:
-    data-qay-duration 0.35-1.4,
-    data-qay-hover-duration 0.15-0.5,
-    data-qay-y -80 to 80,
-    data-qay-x -100 to 100,
-    data-qay-ease power1.out, power2.out, power3.out, expo.out, or back.out(1.2).
-- If this is an ecommerce/storefront request, include QAY commerce hooks:
-  data-qay-commerce="product-grid" on product grids,
-  data-qay-commerce="product-card" on cards,
-  data-qay-commerce="product-image" on image wrappers,
-  data-qay-commerce="product-title" on titles,
-  data-qay-commerce="product-description" on descriptions,
-  data-qay-commerce="product-price" on prices,
-  data-qay-commerce="add-to-cart" on add-to-cart buttons,
-  data-qay-commerce="remove-from-cart" on remove-from-cart buttons when useful,
-  data-qay-commerce="cart-button" on cart buttons,
-  data-qay-commerce="cart-drawer" on cart drawer wrappers,
-  data-qay-commerce="cart-items" inside cart drawers,
-  data-qay-commerce="cart-close" or data-qay-commerce="cart-cancel" on drawer close/cancel buttons,
-  data-qay-commerce="checkout-button" on checkout buttons,
-  data-qay-product-handle, data-qay-product-id, and optional data-qay-variant-id on product cards/buttons when useful.
-- Ecommerce pages should include product grid, product cards, visible Add to cart buttons inside every product card, cart button with visible count, hidden cart drawer/modal, cart items container, cart cancel/close button, checkout button, product detail/featured section, trust/shipping row, and footer. Use placeholder products until Medusa is connected.
-- If theme support is requested, use light/dark Tailwind variants such as bg-white text-black dark:bg-[#0D0D0D] dark:text-white.
-- If this is an auth-protected, membership, SaaS, portal, course, or private-community request, include auth pages when useful:
-  <div data-qay-page="Login" data-qay-slug="login">...<form data-qay-site-auth-form="signin">...</form>...</div>
-  <div data-qay-page="Sign up" data-qay-slug="signup">...<form data-qay-site-auth-form="signup">...</form>...</div>
-  <div data-qay-page="Forgot password" data-qay-slug="forgot-password">...<form data-qay-site-auth-form="forgot-password">...</form>...</div>
-  <div data-qay-page="Reset password" data-qay-slug="reset-password">...<form data-qay-site-auth-form="reset-password">...</form>...</div>
-  Auth forms should include email/password inputs, a submit button, data-qay-site-auth-error, data-qay-site-auth-success, and relative links between auth pages.
-- If the request needs multiple pages, put each page inside a direct wrapper:
-  <div data-qay-page="Homepage" data-qay-slug="/">...</div>
-  <div data-qay-page="Shop" data-qay-slug="shop">...</div>
-  <div data-qay-page="Product" data-qay-slug="product">...</div>
-  <div data-qay-page="Login" data-qay-slug="login">...</div>
-  <div data-qay-page="Sign up" data-qay-slug="signup">...</div>
-  <div data-qay-page="About" data-qay-slug="about">...</div>
-  <div data-qay-page="Contact" data-qay-slug="contact">...</div>
-- This must match the QAY import dialog flow: Homepage first, each additional page as its own sibling wrapper, all pages returned together in one HTML response.
-- Do not put a full HTML document inside each wrapper. Put the page body content inside each wrapper.
-- Use multi-page wrappers only when they are useful. Generate at most 5 pages.
+Required:
+- Return only HTML, either one complete document or sibling data-qay-page wrappers.
+- Make the site visually strong and specific to the request, with real niche copy, relevant images, responsive Tailwind layout, styled nav/CTA links, motion hooks, and footer.
+- If the request naturally needs pages, generate them together using sibling data-qay-page wrappers, Homepage first, max 5 pages.
+- Every nav needs a mobile hamburger/menu toggle with data-qay-click="toggle", data-qay-target="#id", data-qay-class="hidden", and a hidden matching menu target.
+- Use QAY motion hooks: data-qay-animate, data-qay-hover, data-qay-click/toggle, and varied tuning attributes.
+- Ecommerce requests need product cards, add/remove cart buttons, cart button/count, hidden editable cart drawer, cart items, close/cancel, checkout button, trust/shipping content, product ids/handles, optional variant ids, and Checkout page when useful.
+- Auth/portal requests need useful Login/Sign up/Forgot/Reset pages/forms with QAY auth hooks.
+- Do not use JS, onclick, scripts, default blue links, placeholder copy, or copied examples.
 
-  Return only HTML.`;
+Return only HTML.`;
 }
 
 function escapeHtml(value: string) {
@@ -1264,7 +1225,7 @@ export async function generateQayAiHtml(input: GenerateAiLayersInput): Promise<G
   try {
     const providerResult = await callWithFallbackDetailed<string>(
       buildHtmlPrompt(input),
-      QAY_AI_HTML_SYSTEM_PROMPT,
+      QAY_AI_HTML_COMPACT_SYSTEM_PROMPT,
       (text) => {
         const html = ensureQayMobileMenu(extractHtml(text));
         assertUsableHtml(html, input.prompt, input.mode || 'page');

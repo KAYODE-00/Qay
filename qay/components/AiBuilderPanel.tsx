@@ -188,6 +188,8 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       const body = (await response.json()) as GenerateResponse;
 
       if (!response.ok || !body.data) {
+        console.error('[QAY AI Builder] AI generate failed response:', body);
+
         if (body.providers?.length) {
           console.error('[QAY AI Builder] AI provider failure details:', body.providers);
         }

@@ -54,10 +54,10 @@ function requestTimeoutMs(system: string) {
 function maxOutputTokens(system: string, providerName: string) {
   if (!wantsPlainHtml(system)) return 6000;
   if (providerName === 'groq') {
-    return Number(process.env.QAY_GROQ_HTML_MAX_TOKENS || 5600);
+    return Number(process.env.QAY_GROQ_HTML_MAX_TOKENS || 4200);
   }
   if (providerName === 'openrouter') {
-    return Number(process.env.QAY_OPENROUTER_HTML_MAX_TOKENS || 5200);
+    return Number(process.env.QAY_OPENROUTER_HTML_MAX_TOKENS || 3800);
   }
   return 8000;
 }
