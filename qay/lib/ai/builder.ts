@@ -57,6 +57,8 @@ Rules:
 - Use strong visual hierarchy, exact palettes from the user, polished spacing, and responsive layouts.
 - Production quality is mandatory. Do not output a plain stack, wireframe, generic template, default gray cards, placeholder boxes, or a minimal demo.
 - Every full page must feel like a real launch-ready site: distinctive hero composition, strong type scale, responsive layout, visual assets, polished CTAs, trust/detail sections, and a finished footer.
+- Treat QAY's supported attributes as a compatibility contract, not as a design template. The generated site must not look like the reference examples.
+- Generate the exact site type requested. A law firm, fashion store, school portal, restaurant, AI SaaS, logistics company, wedding site, gallery, gym, hotel, creator portfolio, marketplace, course, directory, church, nonprofit, clinic, real estate site, or community must all look and read differently.
 - Use at least one real image for normal websites and ecommerce pages unless the user explicitly asks for a text-only/internal tool.
 - Use varied Tailwind utilities: responsive classes, max-width containers, generous spacing, borders/shadows/rounded corners when appropriate, and exact arbitrary colors.
 - Infer the website type from the user's request and stay in that lane. Do not mix unrelated site types unless the user explicitly asks for a hybrid.
@@ -64,6 +66,7 @@ Rules:
 - Before writing HTML, silently choose a distinct design direction for this exact request. Vary section order, grid rhythm, hero composition, card shapes, navigation pattern, palette, imagery, and motion values. The QAY reference is only a compatibility contract, not a visual template.
 - Generate copy that belongs to the requested business/site type. Avoid generic phrases like "transform your vision", "elevate your experience", "unlock your potential", "seamless solutions", or "innovative platform" unless the prompt specifically uses them.
 - The site must read like it was written by someone who understands the industry. Use concrete nouns, believable product/service details, realistic section labels, and CTAs that match the request.
+- Visible text must flow with the site: headlines, section names, product names, testimonials, navigation, and CTAs must all belong to the same brand/story.
 - Do not output the same hero structure twice in spirit. Avoid the default pattern of centered headline, three cards, simple CTA, and generic footer unless the user specifically asks for that.
 - Avoid lazy filler UI: no blank rectangles, "Feature 1", "Service 1", repeated card text, repeated section layouts, generic gray placeholder panels, or decorative boxes without content.
 - Use visual tension: mix at least two of these where appropriate: asymmetric grids, overlapping media, sidebar/dock navigation, offset cards, editorial metadata rails, large image crops, alternating section backgrounds, or varied card spans.
@@ -89,6 +92,7 @@ Rules:
   <div id="mobile-menu" class="hidden fixed ... flex ...">...</div>
 - For image zoom, put data-qay-hover="img-zoom" on an overflow-hidden wrapper that contains one img.
 - Use data-qay-* tastefully on hero content, cards, timeline rows, image wrappers, and buttons.
+- For UI state such as menus, modal panels, drawers, accordions, tabs-as-simple-panels, and filter panels, use data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden". The target must include the matching id, the hidden class when closed, and a display class such as flex, grid, or block.
 - Ecommerce/storefront hooks:
   data-qay-commerce="product-grid" on the product listing section or grid wrapper.
   data-qay-commerce="product-card" on each product card.
@@ -114,6 +118,7 @@ Rules:
 - If the user asks for ecommerce, store, shop, products, cart, collection, checkout, boutique, fashion, perfume, food ordering, marketplace, or catalog:
   create a premium storefront with nav, hero, featured collections/products, product cards, cart button, hidden cart drawer/modal, cart items container, cart cancel/close button, checkout button, trust/shipping block, product detail or collection section, newsletter/contact footer.
   Use the commerce hooks above. Keep checkout links as styled buttons but do not add JavaScript.
+- Ecommerce product/category names, prices, descriptions, badges, and trust copy must match the requested store category.
 - If the user asks for light mode, dark mode, luxury dark, clean light, or theme support, use Tailwind classes and dark: variants with strong contrast. Do not add JavaScript theme toggles.
 - If the user asks for an auth-protected site, membership site, portal, login, signup, dashboard, private community, course, SaaS app, or client portal:
   include public marketing pages only if requested, and also generate dedicated auth pages using data-qay-page wrappers for Login, Sign up, Forgot password, and Reset password when useful.
@@ -126,6 +131,7 @@ Rules:
 - For multi-page sites, mirror QAY's import flow: Homepage first, then every extra page as a separate direct sibling wrapper with data-qay-page and data-qay-slug. Do not nest page wrappers inside another page.
 - Decide page count from the prompt. If the request naturally needs more than one page, generate multiple direct sibling data-qay-page wrappers in one response. Examples: ecommerce usually needs Homepage, Shop, Product, and Contact or Cart; business sites often need Homepage, Services/About, and Contact; portfolio sites often need Homepage, Work, About, and Contact; auth/portal sites need Login/Sign up/Forgot/Reset pages when auth is requested.
 - Never force everything into one page when the requested site clearly needs navigation pages. If navigation includes links to pages, include matching data-qay-page wrappers unless the prompt asks for a single-page site.
+- For internal nav links to generated pages, make the href match the slug, for example href="/services" for data-qay-slug="services".
 - Do not rely on custom CSS classes for layout or interaction behavior. Tailwind utilities must carry the design.
 - A small <style> tag is allowed only for font-family helper classes such as .serif; do not put animations or toggles in CSS.
 - Never output a single paragraph containing the prompt.`;
@@ -736,12 +742,19 @@ Silent checklist:
 - The output is a complete HTML document with body classes for the page background and base text color.
 - The page has the sections needed for the requested website type, usually nav, hero, 2-4 focused sections, and footer for marketing/content sites.
 - The layout is not copied from any reference example. It is purpose-built for the exact site type and prompt.
+- The QAY hook list is only an editor/import compatibility contract. Do not let the examples determine the visual design.
+- The site can be any type. Infer the type and produce a matching visual language, section structure, vocabulary, imagery, CTAs, and page set.
 - If the prompt naturally describes a site rather than a single landing page, generate multiple pages in one response using direct sibling data-qay-page wrappers. Do not stop at only the homepage when pages like About, Services, Work, Shop, Product, Contact, Login, or Sign up are needed.
+- If nav links point to pages that do not exist in the response, either generate those pages or change the nav to anchors/sections that exist.
 - The site type is not mixed with unrelated patterns unless the user requested that hybrid.
 - The design has strong composition, responsive grids, premium spacing, and meaningful copy.
 - The visible copy must be specific to the requested niche. Avoid generic filler, placeholder labels, and abstract startup language that could fit any site.
+- The copy must feel coherent across every page: same brand, same audience, same offer, same tone.
+- Choose images that match the site type and use descriptive alt text. Prefer Unsplash URLs with w, auto=format, and q params.
 - Text and images are represented as normal HTML elements.
 - Interactions use only QAY data attributes. No interaction script, GSAP script, or custom JavaScript.
+- Use QAY state hooks for simple state: mobile menus, modals, drawers, accordions, dropdowns, filters, and cart panels must use data-qay-click="toggle", data-qay-target, and data-qay-class="hidden".
+- Every toggle target must include a unique id, hidden when closed, and a display class such as flex, grid, or block.
 - CTA links and nav links are visually styled as buttons or deliberate navigation items, never browser-default links.
 - Use the full QAY motion vocabulary when appropriate:
   data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
