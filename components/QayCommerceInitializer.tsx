@@ -9,10 +9,12 @@ type QayCommerceProduct = {
   thumbnail: string | null;
   description: string | null;
   price: string | null;
+  variantId: string | null;
 };
 
 type CartItem = {
   id: string;
+  variantId: string | null;
   title: string;
   quantity: number;
 };
@@ -23,11 +25,12 @@ function productFromCard(card: Element, fallbackIndex: number): QayCommerceProdu
     card.querySelector('[data-qay-commerce="product-title"]')?.textContent?.trim() ||
     `Product ${fallbackIndex + 1}`;
   const handle = card.getAttribute('data-qay-product-handle');
+  const variantId = card.getAttribute('data-qay-variant-id');
   const description = card.querySelector('[data-qay-commerce="product-description"]')?.textContent?.trim() || null;
   const price = card.querySelector('[data-qay-commerce="product-price"]')?.textContent?.trim() || null;
   const thumbnail = card.querySelector('[data-qay-commerce="product-image"] img')?.getAttribute('src') || null;
 
-  return { id, title, handle, description, price, thumbnail };
+  return { id, title, handle, variantId, description, price, thumbnail };
 }
 
 function productFromButton(button: Element, fallbackIndex: number): QayCommerceProduct {
@@ -39,6 +42,7 @@ function productFromButton(button: Element, fallbackIndex: number): QayCommerceP
     id,
     title: button.getAttribute('data-qay-product-title') || 'Selected product',
     handle: button.getAttribute('data-qay-product-handle'),
+    variantId: button.getAttribute('data-qay-variant-id'),
     description: null,
     price: null,
     thumbnail: null,
@@ -123,8 +127,9 @@ function addToCart(siteId: string, product: QayCommerceProduct) {
   const existing = items.find((item) => item.id === product.id);
   if (existing) {
     existing.quantity += 1;
+    existing.variantId = existing.variantId || product.variantId;
   } else {
-    items.push({ id: product.id, title: product.title, quantity: 1 });
+    items.push({ id: product.id, variantId: product.variantId, title: product.title, quantity: 1 });
   }
   writeCart(siteId, items);
   updateCartUi(siteId);
@@ -141,6 +146,67 @@ function removeFromCart(siteId: string, productId: string) {
 
   writeCart(siteId, nextItems);
   updateCartUi(siteId);
+}
+
+function setCheckoutNotice(message: string) {
+  document.querySelectorAll('[data-qay-commerce="cart-drawer"]').forEach((drawer) => {
+    const existingNotice = drawer.querySelector('[data-qay-commerce="checkout-notice"]');
+    if (existingNotice) {
+      existingNotice.textContent = message;
+      return;
+    }
+
+    const notice = document.createElement('div');
+    notice.setAttribute('data-qay-commerce', 'checkout-notice');
+    notice.className = 'mt-3 rounded-lg border border-current/10 px-3 py-2 text-sm opacity-75';
+    notice.textContent = message;
+    const checkoutButton = drawer.querySelector('[data-qay-commerce="checkout-button"]');
+    checkoutButton?.insertAdjacentElement('afterend', notice);
+  });
+}
+
+async function startCheckout(siteId: string) {
+  const items = readCart(siteId);
+  if (items.length === 0) {
+    setCheckoutNotice('Add at least one item before checkout.');
+    return;
+  }
+
+  const checkoutItems = items
+    .filter((item) => item.variantId)
+    .map((item) => ({ variantId: item.variantId, quantity: item.quantity }));
+
+  if (checkoutItems.length === 0) {
+    setCheckoutNotice('This cart needs Medusa product variants before checkout can start.');
+    return;
+  }
+
+  setCheckoutNotice('Starting secure checkout...');
+
+  try {
+    const response = await fetch(`/api/qay/commerce/${siteId}/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: checkoutItems }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Checkout failed');
+    }
+
+    if (payload?.data?.checkoutUrl) {
+      window.location.href = payload.data.checkoutUrl;
+      return;
+    }
+
+    setCheckoutNotice(
+      payload?.data?.cartId
+        ? `Medusa cart created (${payload.data.cartId}). Add a storefront checkout URL in Commerce settings to redirect buyers.`
+        : 'Medusa cart created. Add a storefront checkout URL in Commerce settings to redirect buyers.'
+    );
+  } catch (error) {
+    setCheckoutNotice(error instanceof Error ? error.message : 'Checkout failed. Please try again.');
+  }
 }
 
 function bindCartControls(siteId: string) {
@@ -171,21 +237,7 @@ function bindCartControls(siteId: string) {
   document.querySelectorAll('[data-qay-commerce="checkout-button"]').forEach((button) => {
     if ((button as HTMLElement).dataset.qayCheckoutBound === 'true') return;
     (button as HTMLElement).dataset.qayCheckoutBound = 'true';
-    button.addEventListener('click', () => {
-      document.querySelectorAll('[data-qay-commerce="cart-drawer"]').forEach((drawer) => {
-        const existingNotice = drawer.querySelector('[data-qay-commerce="checkout-notice"]');
-        if (existingNotice) {
-          existingNotice.textContent = 'Checkout is ready for Medusa wiring. Cart items are saved for this site.';
-          return;
-        }
-
-        const notice = document.createElement('div');
-        notice.setAttribute('data-qay-commerce', 'checkout-notice');
-        notice.className = 'mt-3 rounded-lg border border-current/10 px-3 py-2 text-sm opacity-75';
-        notice.textContent = 'Checkout is ready for Medusa wiring. Cart items are saved for this site.';
-        button.insertAdjacentElement('afterend', notice);
-      });
-    });
+    button.addEventListener('click', () => startCheckout(siteId));
   });
 }
 
@@ -222,6 +274,7 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
 
         card.setAttribute('data-qay-product-id', product.id);
         if (product.handle) card.setAttribute('data-qay-product-handle', product.handle);
+        if (product.variantId) card.setAttribute('data-qay-variant-id', product.variantId);
 
         setText(card, '[data-qay-commerce="product-title"]', product.title);
         setText(card, '[data-qay-commerce="product-description"]', product.description || product.handle || '');
@@ -231,6 +284,7 @@ export default function QayCommerceInitializer({ siteId }: { siteId?: string }) 
         card.querySelectorAll('[data-qay-commerce="add-to-cart"]').forEach((button) => {
           button.setAttribute('type', 'button');
           button.setAttribute('data-qay-product-id', product.id);
+          if (product.variantId) button.setAttribute('data-qay-variant-id', product.variantId);
         });
         card.querySelectorAll('[data-qay-commerce="remove-from-cart"]').forEach((button) => {
           button.setAttribute('type', 'button');

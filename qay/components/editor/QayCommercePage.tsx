@@ -10,10 +10,12 @@ import { Switch } from '@/components/ui/switch';
 type CommerceSettings = {
   enabled: boolean;
   backendUrl: string;
+  storefrontUrl: string;
   publishableKey: string;
   regionId: string;
   salesChannelId: string;
   connected?: boolean;
+  checkoutReady?: boolean;
 };
 
 type Product = {
@@ -27,6 +29,7 @@ type Product = {
 const emptySettings: CommerceSettings = {
   enabled: false,
   backendUrl: '',
+  storefrontUrl: '',
   publishableKey: '',
   regionId: '',
   salesChannelId: '',
@@ -88,6 +91,7 @@ export function QayCommercePage() {
         body: JSON.stringify({
           enabled: settings.enabled,
           backendUrl: settings.backendUrl,
+          storefrontUrl: settings.storefrontUrl,
           regionId: settings.regionId,
           salesChannelId: settings.salesChannelId,
           ...(publishableKeyInput ? { publishableKey: publishableKeyInput } : {}),
@@ -144,7 +148,7 @@ export function QayCommercePage() {
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Medusa</p>
         <h1 className="mt-2 text-xl font-medium">Commerce</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Connect this QAY site to a Medusa backend. For now this prepares products and storefront blocks; checkout wiring can plug in once your Medusa repo is ready.
+          Connect this QAY site to a Medusa backend, hydrate products, and send storefront cart items into checkout.
         </p>
       </div>
 
@@ -181,6 +185,14 @@ export function QayCommercePage() {
             />
           </label>
           <label className="space-y-2">
+            <span className="text-xs font-medium">Storefront checkout URL</span>
+            <Input
+              value={settings.storefrontUrl}
+              onChange={(event) => updateSettings({ storefrontUrl: event.target.value })}
+              placeholder="http://localhost:8000"
+            />
+          </label>
+          <label className="space-y-2">
             <span className="text-xs font-medium">Region ID</span>
             <Input
               value={settings.regionId}
@@ -209,7 +221,11 @@ export function QayCommercePage() {
             {isTesting ? 'Testing...' : 'Test products'}
           </Button>
           <span className="text-xs text-muted-foreground">
-            {settings.connected ? 'Connection details are configured.' : 'Not connected yet.'}
+            {settings.checkoutReady
+              ? 'Products and checkout redirect are configured.'
+              : settings.connected
+                ? 'Products are configured. Add a storefront URL for checkout redirect.'
+                : 'Not connected yet.'}
           </span>
         </div>
       </section>

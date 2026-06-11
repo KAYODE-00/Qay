@@ -1,6 +1,7 @@
 export type QayMedusaCommerceSettings = {
   enabled: boolean;
   backendUrl: string;
+  storefrontUrl: string;
   publishableKey: string;
   regionId: string;
   salesChannelId: string;
@@ -13,7 +14,18 @@ export type QayMedusaProduct = {
   thumbnail: string | null;
   description: string | null;
   price: string | null;
+  variantId: string | null;
   status?: string | null;
+};
+
+export type QayMedusaCheckoutItem = {
+  variantId?: string | null;
+  quantity?: number;
+};
+
+export type QayMedusaCheckoutResult = {
+  cartId: string;
+  checkoutUrl: string | null;
 };
 
 export function normalizeMedusaCommerceSettings(value: unknown): QayMedusaCommerceSettings {
@@ -22,6 +34,7 @@ export function normalizeMedusaCommerceSettings(value: unknown): QayMedusaCommer
   return {
     enabled: record.enabled === true,
     backendUrl: typeof record.backendUrl === 'string' ? record.backendUrl.trim().replace(/\/+$/, '') : '',
+    storefrontUrl: typeof record.storefrontUrl === 'string' ? record.storefrontUrl.trim().replace(/\/+$/, '') : '',
     publishableKey: typeof record.publishableKey === 'string' ? record.publishableKey.trim() : '',
     regionId: typeof record.regionId === 'string' ? record.regionId.trim() : '',
     salesChannelId: typeof record.salesChannelId === 'string' ? record.salesChannelId.trim() : '',
@@ -32,6 +45,7 @@ export function mergeMedusaCommerceSettings(siteSettings: QayMedusaCommerceSetti
   return {
     enabled: siteSettings.enabled,
     backendUrl: siteSettings.backendUrl || process.env.MEDUSA_BACKEND_URL || process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || '',
+    storefrontUrl: siteSettings.storefrontUrl || process.env.MEDUSA_STOREFRONT_URL || process.env.NEXT_PUBLIC_MEDUSA_STOREFRONT_URL || '',
     publishableKey: siteSettings.publishableKey || process.env.MEDUSA_PUBLISHABLE_KEY || '',
     regionId: siteSettings.regionId || process.env.MEDUSA_REGION_ID || '',
     salesChannelId: siteSettings.salesChannelId || process.env.MEDUSA_SALES_CHANNEL_ID || '',
@@ -43,6 +57,7 @@ export function maskMedusaCommerceSettings(settings: QayMedusaCommerceSettings) 
     ...settings,
     publishableKey: settings.publishableKey ? 'configured' : '',
     connected: Boolean(settings.enabled && settings.backendUrl && settings.publishableKey),
+    checkoutReady: Boolean(settings.enabled && settings.backendUrl && settings.publishableKey && settings.storefrontUrl),
   };
 }
 
@@ -95,7 +110,98 @@ export async function fetchMedusaProducts(settings: QayMedusaCommerceSettings): 
       thumbnail: typeof product.thumbnail === 'string' ? product.thumbnail : null,
       description: typeof product.description === 'string' ? product.description : null,
       price: amount === null ? null : `${currency ? `${currency} ` : ''}${amount}`,
+      variantId: typeof variants[0]?.id === 'string' ? variants[0].id : null,
       status: typeof product.status === 'string' ? product.status : null,
     };
   }).filter((product: QayMedusaProduct) => product.id);
+}
+
+async function readMedusaError(response: Response) {
+  const text = await response.text().catch(() => '');
+  if (!text) return `Medusa returned ${response.status}`;
+
+  try {
+    const parsed = JSON.parse(text);
+    return parsed?.message || parsed?.error || text;
+  } catch {
+    return text;
+  }
+}
+
+function medusaStoreHeaders(settings: QayMedusaCommerceSettings) {
+  return {
+    'Content-Type': 'application/json',
+    'x-publishable-api-key': settings.publishableKey,
+    accept: 'application/json',
+  };
+}
+
+function buildCheckoutUrl(storefrontUrl: string, cartId: string) {
+  if (!storefrontUrl) return null;
+  const url = new URL(`${storefrontUrl.replace(/\/+$/, '')}/checkout`);
+  url.searchParams.set('cart_id', cartId);
+  return url.toString();
+}
+
+export async function createMedusaCheckout(
+  settings: QayMedusaCommerceSettings,
+  items: QayMedusaCheckoutItem[]
+): Promise<QayMedusaCheckoutResult> {
+  const resolved = mergeMedusaCommerceSettings(settings);
+  if (!resolved.enabled || !resolved.backendUrl || !resolved.publishableKey) {
+    throw new Error('Medusa commerce is not connected for this site.');
+  }
+
+  const checkoutItems = items
+    .map((item) => ({
+      variantId: typeof item.variantId === 'string' ? item.variantId.trim() : '',
+      quantity: Math.max(1, Math.min(99, Number(item.quantity) || 1)),
+    }))
+    .filter((item) => item.variantId);
+
+  if (checkoutItems.length === 0) {
+    throw new Error('No Medusa product variants were found in this cart.');
+  }
+
+  const cartBody: Record<string, string> = {};
+  if (resolved.regionId) cartBody.region_id = resolved.regionId;
+  if (resolved.salesChannelId) cartBody.sales_channel_id = resolved.salesChannelId;
+
+  const cartResponse = await fetch(`${resolved.backendUrl}/store/carts`, {
+    method: 'POST',
+    headers: medusaStoreHeaders(resolved),
+    body: JSON.stringify(cartBody),
+    cache: 'no-store',
+  });
+
+  if (!cartResponse.ok) {
+    throw new Error(await readMedusaError(cartResponse));
+  }
+
+  const cartPayload = await cartResponse.json();
+  const cartId = typeof cartPayload?.cart?.id === 'string' ? cartPayload.cart.id : '';
+  if (!cartId) {
+    throw new Error('Medusa did not return a cart id.');
+  }
+
+  for (const item of checkoutItems) {
+    const lineResponse = await fetch(`${resolved.backendUrl}/store/carts/${cartId}/line-items`, {
+      method: 'POST',
+      headers: medusaStoreHeaders(resolved),
+      body: JSON.stringify({
+        variant_id: item.variantId,
+        quantity: item.quantity,
+      }),
+      cache: 'no-store',
+    });
+
+    if (!lineResponse.ok) {
+      throw new Error(await readMedusaError(lineResponse));
+    }
+  }
+
+  return {
+    cartId,
+    checkoutUrl: buildCheckoutUrl(resolved.storefrontUrl, cartId),
+  };
 }

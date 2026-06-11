@@ -328,6 +328,7 @@ data-qay-commerce="cart-cancel"
 data-qay-commerce="checkout-button"
 data-qay-product-id="sample-product-id"
 data-qay-product-handle="sample-product-handle"
+data-qay-variant-id="sample-variant-id"
 data-qay-cart-label="Cart"
 ```
 
@@ -340,8 +341,9 @@ Runtime behavior:
 - `remove-from-cart` decrements/removes the matching product.
 - Cart is stored per site id in local storage.
 - `cart-items` is replaced with current cart rows at runtime.
-- `checkout-button` currently shows a Medusa-ready notice until checkout is wired.
+- `checkout-button` creates a Medusa cart, adds cart line items by variant id, and redirects to the configured storefront checkout URL.
 - Product cards may be hydrated from connected Medusa products by position.
+- `data-qay-variant-id` is optional in generated sample HTML. QAY adds it automatically when real Medusa products hydrate the card.
 
 Every ecommerce page should include:
 
@@ -363,6 +365,7 @@ Required product card:
   data-qay-commerce="product-card"
   data-qay-product-id="sample-product-1"
   data-qay-product-handle="signature-product"
+  data-qay-variant-id="sample-variant-1"
 >
   <div class="overflow-hidden" data-qay-commerce="product-image" data-qay-hover="img-zoom">
     <img src="https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=900&auto=format&q=85" alt="Signature product" />
@@ -543,6 +546,7 @@ If this is ecommerce, include product cards, add-to-cart buttons, remove buttons
 data-qay-commerce="product-grid|product-card|product-image|product-title|product-description|product-price|add-to-cart|remove-from-cart|cart-button|cart-drawer|cart-items|cart-count|cart-close|cart-cancel|checkout-button"
 data-qay-product-id="sample-product-id"
 data-qay-product-handle="sample-product-handle"
+data-qay-variant-id="sample-variant-id"
 data-qay-cart-label="Cart"
 
 Every ecommerce product card must include:
@@ -583,7 +587,7 @@ These examples show hooks only. They are not layout templates.
 ### Ecommerce Card
 
 ```html
-<article data-qay-commerce="product-card" data-qay-product-id="sample-product-1" data-qay-product-handle="signature-product">
+<article data-qay-commerce="product-card" data-qay-product-id="sample-product-1" data-qay-product-handle="signature-product" data-qay-variant-id="sample-variant-1">
   <div class="overflow-hidden" data-qay-commerce="product-image" data-qay-hover="img-zoom">
     <img src="https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=900&auto=format&q=85" alt="Signature product" />
   </div>

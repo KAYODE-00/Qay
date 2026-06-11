@@ -108,7 +108,8 @@ Rules:
   data-qay-commerce="cart-count" for standalone cart count text.
   data-qay-commerce="cart-close" or data-qay-commerce="cart-cancel" on cart drawer close/cancel buttons.
   data-qay-commerce="checkout-button" on checkout buttons.
-  data-qay-product-handle="sample-handle" and data-qay-product-id="sample-product-id" when useful.
+  data-qay-product-handle="sample-handle", data-qay-product-id="sample-product-id", and optional data-qay-variant-id="sample-variant-id" when useful.
+  QAY hydrates real Medusa product and variant ids by position after connection, then checkout creates a Medusa cart and redirects to the configured storefront checkout URL.
 - Every ecommerce product card must include a visible, styled Add to cart button:
   <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="same-product-id">Add to cart</button>
   Match the button data-qay-product-id to the product card id.
@@ -780,7 +781,7 @@ Silent checklist:
   data-qay-commerce="cart-items" inside cart drawers,
   data-qay-commerce="cart-close" or data-qay-commerce="cart-cancel" on drawer close/cancel buttons,
   data-qay-commerce="checkout-button" on checkout buttons,
-  data-qay-product-handle and data-qay-product-id on product cards/buttons when useful.
+  data-qay-product-handle, data-qay-product-id, and optional data-qay-variant-id on product cards/buttons when useful.
 - Ecommerce pages should include product grid, product cards, visible Add to cart buttons inside every product card, cart button with visible count, hidden cart drawer/modal, cart items container, cart cancel/close button, checkout button, product detail/featured section, trust/shipping row, and footer. Use placeholder products until Medusa is connected.
 - If theme support is requested, use light/dark Tailwind variants such as bg-white text-black dark:bg-[#0D0D0D] dark:text-white.
 - If this is an auth-protected, membership, SaaS, portal, course, or private-community request, include auth pages when useful:

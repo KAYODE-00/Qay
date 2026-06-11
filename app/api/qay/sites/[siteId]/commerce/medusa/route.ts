@@ -65,6 +65,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   const nextSettings: QayMedusaCommerceSettings = {
     enabled: body?.enabled === true,
     backendUrl: typeof body?.backendUrl === 'string' ? body.backendUrl.trim().replace(/\/+$/, '') : '',
+    storefrontUrl: typeof body?.storefrontUrl === 'string' ? body.storefrontUrl.trim().replace(/\/+$/, '') : '',
     publishableKey: typeof body?.publishableKey === 'string' ? body.publishableKey.trim() : existing.publishableKey,
     regionId: typeof body?.regionId === 'string' ? body.regionId.trim() : '',
     salesChannelId: typeof body?.salesChannelId === 'string' ? body.salesChannelId.trim() : '',
