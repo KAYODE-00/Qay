@@ -197,7 +197,22 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         throw new Error(body.details || body.error || 'We could not generate this design.');
       }
 
+      console.log('[QAY AI Builder] Provider:', body.data.provider, body.data.model);
+      if (body.data.html) {
+        console.log('[QAY AI Builder] Generated import HTML:', body.data.html);
+      }
+      if (body.data.layers) {
+        console.log('[QAY AI Builder] Generated layer JSON:', body.data.layers);
+      }
+
       const generatedPages = body.data.html ? htmlToPageImports(body.data.html, 'Homepage') : [];
+      if (generatedPages.length > 0) {
+        console.log('[QAY AI Builder] Parsed import pages:', generatedPages.map((page) => ({
+          name: page.name,
+          slug: page.slug,
+          layerCount: page.layers.length,
+        })));
+      }
 
       if (mode === 'page' && generatedPages.length > 1 && siteId) {
         const importResponse = await fetch(`/api/qay/sites/${siteId}/import-html`, {

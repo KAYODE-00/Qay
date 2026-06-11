@@ -63,6 +63,10 @@ Rules:
 - Do not reuse one fixed layout. Choose the layout architecture to fit the prompt: editorial, dashboard-like, bento, split-screen, magazine, sidebar, grid, product-led, event schedule, portfolio case-study, restaurant menu, service business, community, auth/membership, or another suitable structure.
 - Before writing HTML, silently choose a distinct design direction for this exact request. Vary section order, grid rhythm, hero composition, card shapes, navigation pattern, palette, imagery, and motion values. The QAY reference is only a compatibility contract, not a visual template.
 - Generate copy that belongs to the requested business/site type. Avoid generic phrases like "transform your vision", "elevate your experience", "unlock your potential", "seamless solutions", or "innovative platform" unless the prompt specifically uses them.
+- The site must read like it was written by someone who understands the industry. Use concrete nouns, believable product/service details, realistic section labels, and CTAs that match the request.
+- Do not output the same hero structure twice in spirit. Avoid the default pattern of centered headline, three cards, simple CTA, and generic footer unless the user specifically asks for that.
+- Avoid lazy filler UI: no blank rectangles, "Feature 1", "Service 1", repeated card text, repeated section layouts, generic gray placeholder panels, or decorative boxes without content.
+- Use visual tension: mix at least two of these where appropriate: asymmetric grids, overlapping media, sidebar/dock navigation, offset cards, editorial metadata rails, large image crops, alternating section backgrounds, or varied card spans.
 - Use relative internal links such as "/about".
 - Style navigation and CTA links as buttons with Tailwind classes; do not leave bare blue/default links.
 - Use absolute image URLs only, preferably Unsplash URLs with width and quality params.
@@ -121,6 +125,7 @@ Rules:
   Keep auth page links relative: /login, /signup, /forgot-password, /reset-password.
 - For multi-page sites, mirror QAY's import flow: Homepage first, then every extra page as a separate direct sibling wrapper with data-qay-page and data-qay-slug. Do not nest page wrappers inside another page.
 - Decide page count from the prompt. If the request naturally needs more than one page, generate multiple direct sibling data-qay-page wrappers in one response. Examples: ecommerce usually needs Homepage, Shop, Product, and Contact or Cart; business sites often need Homepage, Services/About, and Contact; portfolio sites often need Homepage, Work, About, and Contact; auth/portal sites need Login/Sign up/Forgot/Reset pages when auth is requested.
+- Never force everything into one page when the requested site clearly needs navigation pages. If navigation includes links to pages, include matching data-qay-page wrappers unless the prompt asks for a single-page site.
 - Do not rely on custom CSS classes for layout or interaction behavior. Tailwind utilities must carry the design.
 - A small <style> tag is allowed only for font-family helper classes such as .serif; do not put animations or toggles in CSS.
 - Never output a single paragraph containing the prompt.`;

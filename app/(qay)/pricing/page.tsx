@@ -14,7 +14,7 @@ export default function PricingPage() {
     <main className="min-h-screen bg-background px-6 py-10 text-foreground sm:px-10 lg:px-16">
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center justify-between">
-          <QayLogo theme="light" />
+          <QayLogo />
           <Link href="/" className="text-sm text-muted-foreground transition hover:text-foreground">
             Back to QAY
           </Link>

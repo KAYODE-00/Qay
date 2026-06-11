@@ -14,7 +14,7 @@ export default function FeedbackPage() {
       <div className="mx-auto max-w-5xl">
         <header className="flex items-center justify-between gap-6">
           <Link href="/" aria-label="QAY home">
-            <QayLogo theme="dark" imageClassName="h-10 w-auto" />
+            <QayLogo imageClassName="h-10 w-auto" />
           </Link>
           <nav className="flex items-center gap-5 text-sm text-muted-foreground">
             <Link href="/compare" className="transition hover:text-foreground">Compare</Link>

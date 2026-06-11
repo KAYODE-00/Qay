@@ -33,7 +33,10 @@ function isThemedAppRoute(pathname: string | null): boolean {
     pathname.startsWith('/signup') ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/invite')
+    pathname.startsWith('/invite') ||
+    pathname.startsWith('/pricing') ||
+    pathname.startsWith('/compare') ||
+    pathname.startsWith('/feedback')
   );
 }
 
@@ -54,14 +57,13 @@ export default function DarkModeProvider({ children }: { children: React.ReactNo
     const applyTheme = () => {
       if (!isThemedAppRoute(pathname)) {
         document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
         return;
       }
 
-      if (shouldApplyDark()) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+      const useDark = shouldApplyDark();
+      document.documentElement.classList.toggle('dark', useDark);
+      document.documentElement.style.colorScheme = useDark ? 'dark' : 'light';
     };
 
     applyTheme();

@@ -35,6 +35,12 @@ export async function POST(request: Request) {
       ? await generateQayAiHtml({ prompt, mode, selectedLayers })
       : await generateQayAiLayers({ prompt, mode, selectedLayers });
 
+    if (body.output === 'html' && 'html' in result) {
+      console.log('[QAY AI generate] Generated HTML:', result.html);
+    } else if ('layers' in result) {
+      console.log('[QAY AI generate] Generated layer JSON:', JSON.stringify(result.layers, null, 2));
+    }
+
     return NextResponse.json({ data: result });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'We could not generate this design.';
@@ -54,7 +60,7 @@ export async function POST(request: Request) {
           ? 'AI is not configured yet. Add at least one AI provider key to use this.'
           : isProviderLimits
             ? 'All AI providers are out of usable quota or rate limited. Add credits, wait for limits to reset, or add another provider key.'
-          : 'AI is busy. Try again shortly.',
+            : 'AI is busy. Try again shortly.',
         ...(isProviderLimits ? {
           code: 'AI_PROVIDER_LIMITS_REACHED',
           providers: error.failures.map((failure) => ({

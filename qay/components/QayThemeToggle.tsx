@@ -25,6 +25,7 @@ function applyTheme(theme: Theme) {
     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   document.documentElement.classList.toggle('dark', shouldUseDark);
+  document.documentElement.style.colorScheme = shouldUseDark ? 'dark' : 'light';
   window.dispatchEvent(new Event('qay-theme-change'));
 }
 
