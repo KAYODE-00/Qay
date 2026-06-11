@@ -138,9 +138,11 @@ function medusaStoreHeaders(settings: QayMedusaCommerceSettings) {
 
 function buildCheckoutUrl(storefrontUrl: string, cartId: string) {
   if (!storefrontUrl) return null;
-  const url = new URL(`${storefrontUrl.replace(/\/+$/, '')}/checkout`);
-  url.searchParams.set('cart_id', cartId);
-  return url.toString();
+  const base = new URL(storefrontUrl);
+  const path = base.pathname.replace(/\/+$/, '');
+  base.pathname = path && path !== '/' ? path : '/checkout';
+  base.searchParams.set('cart_id', cartId);
+  return base.toString();
 }
 
 export async function createMedusaCheckout(

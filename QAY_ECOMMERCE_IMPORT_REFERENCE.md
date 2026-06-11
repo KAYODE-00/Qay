@@ -79,7 +79,7 @@ Rules for pages:
 - Do not nest `data-qay-page` wrappers.
 - Do not put a full `<!DOCTYPE html>` document inside every page wrapper.
 - Generate multiple pages when the site naturally needs them.
-- Keep slugs clean: `about`, `services`, `work`, `shop`, `product`, `contact`, `login`.
+- Keep slugs clean: `about`, `services`, `work`, `shop`, `product`, `checkout`, `contact`, `login`.
 - Generate at most 5 pages unless the user asks for more.
 
 Good default page sets:
@@ -87,7 +87,7 @@ Good default page sets:
 - Portfolio: Homepage, Work, About, Contact
 - Agency/business: Homepage, Services, About, Contact
 - SaaS/product: Homepage, Pricing, Login, Sign up
-- Ecommerce: Homepage, Shop, Product, Contact
+- Ecommerce: Homepage, Shop, Product, Checkout, Contact
 - Restaurant/event: Homepage, Menu or Schedule, Reservations or RSVP, Contact
 - Auth/membership: Homepage or Portal, Login, Sign up, Forgot password, Reset password
 
@@ -357,6 +357,8 @@ Every ecommerce page should include:
 - Checkout button
 - Trust/shipping/returns block
 - Footer
+
+If the ecommerce site is expected to own its checkout UI, also generate a Checkout page with slug `checkout`. The Checkout page should include editable contact, shipping, order summary, payment-placeholder, and return-to-cart sections. QAY/Medusa passes `cart_id` to that page at runtime.
 
 Required product card:
 

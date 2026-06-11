@@ -117,7 +117,7 @@ Rules:
   <button type="button" data-qay-commerce="remove-from-cart" data-qay-product-id="same-product-id">Remove</button>
   Match the button data-qay-product-id to the product card id.
 - If the user asks for ecommerce, store, shop, products, cart, collection, checkout, boutique, fashion, perfume, food ordering, marketplace, or catalog:
-  create a premium storefront with nav, hero, featured collections/products, product cards, cart button, hidden cart drawer/modal, cart items container, cart cancel/close button, checkout button, trust/shipping block, product detail or collection section, newsletter/contact footer.
+  create a premium storefront with nav, hero, featured collections/products, product cards, cart button, hidden cart drawer/modal, cart items container, cart cancel/close button, checkout button, trust/shipping block, product detail or collection section, checkout page when the storefront owns checkout UI, newsletter/contact footer.
   Use the commerce hooks above. Keep checkout links as styled buttons but do not add JavaScript.
 - Ecommerce product/category names, prices, descriptions, badges, and trust copy must match the requested store category.
 - If the user asks for light mode, dark mode, luxury dark, clean light, or theme support, use Tailwind classes and dark: variants with strong contrast. Do not add JavaScript theme toggles.
@@ -130,7 +130,7 @@ Rules:
   Login page slug must be "login"; sign up slug must be "signup"; forgot password slug must be "forgot-password"; reset password slug must be "reset-password".
   Keep auth page links relative: /login, /signup, /forgot-password, /reset-password.
 - For multi-page sites, mirror QAY's import flow: Homepage first, then every extra page as a separate direct sibling wrapper with data-qay-page and data-qay-slug. Do not nest page wrappers inside another page.
-- Decide page count from the prompt. If the request naturally needs more than one page, generate multiple direct sibling data-qay-page wrappers in one response. Examples: ecommerce usually needs Homepage, Shop, Product, and Contact or Cart; business sites often need Homepage, Services/About, and Contact; portfolio sites often need Homepage, Work, About, and Contact; auth/portal sites need Login/Sign up/Forgot/Reset pages when auth is requested.
+- Decide page count from the prompt. If the request naturally needs more than one page, generate multiple direct sibling data-qay-page wrappers in one response. Examples: ecommerce usually needs Homepage, Shop, Product, Checkout, and Contact; business sites often need Homepage, Services/About, and Contact; portfolio sites often need Homepage, Work, About, and Contact; auth/portal sites need Login/Sign up/Forgot/Reset pages when auth is requested.
 - Never force everything into one page when the requested site clearly needs navigation pages. If navigation includes links to pages, include matching data-qay-page wrappers unless the prompt asks for a single-page site.
 - For internal nav links to generated pages, make the href match the slug, for example href="/services" for data-qay-slug="services".
 - Do not rely on custom CSS classes for layout or interaction behavior. Tailwind utilities must carry the design.
