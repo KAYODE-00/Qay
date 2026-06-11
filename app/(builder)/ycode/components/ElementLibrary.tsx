@@ -157,7 +157,7 @@ const elementCategories: Record<string, string[]> = {
   Content: ['heading', 'text', 'richText'],
   Actions: ['button', 'logoutButton'],
   Media: ['image', 'icon', 'video', 'audio'],
-  Commerce: ['storefrontHero', 'productGrid', 'productDetail', 'collectionCards', 'addToCartButton', 'removeFromCartButton', 'cartButton', 'cartDrawer', 'trustBar'],
+  Commerce: ['storefrontHero', 'productGrid', 'productCard', 'productDetail', 'collectionCards', 'addToCartButton', 'removeFromCartButton', 'cartButton', 'cartCount', 'cartDrawer', 'checkoutButton', 'checkoutPage', 'trustBar'],
   Form: ['form', 'filter', 'input', 'textarea', 'select', 'checkbox', 'radio', 'label'],
   Table: ['table', 'thead', 'tbody', 'tr', 'th', 'td'],
   Utilities: ['map', 'slider', 'lightbox', 'localeSelector', 'htmlEmbed'],

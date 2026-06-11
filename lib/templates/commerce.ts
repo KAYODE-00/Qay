@@ -35,12 +35,16 @@ function imageVariables(src: string, alt: string) {
   } as const;
 }
 
-function productCard(title: string, price: string, tag: string) {
+function productCard(title: string, price: string, tag: string, productId: string, handle: string) {
   return {
     name: 'div',
     customName: 'Product card',
     classes: ['group', 'flex', 'flex-col', 'overflow-hidden', 'rounded-[18px]', 'border', 'border-[#000000]/10', 'bg-[#ffffff]'],
-    attributes: { 'data-qay-commerce': 'product-card' },
+    attributes: {
+      'data-qay-commerce': 'product-card',
+      'data-qay-product-id': productId,
+      'data-qay-product-handle': handle,
+    },
     children: [
       {
         name: 'div',
@@ -78,8 +82,9 @@ function productCard(title: string, price: string, tag: string) {
                 attributes: {
                   type: 'button',
                   'data-qay-commerce': 'add-to-cart',
+                  'data-qay-product-id': productId,
                 },
-                children: [textRef('Add', 'span')],
+                children: [textRef('Add to cart', 'span')],
               },
             ],
           },
@@ -170,13 +175,18 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
           name: 'div',
           classes: ['mx-auto', 'grid', 'w-full', 'max-w-[1120px]', 'gap-[18px]', 'md:grid-cols-3'],
           children: [
-            productCard('Signature product', '$49', 'Product 01'),
-            productCard('Premium bundle', '$89', 'Product 02'),
-            productCard('Limited drop', '$129', 'Product 03'),
+            productCard('Signature product', '$49', 'Product 01', 'sample-product-1', 'signature-product'),
+            productCard('Premium bundle', '$89', 'Product 02', 'sample-product-2', 'premium-bundle'),
+            productCard('Limited drop', '$129', 'Product 03', 'sample-product-3', 'limited-drop'),
           ],
         },
       ],
     },
+  },
+  productCard: {
+    icon: 'box',
+    name: 'Product card',
+    template: productCard('Signature product', '$49', 'Product 01', 'sample-product-1', 'signature-product'),
   },
   productDetail: {
     icon: 'box',
@@ -185,7 +195,11 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
       name: 'section',
       customName: 'Product detail',
       classes: ['grid', 'w-full', 'gap-[32px]', 'bg-[#ffffff]', 'px-[24px]', 'py-[80px]', 'text-[#111111]', 'lg:grid-cols-2', 'lg:px-[64px]'],
-      attributes: { 'data-qay-commerce': 'product-card' },
+      attributes: {
+        'data-qay-commerce': 'product-card',
+        'data-qay-product-id': 'sample-product-1',
+        'data-qay-product-handle': 'signature-product',
+      },
       children: [
         {
           name: 'div',
@@ -217,7 +231,7 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
               name: 'button',
               customName: 'Add to cart button',
               classes: ['h-[52px]', 'w-full', 'max-w-[320px]', 'rounded-[999px]', 'bg-[#111111]', 'px-[24px]', 'text-[14px]', 'font-[700]', 'text-[#ffffff]'],
-              attributes: { type: 'button', 'data-qay-commerce': 'add-to-cart' },
+              attributes: { type: 'button', 'data-qay-commerce': 'add-to-cart', 'data-qay-product-id': 'sample-product-1' },
               children: [textRef('Add to cart', 'span')],
             },
           ],
@@ -325,6 +339,17 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
       children: [textRef('Cart (0)', 'span')],
     },
   },
+  cartCount: {
+    icon: 'box',
+    name: 'Cart count',
+    template: {
+      ...textRef('0', 'span', ['inline-flex', 'min-h-[28px]', 'min-w-[28px]', 'items-center', 'justify-center', 'rounded-[999px]', 'bg-[#111111]', 'px-[9px]', 'text-[12px]', 'font-[800]', 'text-[#ffffff]']),
+      customName: 'Cart count',
+      attributes: {
+        'data-qay-commerce': 'cart-count',
+      },
+    },
+  },
   addToCartButton: {
     icon: 'box',
     name: 'Add to cart button',
@@ -353,6 +378,176 @@ export const commerceTemplates: Record<string, BlockTemplate> = {
         'data-qay-product-id': 'sample-product-1',
       },
       children: [textRef('Remove from cart', 'span')],
+    },
+  },
+  checkoutButton: {
+    icon: 'box',
+    name: 'Checkout button',
+    template: {
+      name: 'button',
+      customName: 'Checkout button',
+      classes: ['inline-flex', 'items-center', 'justify-center', 'rounded-[999px]', 'bg-[#111111]', 'px-[22px]', 'py-[12px]', 'text-[13px]', 'font-[800]', 'text-[#ffffff]', 'shadow-lg', 'shadow-[#000000]/10'],
+      attributes: {
+        type: 'button',
+        'data-qay-commerce': 'checkout-button',
+      },
+      children: [textRef('Checkout', 'span')],
+    },
+  },
+  checkoutPage: {
+    icon: 'box',
+    name: 'Checkout page',
+    template: {
+      name: 'section',
+      customName: 'Checkout page',
+      classes: ['min-h-screen', 'w-full', 'bg-[#f7f3ea]', 'px-[24px]', 'py-[72px]', 'text-[#111111]', 'lg:px-[64px]'],
+      children: [
+        {
+          name: 'div',
+          classes: ['mx-auto', 'grid', 'max-w-[1180px]', 'gap-[28px]', 'lg:grid-cols-[1.08fr_0.92fr]'],
+          children: [
+            {
+              name: 'div',
+              classes: ['flex', 'flex-col', 'gap-[22px]'],
+              children: [
+                textRef('Secure checkout', 'h2', ['text-[46px]', 'font-[800]', 'leading-[0.95]', 'tracking-[-0.03em]', 'md:text-[68px]']),
+                textRef('Collect customer details, shipping preferences, and order notes while QAY passes the Medusa cart id into your checkout experience.', 'p', ['max-w-[680px]', 'text-[16px]', 'leading-[1.8]', 'text-[#111111]/62']),
+                {
+                  name: 'div',
+                  customName: 'Checkout contact form',
+                  classes: ['grid', 'gap-[14px]', 'rounded-[26px]', 'border', 'border-[#000000]/10', 'bg-[#ffffff]', 'p-[22px]', 'shadow-xl', 'shadow-[#000000]/5'],
+                  children: [
+                    textRef('Contact information', 'h3', ['text-[22px]', 'font-[800]']),
+                    {
+                      name: 'input',
+                      customName: 'Email input',
+                      classes: ['h-[48px]', 'rounded-[14px]', 'border', 'border-[#000000]/10', 'bg-[#f7f3ea]', 'px-[14px]', 'text-[14px]', 'text-[#111111]'],
+                      attributes: { name: 'email', type: 'email', placeholder: 'Email address' },
+                    },
+                    {
+                      name: 'div',
+                      classes: ['grid', 'gap-[12px]', 'md:grid-cols-2'],
+                      children: [
+                        {
+                          name: 'input',
+                          customName: 'First name input',
+                          classes: ['h-[48px]', 'rounded-[14px]', 'border', 'border-[#000000]/10', 'bg-[#f7f3ea]', 'px-[14px]', 'text-[14px]', 'text-[#111111]'],
+                          attributes: { name: 'first_name', type: 'text', placeholder: 'First name' },
+                        },
+                        {
+                          name: 'input',
+                          customName: 'Last name input',
+                          classes: ['h-[48px]', 'rounded-[14px]', 'border', 'border-[#000000]/10', 'bg-[#f7f3ea]', 'px-[14px]', 'text-[14px]', 'text-[#111111]'],
+                          attributes: { name: 'last_name', type: 'text', placeholder: 'Last name' },
+                        },
+                      ],
+                    },
+                    {
+                      name: 'input',
+                      customName: 'Address input',
+                      classes: ['h-[48px]', 'rounded-[14px]', 'border', 'border-[#000000]/10', 'bg-[#f7f3ea]', 'px-[14px]', 'text-[14px]', 'text-[#111111]'],
+                      attributes: { name: 'address', type: 'text', placeholder: 'Delivery address' },
+                    },
+                    {
+                      name: 'div',
+                      classes: ['grid', 'gap-[12px]', 'md:grid-cols-3'],
+                      children: [
+                        {
+                          name: 'input',
+                          customName: 'City input',
+                          classes: ['h-[48px]', 'rounded-[14px]', 'border', 'border-[#000000]/10', 'bg-[#f7f3ea]', 'px-[14px]', 'text-[14px]', 'text-[#111111]'],
+                          attributes: { name: 'city', type: 'text', placeholder: 'City' },
+                        },
+                        {
+                          name: 'input',
+                          customName: 'Region input',
+                          classes: ['h-[48px]', 'rounded-[14px]', 'border', 'border-[#000000]/10', 'bg-[#f7f3ea]', 'px-[14px]', 'text-[14px]', 'text-[#111111]'],
+                          attributes: { name: 'region', type: 'text', placeholder: 'State/Region' },
+                        },
+                        {
+                          name: 'input',
+                          customName: 'Postal code input',
+                          classes: ['h-[48px]', 'rounded-[14px]', 'border', 'border-[#000000]/10', 'bg-[#f7f3ea]', 'px-[14px]', 'text-[14px]', 'text-[#111111]'],
+                          attributes: { name: 'postal_code', type: 'text', placeholder: 'Postal code' },
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  name: 'div',
+                  customName: 'Payment placeholder',
+                  classes: ['rounded-[26px]', 'border', 'border-[#000000]/10', 'bg-[#111111]', 'p-[22px]', 'text-[#ffffff]'],
+                  children: [
+                    textRef('Payment', 'h3', ['text-[22px]', 'font-[800]']),
+                    textRef('Payment provider fields appear here when your Medusa storefront checkout is connected.', 'p', ['mt-[8px]', 'text-[14px]', 'leading-[1.7]', 'text-[#ffffff]/62']),
+                  ],
+                },
+              ],
+            },
+            {
+              name: 'aside',
+              customName: 'Checkout order summary',
+              classes: ['h-fit', 'rounded-[30px]', 'border', 'border-[#000000]/10', 'bg-[#ffffff]', 'p-[24px]', 'shadow-2xl', 'shadow-[#000000]/8'],
+              children: [
+                {
+                  name: 'div',
+                  classes: ['flex', 'items-center', 'justify-between', 'gap-[12px]'],
+                  children: [
+                    textRef('Order summary', 'h3', ['text-[24px]', 'font-[900]', 'tracking-[-0.02em]']),
+                    {
+                      ...textRef('0', 'span', ['inline-flex', 'min-h-[28px]', 'min-w-[28px]', 'items-center', 'justify-center', 'rounded-[999px]', 'bg-[#111111]', 'px-[9px]', 'text-[12px]', 'font-[800]', 'text-[#ffffff]']),
+                      attributes: { 'data-qay-commerce': 'cart-count' },
+                    },
+                  ],
+                },
+                {
+                  name: 'div',
+                  customName: 'Checkout cart items',
+                  classes: ['mt-[18px]', 'rounded-[20px]', 'border', 'border-[#000000]/10', 'bg-[#f7f3ea]', 'p-[16px]', 'text-[14px]', 'text-[#111111]/65'],
+                  attributes: { 'data-qay-commerce': 'cart-items' },
+                  children: [textRef('Your cart items will appear here.', 'p')],
+                },
+                {
+                  name: 'div',
+                  classes: ['mt-[18px]', 'grid', 'gap-[10px]', 'border-t', 'border-[#000000]/10', 'pt-[18px]'],
+                  children: [
+                    {
+                      name: 'div',
+                      classes: ['flex', 'items-center', 'justify-between', 'text-[14px]', 'text-[#111111]/60'],
+                      children: [textRef('Shipping', 'span'), textRef('Calculated at checkout', 'span')],
+                    },
+                    {
+                      name: 'div',
+                      classes: ['flex', 'items-center', 'justify-between', 'text-[18px]', 'font-[900]'],
+                      children: [textRef('Total', 'span'), textRef('Medusa cart', 'span')],
+                    },
+                  ],
+                },
+                {
+                  name: 'button',
+                  customName: 'Place order button',
+                  classes: ['mt-[20px]', 'h-[52px]', 'w-full', 'rounded-[999px]', 'bg-[#111111]', 'text-[14px]', 'font-[900]', 'text-[#ffffff]'],
+                  attributes: { type: 'button', 'data-qay-commerce': 'checkout-button' },
+                  children: [textRef('Continue to payment', 'span')],
+                },
+                {
+                  name: 'button',
+                  customName: 'Return to cart button',
+                  classes: ['mt-[10px]', 'h-[46px]', 'w-full', 'rounded-[999px]', 'border', 'border-[#000000]/10', 'text-[13px]', 'font-[800]', 'text-[#111111]'],
+                  attributes: { type: 'button', 'data-qay-commerce': 'cart-button', 'data-qay-cart-label': 'Cart' },
+                  children: [textRef('Return to cart', 'span')],
+                },
+                {
+                  name: 'div',
+                  classes: ['mt-[18px]', 'grid', 'gap-[8px]', 'text-[12px]', 'font-[800]', 'uppercase', 'tracking-[0.18em]', 'text-[#111111]/45', 'md:grid-cols-3'],
+                  children: [textRef('Secure', 'span'), textRef('Fast delivery', 'span'), textRef('Easy returns', 'span')],
+                },
+              ],
+            },
+          ],
+        },
+      ],
     },
   },
 };
