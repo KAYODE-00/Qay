@@ -123,6 +123,7 @@ export interface EffectsDesign {
   backdropBlur?: string;
   filter?: string;
   backdropFilter?: string;
+  mixBlendMode?: string;
 }
 
 export interface PositioningDesign {
@@ -394,13 +395,19 @@ export interface Layer {
 
   // Layer Styles (reusable design system)
   styleId?: string; // Reference to applied LayerStyle
+  styleIds?: string[]; // Ordered layer style stack used by newer importers
   styleOverrides?: {
     classes?: string;
     design?: DesignProperties;
   }; // Tracks local changes after style applied
+  styleOverridesByStyle?: Record<string, {
+    classes?: string;
+    design?: DesignProperties;
+  }>;
 
   // Components (reusable layer trees)
   componentId?: string; // Reference to applied Component
+  componentVariantId?: string;
   componentOverrides?: {
     text?: Record<string, ComponentVariableValue>; // ComponentVariable.id → override value (text)
     rich_text?: Record<string, ComponentVariableValue>; // ComponentVariable.id → override value (rich text)
@@ -615,6 +622,7 @@ export interface Component {
 
   // Component variables - exposed properties for overrides
   variables?: ComponentVariable[];
+  variants?: Array<{ id: string; name?: string }>;
 
   // Versioning fields
   content_hash?: string; // SHA-256 hash for change detection

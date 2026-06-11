@@ -41,6 +41,7 @@ interface LayerStylesActions {
 
   // CRUD operations
   createStyle: (name: string, classes: string, design?: LayerStyle['design'], group?: string) => Promise<LayerStyle | null>;
+  createStyles: (styles: Array<{ name: string; classes: string; design?: LayerStyle['design']; group?: string }>) => Promise<Array<LayerStyle | null>>;
   updateStyle: (id: string, updates: Partial<Pick<LayerStyle, 'name' | 'classes' | 'design'>>) => Promise<void>;
   deleteStyle: (id: string) => Promise<DeleteResult>;
 
@@ -123,6 +124,16 @@ export const useLayerStylesStore = create<LayerStylesStore>((set, get) => ({
       set({ error: 'Failed to create style', isLoading: false });
       return null;
     }
+  },
+
+  createStyles: async (stylesToCreate) => {
+    const created: Array<LayerStyle | null> = [];
+
+    for (const style of stylesToCreate) {
+      created.push(await get().createStyle(style.name, style.classes, style.design, style.group));
+    }
+
+    return created;
   },
 
   // Update a style

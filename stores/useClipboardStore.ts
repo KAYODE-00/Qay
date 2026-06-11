@@ -10,6 +10,8 @@
 import { create } from 'zustand';
 import type { Layer, LayerInteraction } from '../types';
 
+export const YCODE_LAYER_CLIPBOARD_SIGNATURE = 'application/ycode-layer';
+
 interface CopiedStyle {
   classes: string;
   design?: Layer['design'];
