@@ -61,6 +61,14 @@ function getSubdomain(hostname: string): string | null {
     }
   }
 
+  // Vercel preview/deployment hosts such as
+  // qay-abc123-user-projects.vercel.app are app hosts, not QAY site slugs.
+  // Real QAY subdomains on Vercel are handled above when they end with the
+  // configured base domain, e.g. site.qay-theta.vercel.app.
+  if (hostname.endsWith('.vercel.app')) {
+    return null;
+  }
+
   const parts = hostname.split('.');
   if (parts.length < 3) return null;
 
