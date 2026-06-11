@@ -23,7 +23,7 @@ export interface PaginationContext {
   defaultPage?: number;
 }
 
-import { resolveFieldLinkValue, resolveRefCollectionItemId, generateLinkHref, isLinkAtCollectionBoundary } from '@/lib/link-utils';
+import { resolveFieldLinkValue, resolveRefCollectionItemId, generateLinkHref, isLinkAtCollectionBoundary, isLinkToCurrentPage } from '@/lib/link-utils';
 import type { LinkResolutionContext } from '@/lib/link-utils';
 import { getLinkSettingsFromMark } from '@/lib/tiptap-extensions/rich-text-link';
 import { SWIPER_CLASS_MAP, SWIPER_DATA_ATTR_MAP } from '@/lib/templates/utilities';
@@ -4178,6 +4178,7 @@ interface PageLinkContext {
   pageCollectionSortedItemIds?: string[];
   isPreview?: boolean;
   previewBasePath?: string;
+  currentPageId?: string;
 }
 
 /** Build an `assetMap`-backed `getAsset` callback compatible with `generateLinkHref`. */
@@ -4227,6 +4228,26 @@ function layerToHtml(
 
   // Build layer data map with stored collection layer data
   const effectiveLayerDataMap = layer._layerDataMap || layerDataMap;
+
+  const isCurrentPageLink = !!pageLinkContext?.currentPageId
+    && isLinkToCurrentPage(layer.variables?.link, {
+      pages,
+      folders,
+      collectionItemSlugs,
+      collectionItemId: effectiveCollectionItemId,
+      pageCollectionItemId: pageLinkContext.pageCollectionItemId,
+      collectionItemData: effectiveCollectionItemData,
+      pageCollectionItemData,
+      isPreview: pageLinkContext.isPreview,
+      previewBasePath: pageLinkContext.previewBasePath,
+      locale,
+      translations,
+      getAsset: makeAssetMapResolver(assetMap),
+      anchorMap,
+      layerDataMap: effectiveLayerDataMap,
+      pageCollectionSortedItemIds: pageLinkContext.pageCollectionSortedItemIds,
+      pageId: pageLinkContext.currentPageId,
+    });
 
   // Get the HTML tag
   let tag = getLayerHtmlTag(layer);
@@ -4621,6 +4642,7 @@ function layerToHtml(
         anchorMap,
         layerDataMap: effectiveLayerDataMap,
         pageCollectionSortedItemIds: pageLinkContext?.pageCollectionSortedItemIds,
+        pageId: pageLinkContext?.currentPageId,
       });
 
       if (hrefValue) {
@@ -4646,6 +4668,9 @@ function layerToHtml(
       }
       if (linkSettings.download) {
         attrs.push('download');
+      }
+      if (isCurrentPageLink) {
+        attrs.push('aria-current="page"');
       }
     }
   }
@@ -4943,6 +4968,10 @@ function layerToHtml(
 
       if (linkSettings.download) {
         linkAttrs.push('download');
+      }
+
+      if (isCurrentPageLink) {
+        linkAttrs.push('aria-current="page"');
       }
 
       linkAttrs.push('class="contents"');

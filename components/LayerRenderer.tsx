@@ -46,7 +46,7 @@ import FilterableCollection from '@/components/FilterableCollection';
 import LocaleSelector from '@/components/layers/LocaleSelector';
 import { usePagesStore } from '@/stores/usePagesStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import { generateLinkHref, normalizeSiteHref, resolveLinkAttrs, isLinkAtCollectionBoundary, type LinkResolutionContext } from '@/lib/link-utils';
+import { generateLinkHref, normalizeSiteHref, resolveLinkAttrs, isLinkAtCollectionBoundary, isLinkToCurrentPage, type LinkResolutionContext } from '@/lib/link-utils';
 import { collectEditorHiddenLayerIds, type HiddenLayerInfo } from '@/lib/animation-utils';
 import AnimationInitializer from '@/components/AnimationInitializer';
 import { transformLayerIdsForInstance, resolveVariableLinks } from '@/lib/resolve-components';
@@ -1594,7 +1594,7 @@ const LayerItem: React.FC<{
 
   // Shared link resolution context — only built once, reused by button links,
   // <a> layer links, and link wrappers. Skipped in edit mode (no resolution needed).
-  const layerLinkContext: LinkResolutionContext | undefined = isEditMode ? undefined : {
+  const currentPageLinkContext: LinkResolutionContext = {
     pages,
     folders,
     collectionItemSlugs,
@@ -1612,7 +1612,12 @@ const LayerItem: React.FC<{
     resolvedAssets,
     layerDataMap: effectiveLayerDataMap,
     pageCollectionSortedItemIds,
+    pageId,
   };
+
+  const layerLinkContext: LinkResolutionContext | undefined = isEditMode ? undefined : currentPageLinkContext;
+
+  const isCurrentPageLink = isLinkToCurrentPage(layer.variables?.link, currentPageLinkContext);
 
   // Render element-specific content
   const renderContent = () => {
@@ -1781,6 +1786,10 @@ const LayerItem: React.FC<{
       ...(enableDragDrop && !isEditing && !isLockedByOther ? { ...normalizedAttributes, ...listeners } : normalizedAttributes),
       ...(!isEditMode && { suppressHydrationWarning: true }),
     };
+
+    if (isCurrentPageLink) {
+      elementProps['aria-current'] = 'page';
+    }
 
     if (!isEditMode && layerLinkContext && typeof elementProps.href === 'string') {
       elementProps.href = normalizeSiteHref(elementProps.href, {

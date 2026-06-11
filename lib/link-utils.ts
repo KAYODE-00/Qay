@@ -251,6 +251,11 @@ export interface LinkResolutionContext {
   collectionItemSlugs?: Record<string, string>;
   collectionItemId?: string;
   pageCollectionItemId?: string;
+  /**
+   * ID of the page currently being rendered. Used to detect links that point
+   * to the current page so they can be marked with aria-current.
+   */
+  pageId?: string;
   collectionItemData?: Record<string, string>;
   pageCollectionItemData?: Record<string, string>;
   isPreview?: boolean;
@@ -714,6 +719,77 @@ export function generateLinkHref(
     : null;
 }
 
+function normalizeLinkPath(href: string, context?: LinkResolutionContext): string | null {
+  let path = href.trim();
+  if (!path) return null;
+
+  if (/^(mailto:|tel:|javascript:|data:)/i.test(path)) return null;
+
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(path)) {
+    try {
+      path = new URL(path).pathname;
+    } catch {
+      return null;
+    }
+  }
+
+  path = path.split('#')[0].split('?')[0];
+  path = path.replace(/^\/ycode\/preview/, '');
+  path = path.replace(/^\/qay\/preview/, '');
+
+  const previewBase = context?.previewBasePath?.replace(/\/$/, '');
+  if (previewBase && previewBase !== '/' && path.startsWith(previewBase)) {
+    path = path.slice(previewBase.length) || '/';
+  }
+
+  const sitePrefix = context?.sitePathPrefix
+    ? `/${context.sitePathPrefix.replace(/^\/+|\/+$/g, '')}`.replace(/\/$/, '')
+    : '';
+  if (sitePrefix && path.startsWith(sitePrefix)) {
+    path = path.slice(sitePrefix.length) || '/';
+  }
+
+  if (path.length > 1) path = path.replace(/\/+$/, '');
+  if (path === '') path = '/';
+  return path;
+}
+
+function getCurrentPagePath(context: LinkResolutionContext): string | null {
+  if (!context.pageId) return null;
+  const selfLink = createPageLinkSettings(context.pageId, context.pageCollectionItemId ?? null);
+  const href = generateLinkHref(selfLink, context);
+  return href ? normalizeLinkPath(href, context) : null;
+}
+
+export function isLinkToCurrentPage(
+  linkSettings: LinkSettings | undefined | null,
+  context: LinkResolutionContext,
+  resolvedHref?: string | null
+): boolean {
+  if (!linkSettings || !context.pageId) return false;
+
+  if (linkSettings.type === 'page') {
+    const targetPageId = linkSettings.page?.id;
+    if (!targetPageId || targetPageId !== context.pageId) return false;
+
+    const page = context.pages?.find(p => p.id === targetPageId);
+    const linkItemId = linkSettings.page?.collection_item_id;
+    if (!page?.is_dynamic || !linkItemId) return true;
+
+    if (!context.pageCollectionItemId) return false;
+    const targetItemId = resolveLinkTargetItemId(linkItemId, context);
+    return !!targetItemId && targetItemId === context.pageCollectionItemId;
+  }
+
+  const href = resolvedHref ?? generateLinkHref(linkSettings, context);
+  if (!href) return false;
+  const linkPath = normalizeLinkPath(href, context);
+  if (!linkPath) return false;
+
+  const currentPath = getCurrentPagePath(context);
+  return !!currentPath && linkPath === currentPath;
+}
+
 /** Heuristic: value looks like email when field type unknown (e.g. collection layer fields not in fieldsByFieldId) */
 export function looksLikeEmail(value: unknown): boolean {
   if (typeof value !== 'string') return false;
@@ -775,4 +851,28 @@ export function isLinkAtCollectionBoundary(
   const offset = keyword === COLLECTION_ITEM_KEYWORDS.NEXT_ITEM ? 1 : -1;
   const target = index + offset;
   return target < 0 || target >= ids.length;
+}
+
+function resolveLinkTargetItemId(
+  collectionItemId: string | null | undefined,
+  context: LinkResolutionContext
+): string | undefined {
+  if (!collectionItemId) return undefined;
+
+  if (isCollectionItemKeyword(collectionItemId)) {
+    switch (collectionItemId) {
+      case COLLECTION_ITEM_KEYWORDS.CURRENT_PAGE:
+        return context.pageCollectionItemId;
+      case COLLECTION_ITEM_KEYWORDS.CURRENT_COLLECTION:
+        return context.collectionItemId;
+      default:
+        return undefined;
+    }
+  }
+
+  if (collectionItemId.startsWith(REF_PAGE_PREFIX) || collectionItemId.startsWith(REF_COLLECTION_PREFIX)) {
+    return resolveRefCollectionItemId(collectionItemId, context.pageCollectionItemData, context.collectionItemData);
+  }
+
+  return collectionItemId;
 }
