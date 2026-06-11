@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { Layer } from '@/types';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { generateQayAiHtml, generateQayAiLayers, type AiBuilderMode } from '@/qay/lib/ai/builder';
-import { AiProviderLimitsError } from '@/qay/lib/ai/providers';
+import { AiProviderFailureError, AiProviderLimitsError } from '@/qay/lib/ai/providers';
 
 export const runtime = 'nodejs';
 
@@ -59,16 +59,17 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'We could not generate this design.';
     const isProviderLimits = error instanceof AiProviderLimitsError;
+    const isProviderFailure = error instanceof AiProviderFailureError;
     const isQualityError = isAiQualityError(message);
-    const status = message.includes('No AI provider is configured') || isProviderLimits
+    const status = message.includes('No AI provider is configured') || isProviderLimits || isProviderFailure
       ? 503
       : isQualityError
         ? 422
         : 500;
     const isDev = process.env.NODE_ENV !== 'production';
 
-    if (isProviderLimits) {
-      console.error('[QAY AI generate] All AI provider limits reached:', error.failures);
+    if (isProviderLimits || isProviderFailure) {
+      console.error('[QAY AI generate] AI provider failures:', error.failures);
     } else {
       console.error('[QAY AI generate] Error:', error);
     }
@@ -79,11 +80,13 @@ export async function POST(request: Request) {
           ? 'AI is not configured yet. Add at least one AI provider key to use this.'
           : isProviderLimits
             ? 'All AI providers are out of usable quota or rate limited. Add credits, wait for limits to reset, or add another provider key.'
-            : isQualityError
-              ? message
-              : 'AI is busy. Try again shortly.',
-        ...(isProviderLimits ? {
-          code: 'AI_PROVIDER_LIMITS_REACHED',
+            : isProviderFailure
+              ? 'All configured AI providers failed. Check the browser console or server logs for provider details.'
+              : isQualityError
+                ? message
+                : 'AI is busy. Try again shortly.',
+        ...(isProviderLimits || isProviderFailure ? {
+          code: isProviderLimits ? 'AI_PROVIDER_LIMITS_REACHED' : 'AI_PROVIDERS_FAILED',
           providers: error.failures.map((failure) => ({
             provider: failure.provider,
             message: failure.message,

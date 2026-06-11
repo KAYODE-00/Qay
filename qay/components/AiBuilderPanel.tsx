@@ -188,10 +188,13 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       const body = (await response.json()) as GenerateResponse;
 
       if (!response.ok || !body.data) {
-        if (body.code === 'AI_PROVIDER_LIMITS_REACHED') {
-          console.error('[QAY AI Builder] All configured AI providers are out of quota, balance, or rate-limit capacity:', body.providers || body.details || body.error);
+        if (body.providers?.length) {
+          console.error('[QAY AI Builder] AI provider failure details:', body.providers);
+        }
+
+        if (body.code === 'AI_PROVIDER_LIMITS_REACHED' || body.code === 'AI_PROVIDERS_FAILED') {
           setIsBusyDialogOpen(true);
-          throw new Error('AI is currently busy. Please try again shortly.');
+          throw new Error(body.error || 'AI is currently busy. Please try again shortly.');
         }
 
         throw new Error(body.details || body.error || 'We could not generate this design.');

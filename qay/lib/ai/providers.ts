@@ -14,7 +14,7 @@ type AiProvider = {
   canRepairJson?: boolean;
 };
 
-type ProviderFailure = {
+export type ProviderFailure = {
   provider: string;
   message: string;
   limited: boolean;
@@ -30,6 +30,16 @@ export class AiProviderLimitsError extends Error {
   }
 }
 
+export class AiProviderFailureError extends Error {
+  failures: ProviderFailure[];
+
+  constructor(failures: ProviderFailure[]) {
+    super(`All AI providers failed or are rate limited. ${failures.map((failure) => `${failure.provider}: ${failure.message}`).join(' | ')}`);
+    this.name = 'AiProviderFailureError';
+    this.failures = failures;
+  }
+}
+
 const DEFAULT_AI_TIMEOUT_MS = Number(process.env.QAY_AI_PROVIDER_TIMEOUT_MS || 18000);
 const HTML_AI_TIMEOUT_MS = Number(process.env.QAY_AI_HTML_PROVIDER_TIMEOUT_MS || 30000);
 
@@ -41,8 +51,15 @@ function requestTimeoutMs(system: string) {
   return wantsPlainHtml(system) ? HTML_AI_TIMEOUT_MS : DEFAULT_AI_TIMEOUT_MS;
 }
 
-function maxOutputTokens(system: string) {
-  return wantsPlainHtml(system) ? 8000 : 6000;
+function maxOutputTokens(system: string, providerName: string) {
+  if (!wantsPlainHtml(system)) return 6000;
+  if (providerName === 'groq') {
+    return Number(process.env.QAY_GROQ_HTML_MAX_TOKENS || 5600);
+  }
+  if (providerName === 'openrouter') {
+    return Number(process.env.QAY_OPENROUTER_HTML_MAX_TOKENS || 5200);
+  }
+  return 8000;
 }
 
 function requestTemperature(system: string, providerName: string) {
@@ -105,7 +122,7 @@ function wantsPlainHtml(system: string) {
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-const DEFAULT_OPENROUTER_MODEL = 'meta-llama/llama-3.1-8b-instruct:free';
+const DEFAULT_OPENROUTER_MODEL = 'meta-llama/llama-3.1-8b-instruct';
 const OPENROUTER_MODEL = !process.env.OPENROUTER_MODEL || process.env.OPENROUTER_MODEL === 'openrouter/free'
   ? DEFAULT_OPENROUTER_MODEL
   : process.env.OPENROUTER_MODEL;
@@ -139,7 +156,7 @@ export const PROVIDERS: AiProvider[] = [
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: maxOutputTokens(system),
+          max_tokens: maxOutputTokens(system, 'claude'),
           temperature: requestTemperature(system, 'claude'),
           system,
           messages: [{ role: 'user', content: prompt }],
@@ -172,7 +189,7 @@ export const PROVIDERS: AiProvider[] = [
         },
         body: JSON.stringify({
           model: 'gpt-4o',
-          max_tokens: maxOutputTokens(system),
+          max_tokens: maxOutputTokens(system, 'openai'),
           temperature: requestTemperature(system, 'openai'),
           ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
@@ -205,7 +222,7 @@ export const PROVIDERS: AiProvider[] = [
         },
         body: JSON.stringify({
           model: GROQ_MODEL,
-          max_tokens: maxOutputTokens(system),
+          max_tokens: maxOutputTokens(system, 'groq'),
           temperature: requestTemperature(system, 'groq'),
           ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
@@ -240,7 +257,7 @@ export const PROVIDERS: AiProvider[] = [
         },
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
-          max_tokens: maxOutputTokens(system),
+          max_tokens: maxOutputTokens(system, 'openrouter'),
           temperature: requestTemperature(system, 'openrouter'),
           ...(!wantsPlainHtml(system) ? { response_format: { type: 'json_object' } } : {}),
           messages: [
@@ -281,7 +298,7 @@ export const PROVIDERS: AiProvider[] = [
             ],
             generationConfig: {
               temperature: requestTemperature(system, 'gemini'),
-              maxOutputTokens: maxOutputTokens(system),
+              maxOutputTokens: maxOutputTokens(system, 'gemini'),
               ...(!wantsPlainHtml(system) ? { responseMimeType: 'application/json' } : {}),
             },
           }),
@@ -443,7 +460,7 @@ export async function callWithFallbackDetailed<T = unknown>(
     throw new AiProviderLimitsError(failures);
   }
 
-  throw new Error(`All AI providers failed or are rate limited. ${failures.map((failure) => `${failure.provider}: ${failure.message}`).join(' | ')}`);
+  throw new AiProviderFailureError(failures);
 }
 
 export async function callWithFallback(prompt: string, system: string): Promise<string> {
