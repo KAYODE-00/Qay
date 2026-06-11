@@ -20,7 +20,9 @@ import { useCanvasPortalContainer, useCanvasZoom } from '@/lib/canvas-portal-con
 import { useEditorStore } from '@/stores/useEditorStore';
 import { usePagesStore } from '@/stores/usePagesStore';
 import { useClipboardStore } from '@/stores/useClipboardStore';
+import { useExternalPasteStore } from '@/stores/useExternalPasteStore';
 import { useComponentsStore } from '@/stores/useComponentsStore';
+import { isClipboardReadGranted, readExternalDesignClipboard } from '@/lib/import/clipboard-detect';
 import { canHaveChildren, findLayerById, getClassesString, getLayerIcon, getLayerName, regenerateInteractionIds, canCopyLayer, canDeleteLayer, regenerateIdsWithInteractionRemapping, removeLayerById, findParentAndIndex, insertLayerAfter, updateLayerProps, canConvertToCollection, isExcludedFromCollection, getCollectionVariable, resetBindingsOnCollectionSourceChange } from '@/lib/layer-utils';
 import { cloneDeep } from 'lodash';
 import { toast } from 'sonner';
@@ -116,8 +118,11 @@ export default function LayerContextMenu({
   const copyInteractionsToClipboard = useClipboardStore((state) => state.copyInteractions);
   const pasteInteractionsFromClipboard = useClipboardStore((state) => state.pasteInteractions);
   const copiedInteractions = useClipboardStore((state) => state.copiedInteractions);
+  const externalKind = useExternalPasteStore((state) => state.kind);
+  const pasteExternalAt = useExternalPasteStore((state) => state.pasteAt);
 
   const hasClipboard = clipboardLayer !== null;
+  const hasExternal = externalKind !== null && pasteExternalAt !== null;
   const hasStyleClipboard = copiedStyle !== null;
   const hasInteractionsClipboard = copiedInteractions !== null;
 
@@ -221,6 +226,10 @@ export default function LayerContextMenu({
   };
 
   const handlePasteAfter = () => {
+    if (hasExternal) {
+      if (!isBody) pasteExternalAt?.({ mode: 'after', layerId });
+      return;
+    }
     if (!clipboardLayer) return;
 
     if (isComponentContext && editingComponentId) {
@@ -245,6 +254,10 @@ export default function LayerContextMenu({
   };
 
   const handlePasteInside = () => {
+    if (hasExternal) {
+      if (canPasteInside) pasteExternalAt?.({ mode: 'inside', layerId });
+      return;
+    }
     if (!clipboardLayer || !canPasteInside) return;
 
     if (isComponentContext && editingComponentId) {
@@ -670,6 +683,11 @@ export default function LayerContextMenu({
     if (open) {
       dismissActiveContextMenu();
       activeMenuDocument = canvasPortalContainer?.ownerDocument ?? document;
+      useExternalPasteStore.getState().setKind(null);
+      void isClipboardReadGranted()
+        .then((granted) => (granted ? readExternalDesignClipboard() : null))
+        .then((data) => useExternalPasteStore.getState().setKind(data?.kind ?? null))
+        .catch(() => useExternalPasteStore.getState().setKind(null));
     }
 
     if (open && onLayerSelect && layer && selectedLayerId !== layerId) {
@@ -735,12 +753,21 @@ export default function LayerContextMenu({
             container={canvasPortalContainer}
             style={canvasPortalContainer ? { zoom: 100 / canvasZoom } : undefined}
           >
-            <ContextMenuItem onClick={handlePasteAfter} disabled={!hasClipboard || isBody}>
+            {hasExternal && (
+              <>
+                <ContextMenuLabel className="font-normal text-muted-foreground select-none">
+                  From {externalKind === 'figma' ? 'Figma' : 'Webflow'}
+                </ContextMenuLabel>
+                <ContextMenuSeparator />
+              </>
+            )}
+
+            <ContextMenuItem onClick={handlePasteAfter} disabled={(!hasClipboard && !hasExternal) || isBody}>
               Paste after
               <ContextMenuShortcut>⌘V</ContextMenuShortcut>
             </ContextMenuItem>
 
-            <ContextMenuItem onClick={handlePasteInside} disabled={!hasClipboard || !canPasteInside}>
+            <ContextMenuItem onClick={handlePasteInside} disabled={(!hasClipboard && !hasExternal) || !canPasteInside}>
               Paste inside
               <ContextMenuShortcut>⌘⇧V</ContextMenuShortcut>
             </ContextMenuItem>
