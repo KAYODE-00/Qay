@@ -57,6 +57,7 @@ import { useLiveLayerUpdates } from '@/hooks/use-live-layer-updates';
 import { useLivePageUpdates } from '@/hooks/use-live-page-updates';
 import { useLiveComponentUpdates } from '@/hooks/use-live-component-updates';
 import { useLiveLayerStyleUpdates } from '@/hooks/use-live-layer-style-updates';
+import { useImportPaste } from '@/hooks/use-import-paste';
 
 // 4. Stores
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -73,12 +74,13 @@ import { useFontsStore } from '@/stores/useFontsStore';
 import { useLocalisationStore } from '@/stores/useLocalisationStore';
 import { useMigrationStore } from '@/stores/useMigrationStore';
 import { useVersionsStore } from '@/stores/useVersionsStore';
+import type { ExternalPastePlacement } from '@/stores/useExternalPasteStore';
 // Collaboration temporarily disabled
 // import { useCollaborationPresenceStore } from '@/stores/useCollaborationPresenceStore';
 
 // 6. Utils/lib
 import { findHomepage } from '@/lib/page-utils';
-import { findLayerById, getClassesString, removeLayerById, canCopyLayer, canDeleteLayer, regenerateIdsWithInteractionRemapping, findParentAndIndex, insertLayerAfter, updateLayerProps, getLayerIndexes, removeRichTextSublayer } from '@/lib/layer-utils';
+import { findLayerById, getClassesString, removeLayerById, canCopyLayer, canDeleteLayer, regenerateIdsWithInteractionRemapping, findParentAndIndex, insertLayerAfter, updateLayerProps, getLayerIndexes, removeRichTextSublayer, canHaveChildren, canPasteIntoParent, LINK_NESTING_ERROR } from '@/lib/layer-utils';
 import { cloneDeep } from 'lodash';
 
 // 5. Types
@@ -220,6 +222,166 @@ export default function YCodeBuilder({ children }: YCodeBuilderProps = {} as YCo
       setDraftLayers(currentPageId, newLayers);
     }
   }, [editingComponentId, currentPageId, setDraftLayers]);
+
+  const insertImportedLayers = useCallback((layers: Layer[], placement?: ExternalPastePlacement) => {
+    if (layers.length === 0) return;
+
+    if (placement) {
+      if (editingComponentId) {
+        const currentLayers = getCurrentLayers();
+        const target = findLayerById(currentLayers, placement.layerId);
+        if (!target) return;
+
+        let updated = currentLayers;
+        if (placement.mode === 'inside') {
+          if (layers.some((layer) => !canPasteIntoParent(currentLayers, target.id, layer))) {
+            toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+            return;
+          }
+          updated = updateLayerProps(currentLayers, target.id, {
+            children: [...(target.children || []), ...layers],
+          });
+        } else {
+          const result = findParentAndIndex(currentLayers, target.id);
+          if (!result) return;
+          if (result.parent && layers.some((layer) => !canPasteIntoParent(currentLayers, result.parent!.id, layer))) {
+            toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+            return;
+          }
+          let index = result.index;
+          for (const layer of layers) {
+            updated = insertLayerAfter(updated, result.parent, index, layer);
+            index += 1;
+          }
+        }
+
+        updateCurrentLayers(updated);
+        setSelectedLayerId(layers[0].id);
+        return;
+      }
+
+      if (!currentPageId) return;
+      if (placement.mode === 'inside') {
+        for (const layer of layers) {
+          if (!pasteInside(currentPageId, placement.layerId, layer)) {
+            toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+            return;
+          }
+        }
+      } else {
+        let anchorId = placement.layerId;
+        for (const layer of layers) {
+          const pasted = pasteAfter(currentPageId, anchorId, layer);
+          if (!pasted) {
+            toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+            return;
+          }
+          anchorId = pasted.id;
+        }
+      }
+      setSelectedLayerId(layers[0].id);
+      return;
+    }
+
+    if (editingComponentId) {
+      const currentLayers = getCurrentLayers();
+      const selected = selectedLayerId ? findLayerById(currentLayers, selectedLayerId) : null;
+
+      let updated = currentLayers;
+      if (selected && canHaveChildren(selected)) {
+        if (layers.some((layer) => !canPasteIntoParent(currentLayers, selected.id, layer))) {
+          toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+          return;
+        }
+        updated = updateLayerProps(currentLayers, selected.id, {
+          children: [...(selected.children || []), ...layers],
+        });
+      } else if (selected) {
+        const result = findParentAndIndex(currentLayers, selected.id);
+        if (result?.parent && layers.some((layer) => !canPasteIntoParent(currentLayers, result.parent!.id, layer))) {
+          toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+          return;
+        }
+        let index = result ? result.index : currentLayers.length - 1;
+        for (const layer of layers) {
+          updated = insertLayerAfter(updated, result?.parent ?? null, index, layer);
+          index += 1;
+        }
+      } else {
+        updated = [...currentLayers, ...layers];
+      }
+
+      updateCurrentLayers(updated);
+      setSelectedLayerId(layers[0].id);
+      return;
+    }
+
+    if (!currentPageId) return;
+
+    const currentLayers = getCurrentLayers();
+    const selected = selectedLayerId ? findLayerById(currentLayers, selectedLayerId) : null;
+
+    if (!selected || canHaveChildren(selected)) {
+      const targetId = selected
+        ? selected.id
+        : currentLayers.find((layer) => layer.id === 'body' || layer.name === 'body')?.id ?? 'body';
+      for (const layer of layers) {
+        if (!pasteInside(currentPageId, targetId, layer)) {
+          toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+          return;
+        }
+      }
+    } else {
+      let anchorId = selected.id;
+      for (const layer of layers) {
+        const pasted = pasteAfter(currentPageId, anchorId, layer);
+        if (!pasted) {
+          toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+          return;
+        }
+        anchorId = pasted.id;
+      }
+    }
+
+    setSelectedLayerId(layers[0].id);
+  }, [editingComponentId, currentPageId, getCurrentLayers, updateCurrentLayers, selectedLayerId, setSelectedLayerId, pasteInside, pasteAfter]);
+
+  const handleNormalPaste = useCallback(() => {
+    if (!clipboardLayer || !selectedLayerId) return;
+
+    if (editingComponentId) {
+      const circularError = checkCircularReference(editingComponentId, clipboardLayer, components);
+      if (circularError) {
+        toast.error('Infinite component loop detected', { description: circularError });
+        return;
+      }
+      const layers = getCurrentLayers();
+      const result = findParentAndIndex(layers, selectedLayerId);
+      if (result) {
+        if (result.parent && !canPasteIntoParent(layers, result.parent.id, clipboardLayer)) {
+          toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+          return;
+        }
+        const newLayer = regenerateIdsWithInteractionRemapping(cloneDeep(clipboardLayer));
+        updateCurrentLayers(insertLayerAfter(layers, result.parent, result.index, newLayer));
+      }
+      return;
+    }
+
+    if (!currentPageId) return;
+    const pastedLayer = selectedLayerId === 'body'
+      ? pasteInside(currentPageId, selectedLayerId, clipboardLayer)
+      : pasteAfter(currentPageId, selectedLayerId, clipboardLayer);
+    if (!pastedLayer) {
+      toast.error(LINK_NESTING_ERROR.title, { description: LINK_NESTING_ERROR.description });
+    }
+  }, [clipboardLayer, selectedLayerId, editingComponentId, components, getCurrentLayers, updateCurrentLayers, currentPageId, pasteInside, pasteAfter]);
+
+  useImportPaste({
+    enabled: Boolean(currentPageId || editingComponentId),
+    insertLayers: insertImportedLayers,
+    onNormalPaste: handleNormalPaste,
+  });
 
   // Check if Supabase is configured, redirect to setup if not
   const [supabaseConfigured, setSupabaseConfigured] = useState<boolean | null>(null);
@@ -1431,34 +1593,9 @@ export default function YCodeBuilder({ children }: YCodeBuilderProps = {} as YCo
 
         // Paste: Cmd/Ctrl + V
         if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
-          if (!isInputFocused && (currentPageId || editingComponentId)) {
-            e.preventDefault();
-            // Use clipboard store for paste (works with context menu)
-            if (clipboardLayer && selectedLayerId) {
-              // In component edit mode, paste into component drafts
-              if (editingComponentId) {
-                const circularError = checkCircularReference(editingComponentId, clipboardLayer, components);
-                if (circularError) {
-                  toast.error('Infinite component loop detected', { description: circularError });
-                  return;
-                }
-
-                const layers = getCurrentLayers();
-                const newLayer = regenerateIdsWithInteractionRemapping(cloneDeep(clipboardLayer));
-                const result = findParentAndIndex(layers, selectedLayerId);
-                if (result) {
-                  updateCurrentLayers(insertLayerAfter(layers, result.parent, result.index, newLayer));
-                }
-              } else if (currentPageId) {
-                // If body is selected, paste inside body (not after it)
-                if (selectedLayerId === 'body') {
-                  pasteInside(currentPageId, selectedLayerId, clipboardLayer);
-                } else {
-                  pasteAfter(currentPageId, selectedLayerId, clipboardLayer);
-                }
-              }
-            }
-          }
+          // Let the paste event read clipboardData. useImportPaste will route
+          // QAY, Figma, and Webflow payloads and prevent the default paste.
+          return;
         }
 
         // Duplicate: Cmd/Ctrl + D (supports multi-select)

@@ -4,14 +4,22 @@
  */
 
 import { ToastError } from '@/lib/toast-error';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 import type { WebflowImport, WebflowSite, SyncResult } from './types';
 
 const BASE = '/ycode/api/apps/webflow';
 const SETTINGS_BASE = '/ycode/api/apps/webflow/settings';
 const JSON_HEADERS = { 'Content-Type': 'application/json' } as const;
 
+function withQaySite(url: string): string {
+  const siteId = typeof window !== 'undefined' ? readQayEditorSiteIdFromBrowser() : null;
+  if (!siteId) return url;
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}site=${encodeURIComponent(siteId)}`;
+}
+
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
+  const res = await fetch(withQaySite(url), init);
   const body = await res.json();
   if (body.error) {
     throw body.detail
@@ -78,4 +86,9 @@ export const webflowApi = {
     jsonFetch<{ success: boolean }>(`${BASE}/imports/${importId}`, {
       method: 'DELETE',
     }),
+
+  resolveStylesheet: (site: string) =>
+    jsonFetch<{ css?: string; stylesheetUrl?: string }>(
+      `${BASE}/stylesheet?site=${encodeURIComponent(site)}`
+    ),
 };
