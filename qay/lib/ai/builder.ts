@@ -955,6 +955,11 @@ function promptKeywordMatches(promptText: string, visibleText: string) {
   return matches.length >= Math.min(3, Math.ceil(promptWords.length * 0.18));
 }
 
+function hasQayCommerceHook(html: string, hook: string) {
+  const escapedHook = hook.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`data-qay-commerce\\s*=\\s*["']${escapedHook}["']`, 'i').test(html);
+}
+
 function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode) {
   if (mode === 'selected') {
     if (html.length < 180 || !/\bclass\s*=/.test(html)) {
@@ -1021,19 +1026,19 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
   }
 
   if (!promptKeywordMatches(promptText, visibleText)) {
-    throw new Error('AI response copy did not match the requested site. Please try again.');
+    console.warn('[QAY AI] Generated copy may not strongly match the prompt. Allowing import so the user can edit/regenerate.');
   }
 
   if (commerce) {
     const requiredCommerceHooks = [
-      'data-qay-commerce="product-card"',
-      'data-qay-commerce="add-to-cart"',
-      'data-qay-commerce="cart-button"',
-      'data-qay-commerce="cart-drawer"',
-      'data-qay-commerce="cart-items"',
-      'data-qay-commerce="checkout-button"',
+      'product-card',
+      'add-to-cart',
+      'cart-button',
+      'cart-drawer',
+      'cart-items',
+      'checkout-button',
     ];
-    if (!requiredCommerceHooks.every((hook) => html.includes(hook))) {
+    if (!requiredCommerceHooks.every((hook) => hasQayCommerceHook(html, hook))) {
       throw new Error('AI ecommerce response was missing required QAY commerce hooks.');
     }
   }

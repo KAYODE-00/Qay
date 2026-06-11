@@ -13,6 +13,20 @@ type GenerateRequestBody = {
   selectedLayers?: Layer[];
 };
 
+function isAiQualityError(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes('ai response')
+    || normalized.includes('qay mobile menu')
+    || normalized.includes('required qay')
+    || normalized.includes('all ai providers failed')
+    || normalized.includes('did not include importable html')
+    || normalized.includes('not a usable design')
+    || normalized.includes('copy did not match')
+    || normalized.includes('missing required')
+  );
+}
+
 export async function POST(request: Request) {
   try {
     await getQayAuthUser();
@@ -45,7 +59,12 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'We could not generate this design.';
     const isProviderLimits = error instanceof AiProviderLimitsError;
-    const status = message.includes('No AI provider is configured') || isProviderLimits ? 503 : 500;
+    const isQualityError = isAiQualityError(message);
+    const status = message.includes('No AI provider is configured') || isProviderLimits
+      ? 503
+      : isQualityError
+        ? 422
+        : 500;
     const isDev = process.env.NODE_ENV !== 'production';
 
     if (isProviderLimits) {
@@ -60,7 +79,7 @@ export async function POST(request: Request) {
           ? 'AI is not configured yet. Add at least one AI provider key to use this.'
           : isProviderLimits
             ? 'All AI providers are out of usable quota or rate limited. Add credits, wait for limits to reset, or add another provider key.'
-            : message.startsWith('AI response') || message.includes('QAY mobile menu') || message.includes('required QAY')
+            : isQualityError
               ? message
               : 'AI is busy. Try again shortly.',
         ...(isProviderLimits ? {
