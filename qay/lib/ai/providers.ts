@@ -31,7 +31,7 @@ export class AiProviderLimitsError extends Error {
 }
 
 const DEFAULT_AI_TIMEOUT_MS = Number(process.env.QAY_AI_PROVIDER_TIMEOUT_MS || 18000);
-const HTML_AI_TIMEOUT_MS = Number(process.env.QAY_AI_HTML_PROVIDER_TIMEOUT_MS || 12000);
+const HTML_AI_TIMEOUT_MS = Number(process.env.QAY_AI_HTML_PROVIDER_TIMEOUT_MS || 30000);
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -42,7 +42,7 @@ function requestTimeoutMs(system: string) {
 }
 
 function maxOutputTokens(system: string) {
-  return wantsPlainHtml(system) ? 3600 : 6000;
+  return wantsPlainHtml(system) ? 8000 : 6000;
 }
 
 function requestTemperature(system: string, providerName: string) {

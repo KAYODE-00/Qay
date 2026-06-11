@@ -1199,7 +1199,12 @@ export async function generateQayAiHtml(input: GenerateAiLayersInput): Promise<G
       model: providerResult.model,
     };
   } catch (error) {
-    console.warn('[QAY AI] Providers failed for HTML generation; using local fallback.', error);
+    if (process.env.QAY_AI_ALLOW_LOCAL_FALLBACK !== 'true') {
+      console.error('[QAY AI] Providers failed for HTML generation. Local fallback is disabled.', error);
+      throw error;
+    }
+
+    console.warn('[QAY AI] Providers failed for HTML generation; using local fallback because QAY_AI_ALLOW_LOCAL_FALLBACK=true.', error);
 
     return {
       html: localFallbackHtml(input),
