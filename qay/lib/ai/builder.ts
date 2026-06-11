@@ -72,6 +72,7 @@ Rules:
 - Use visual tension: mix at least two of these where appropriate: asymmetric grids, overlapping media, sidebar/dock navigation, offset cards, editorial metadata rails, large image crops, alternating section backgrounds, or varied card spans.
 - Use relative internal links such as "/about".
 - Style navigation and CTA links as buttons with Tailwind classes; do not leave bare blue/default links.
+- Every full-page design with navigation must include a real responsive menu control: a hamburger/menu button visible on small screens using data-qay-click="toggle", data-qay-target, and data-qay-class="hidden". The menu target must have the matching id and include hidden plus a display class such as flex, grid, or block. Editorial, dashboard, portfolio, or luxury sites may also use a menu/drawer pattern on desktop when it fits.
 - Use absolute image URLs only, preferably Unsplash URLs with width and quality params.
 - Do not include JavaScript, event handlers, onclick, external scripts, GSAP scripts, or application/qay-interactions scripts.
 - Interactions must use only these native QAY data attributes:
@@ -90,6 +91,7 @@ Rules:
 - Mobile menus must be implemented by toggling "hidden":
   <button data-qay-click="toggle" data-qay-target="#mobile-menu" data-qay-class="hidden">...</button>
   <div id="mobile-menu" class="hidden fixed ... flex ...">...</div>
+- Do not output a desktop nav only. Small screens must have a visible Menu/Hamburger button and a hidden mobile menu/drawer.
 - For image zoom, put data-qay-hover="img-zoom" on an overflow-hidden wrapper that contains one img.
 - Use data-qay-* tastefully on hero content, cards, timeline rows, image wrappers, and buttons.
 - For UI state such as menus, modal panels, drawers, accordions, tabs-as-simple-panels, and filter panels, use data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden". The target must include the matching id, the hidden class when closed, and a display class such as flex, grid, or block.
@@ -757,6 +759,8 @@ Silent checklist:
 - Use QAY state hooks for simple state: mobile menus, modals, drawers, accordions, dropdowns, filters, and cart panels must use data-qay-click="toggle", data-qay-target, and data-qay-class="hidden".
 - Every toggle target must include a unique id, hidden when closed, and a display class such as flex, grid, or block.
 - CTA links and nav links are visually styled as buttons or deliberate navigation items, never browser-default links.
+- Full-page navigation must include a mobile hamburger/menu toggle with QAY state hooks. Do not rely on a desktop-only nav or CSS-only hidden links for mobile navigation.
+- On some editorial, dashboard, portfolio, or luxury concepts, a menu/drawer pattern may also be visible on desktop if it improves the design.
 - Use the full QAY motion vocabulary when appropriate:
   data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
   data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
@@ -939,6 +943,10 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
   const motionCount = (html.match(/data-qay-(?:animate|hover|click)=/gi) || []).length;
   const imageCount = (html.match(/<img\b/gi) || []).length;
   const linkOrButtonCount = (html.match(/<(?:a|button)\b/gi) || []).length;
+  const hasNavigation = /<nav\b/i.test(html);
+  const hasMenuToggle = /data-qay-click\s*=\s*["']toggle["']/i.test(html)
+    && /data-qay-target\s*=\s*["']#[^"']+["']/i.test(html)
+    && /data-qay-class\s*=\s*["']hidden["']/i.test(html);
   const hasResponsive = /\b(?:sm|md|lg|xl):/.test(classText);
   const hasComposition = [
     /\bgrid\b/.test(classText),
@@ -964,6 +972,10 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
 
   if (sectionCount + pageWrapperCount < 3 || motionCount < 3 || hasComposition < 5 || !hasResponsive) {
     throw new Error('AI response was not a usable design. Please try again.');
+  }
+
+  if (mode === 'page' && hasNavigation && !hasMenuToggle) {
+    throw new Error('AI response was missing a QAY mobile menu toggle.');
   }
 
   if (!auth && imageCount < 1) {
@@ -1019,8 +1031,16 @@ function localFallbackHtml(input: GenerateAiLayersInput) {
       <a href="/about" class="transition hover:text-white">About</a>
       <a href="/contact" class="transition hover:text-white">Contact</a>
     </div>
-    <button type="button" class="rounded-full border border-white/15 px-4 py-2 text-sm text-white" data-qay-commerce="cart-button" data-qay-hover="scale">Cart (0)</button>
+    <div class="flex items-center gap-2">
+      <button type="button" class="rounded-full border border-white/15 px-4 py-2 text-sm text-white" data-qay-commerce="cart-button" data-qay-hover="scale">Cart (0)</button>
+      <button type="button" class="rounded-full border border-white/15 px-4 py-2 text-sm text-white md:hidden" data-qay-click="toggle" data-qay-target="#mobile-menu" data-qay-class="hidden">Menu</button>
+    </div>
   </nav>
+  <div id="mobile-menu" class="hidden fixed inset-x-4 top-20 z-50 flex flex-col gap-3 rounded-3xl border border-white/10 bg-[#111111] p-5 text-white shadow-2xl md:hidden">
+    <a href="/shop" class="rounded-2xl border border-white/10 px-4 py-3">Shop</a>
+    <a href="/about" class="rounded-2xl border border-white/10 px-4 py-3">About</a>
+    <a href="/contact" class="rounded-2xl border border-white/10 px-4 py-3">Contact</a>
+  </div>
   <aside class="hidden fixed right-4 top-20 z-50 w-[min(380px,calc(100vw-32px))] rounded-3xl border border-white/10 bg-[#111111] p-5 text-white shadow-2xl shadow-black/50" data-qay-commerce="cart-drawer">
     <div class="flex items-center justify-between gap-3">
       <h2 class="text-xl font-semibold">Cart</h2>
@@ -1116,7 +1136,13 @@ function localFallbackHtml(input: GenerateAiLayersInput) {
       <a href="/about" class="transition hover:text-white">About</a>
       <a href="/contact" class="transition hover:text-white">Contact</a>
     </div>
+    <button type="button" class="rounded-full border border-white/15 px-4 py-2 text-sm text-white md:hidden" data-qay-click="toggle" data-qay-target="#mobile-menu" data-qay-class="hidden">Menu</button>
   </nav>
+  <div id="mobile-menu" class="hidden fixed inset-x-4 top-20 z-50 flex flex-col gap-3 rounded-3xl border border-white/10 bg-[#11141A] p-5 text-white shadow-2xl md:hidden">
+    <a href="/work" class="rounded-2xl border border-white/10 px-4 py-3">Work</a>
+    <a href="/about" class="rounded-2xl border border-white/10 px-4 py-3">About</a>
+    <a href="/contact" class="rounded-2xl border border-white/10 px-4 py-3">Contact</a>
+  </div>
   <section class="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-[1.15fr_0.85fr] md:items-end md:py-28">
     <div data-qay-animate="slide-up" data-qay-y="36">
       <p class="mb-5 inline-flex rounded-full border border-white/15 px-4 py-2 text-xs font-medium uppercase tracking-[0.22em] text-white/65">Built with QAY</p>

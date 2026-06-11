@@ -32,6 +32,7 @@ If the requested site requires backend behavior QAY has not connected yet, creat
 - Use semantic HTML where possible: `main`, `nav`, `section`, `article`, `footer`, `form`, `button`, `img`.
 - Use relative internal links: `/about`, `/shop`, `/login`.
 - Style every link intentionally. Never leave default blue browser links.
+- Every full-page design with navigation must include a small-screen Menu/Hamburger button using QAY toggle hooks and a hidden mobile menu/drawer target.
 - Do not include JavaScript, `onclick`, GSAP scripts, external app scripts, or inline event handlers.
 - Do not use custom animation CSS. Use QAY attributes for motion and state.
 - A tiny `<style>` block is allowed only for font helper classes such as `.serif`.
@@ -305,6 +306,7 @@ Rules:
 - The target must also include its intended display class such as `flex`, `grid`, or `block`.
 - Use unique ids: `mobile-menu`, `cart-panel`, `faq-1`, `booking-modal`, `filter-drawer`.
 - Do not use `onclick`.
+- Do not output a desktop-only nav. Small screens need a visible Menu/Hamburger control. Some editorial, dashboard, portfolio, or luxury sites may also use a menu/drawer pattern on desktop when it fits the design.
 
 ## Ecommerce Hooks
 
@@ -543,6 +545,8 @@ data-qay-click="toggle"
 data-qay-target="#element-id"
 data-qay-class="hidden"
 The target must have a matching id, include hidden when closed, and include its display class such as flex, grid, or block.
+
+Every full-page navigation must include a small-screen Menu/Hamburger button and a hidden mobile menu/drawer target using these hooks. Desktop menu/drawer navigation is allowed when it fits the design.
 
 If this is ecommerce, include product cards, add-to-cart buttons, remove buttons where useful, cart button, hidden cart drawer/modal, cart items container, close/cancel button, checkout button, and trust/shipping content. Use:
 data-qay-commerce="product-grid|product-card|product-image|product-title|product-description|product-price|add-to-cart|remove-from-cart|cart-button|cart-drawer|cart-items|cart-count|cart-close|cart-cancel|checkout-button"
