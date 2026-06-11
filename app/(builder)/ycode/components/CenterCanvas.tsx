@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/empty';
 
 // 4. Hooks
+import { useCanvasPan } from '@/hooks/use-canvas-pan';
 import { useEditorUrl } from '@/hooks/use-editor-url';
 import { useEditComponent } from '@/hooks/use-edit-component';
 import { useZoom } from '@/hooks/use-zoom';
@@ -166,6 +167,7 @@ function ViewportZoomControls({
           avoidCollisions={false}
           collisionPadding={0}
           className="max-h-75! w-38"
+          onCloseAutoFocus={(event) => event.preventDefault()}
         >
           <DropdownMenuItem onClick={onZoomIn}>
             Zoom in
@@ -797,6 +799,13 @@ const CenterCanvas = React.memo(function CenterCanvas({
     shortcutsEnabled: !isPreviewMode,
   });
 
+  const { isPanGestureActive } = useCanvasPan({
+    scrollContainerRef,
+    iframeElement: canvasIframeElement,
+    enabled: !isPreviewMode,
+    isTextEditing,
+  });
+
   // Independent zoom for the preview (second useZoom instance, active only in preview mode)
   const previewContentWidth = parseInt(viewportSizes[viewportMode].width);
   const {
@@ -1281,12 +1290,15 @@ const CenterCanvas = React.memo(function CenterCanvas({
 
   // Handle any click inside the canvas (closes ElementLibrary panel and other popovers)
   const handleCanvasClick = useCallback(() => {
+    if (isPanGestureActive()) return;
     window.dispatchEvent(new CustomEvent('closeElementLibrary'));
     window.dispatchEvent(new CustomEvent('canvasClick'));
-  }, []);
+  }, [isPanGestureActive]);
 
   // Canvas callback handlers
   const handleCanvasLayerClick = useCallback((layerId: string, event?: React.MouseEvent) => {
+    if (isPanGestureActive()) return;
+
     // Skip selection changes during drag operations
     const { isDraggingLayerOnCanvas, isDraggingToCanvas, elementPicker: picker } = useEditorStore.getState();
     if (isDraggingLayerOnCanvas || isDraggingToCanvas) {
@@ -1372,7 +1384,7 @@ const CenterCanvas = React.memo(function CenterCanvas({
         listItemIndex: resolvedListItemIndex,
       });
     }
-  }, [isPreviewMode, setActiveSidebarTab, selectLayerWithSublayer, editingComponentId, componentDrafts, currentDraft]);
+  }, [isPanGestureActive, isPreviewMode, setActiveSidebarTab, selectLayerWithSublayer, editingComponentId, componentDrafts, currentDraft]);
 
   const handleCanvasLayerUpdate = useCallback((layerId: string, updates: Partial<Layer>) => {
     if (editingComponentId) {
@@ -1522,8 +1534,12 @@ const CenterCanvas = React.memo(function CenterCanvas({
 
   // Handle layer hover from Canvas (for SelectionOverlay)
   const handleCanvasLayerHover = useCallback((layerId: string | null) => {
+    if (isPanGestureActive()) {
+      setHoveredLayerId(null);
+      return;
+    }
     setHoveredLayerId(layerId);
-  }, [setHoveredLayerId]);
+  }, [isPanGestureActive, setHoveredLayerId]);
 
   // Open the master component when a component instance is double-clicked.
   // Mirrors the "Edit component" sidebar button.
