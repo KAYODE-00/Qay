@@ -14,6 +14,76 @@ type AppWithStatus = {
   connected: boolean;
 };
 
+type IntegrationField = {
+  key: string;
+  label: string;
+  type?: 'text' | 'password' | 'url';
+  placeholder: string;
+  description: string;
+  required?: boolean;
+};
+
+const APP_FIELDS: Record<string, IntegrationField[]> = {
+  airtable: [
+    {
+      key: 'api_token',
+      label: 'Airtable personal access token',
+      type: 'password',
+      placeholder: 'pat...',
+      description: 'Required. Needs access to the bases and tables you want to sync.',
+      required: true,
+    },
+  ],
+  webflow: [
+    {
+      key: 'api_token',
+      label: 'Webflow API token',
+      type: 'password',
+      placeholder: 'Webflow site API token',
+      description: 'Required. Needs sites:read and cms:read access for the selected Webflow site.',
+      required: true,
+    },
+    {
+      key: 'site_live_url',
+      label: 'Webflow live site URL',
+      type: 'url',
+      placeholder: 'https://your-site.webflow.io',
+      description: 'Required. Used as the source live URL for imports, checks, and future Webflow-to-QAY mapping.',
+      required: true,
+    },
+  ],
+  mailerlite: [
+    {
+      key: 'api_key',
+      label: 'MailerLite API key',
+      type: 'password',
+      placeholder: 'Enter your MailerLite API key',
+      description: 'Required to send QAY form submissions to MailerLite groups.',
+      required: true,
+    },
+  ],
+  mapbox: [
+    {
+      key: 'access_token',
+      label: 'Mapbox access token',
+      type: 'password',
+      placeholder: 'pk.eyJ1Ijo...',
+      description: 'Required for Map elements using Mapbox.',
+      required: true,
+    },
+  ],
+  'google-maps-embed': [
+    {
+      key: 'api_key',
+      label: 'Google Maps API key',
+      type: 'password',
+      placeholder: 'AIzaSy...',
+      description: 'Required for Google embedded map elements. Enable Maps Embed API and Places API in Google Cloud.',
+      required: true,
+    },
+  ],
+};
+
 function toFriendlyErrorMessage(message: string) {
   if (!message) return 'Something went wrong. Please try again.';
   if (message.includes('Not authenticated')) return 'Please sign in again.';
@@ -27,7 +97,8 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeApp, setActiveApp] = useState<AppWithStatus | null>(null);
-  const [jsonValue, setJsonValue] = useState('{}');
+  const [settingsValue, setSettingsValue] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   const connectedCount = useMemo(() => apps.filter((app) => app.connected).length, [apps]);
 
@@ -55,19 +126,60 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
 
   const openApp = async (app: AppWithStatus) => {
     setActiveApp(app);
+    setFormError(null);
     const response = await fetch(`/api/qay/apps/${app.id}?site=${encodeURIComponent(siteId)}`);
     const result = await response.json();
-    setJsonValue(JSON.stringify(result.data || {}, null, 2));
+    const nextSettings = result.data || {};
+    const fields = APP_FIELDS[app.id] || [];
+    setSettingsValue(Object.fromEntries(fields.map((field) => [field.key, String(nextSettings[field.key] || '')])));
+  };
+
+  const updateSettingValue = (key: string, value: string) => {
+    setSettingsValue((current) => ({ ...current, [key]: value }));
+  };
+
+  const validateSettings = (app: AppWithStatus, settings: Record<string, string>) => {
+    const fields = APP_FIELDS[app.id] || [];
+    for (const field of fields) {
+      if (field.required && !settings[field.key]?.trim()) {
+        return `${field.label} is required.`;
+      }
+      if (field.type === 'url' && settings[field.key]?.trim()) {
+        try {
+          const url = new URL(settings[field.key].trim());
+          if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+            return `${field.label} must start with http:// or https://.`;
+          }
+        } catch {
+          return `${field.label} must be a valid URL.`;
+        }
+      }
+    }
+    return null;
   };
 
   const saveApp = async () => {
     if (!activeApp) return;
-    const parsed = JSON.parse(jsonValue || '{}');
-    await fetch(`/api/qay/apps/${activeApp.id}?site=${encodeURIComponent(siteId)}`, {
+    const validationError = validateSettings(activeApp, settingsValue);
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+
+    setFormError(null);
+    const payload = Object.fromEntries(
+      Object.entries(settingsValue).map(([key, value]) => [key, value.trim()])
+    );
+    const response = await fetch(`/api/qay/apps/${activeApp.id}?site=${encodeURIComponent(siteId)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(parsed),
+      body: JSON.stringify(payload),
     });
+    const result = await response.json().catch(() => ({}));
+    if (result.error) {
+      setFormError(String(result.error));
+      return;
+    }
     setActiveApp(null);
     fetchApps();
   };
@@ -108,7 +220,11 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
                 ].join(' ')}
               >
                 <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary">
-                  <Image src={app.logo} alt={`${app.name} logo`} width={24} height={24} className="size-6 object-contain" />
+                  <Image
+                    src={app.logo} alt={`${app.name} logo`}
+                    width={24} height={24}
+                    className="size-6 object-contain"
+                  />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -142,15 +258,43 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
           <DialogHeader>
             <DialogTitle>{activeApp?.name} settings</DialogTitle>
             <DialogDescription>
-              Save settings for this site.
+              Save the required credentials for this site only.
             </DialogDescription>
           </DialogHeader>
-          <textarea
-            className="min-h-[320px] w-full rounded-md border bg-background p-3 font-mono text-sm"
-            value={jsonValue}
-            onChange={(e) => setJsonValue(e.target.value)}
-            disabled={!canManage}
-          />
+          <div className="space-y-4">
+            {(activeApp ? APP_FIELDS[activeApp.id] : [])?.map((field) => (
+              <label key={field.key} className="block text-sm font-medium">
+                <span className="flex items-center gap-1">
+                  {field.label}
+                  {field.required && <span className="text-red-500">*</span>}
+                </span>
+                <input
+                  type={field.type || 'text'}
+                  required={field.required}
+                  className="mt-2 h-11 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  value={settingsValue[field.key] || ''}
+                  onChange={(event) => updateSettingValue(field.key, event.target.value)}
+                  placeholder={field.placeholder}
+                  disabled={!canManage}
+                />
+                <span className="mt-2 block text-xs leading-5 text-muted-foreground">
+                  {field.description}
+                </span>
+              </label>
+            ))}
+
+            {activeApp && !APP_FIELDS[activeApp.id] && (
+              <p className="rounded-md border border-border bg-secondary/20 p-4 text-sm text-muted-foreground">
+                This app does not have a supported settings form yet.
+              </p>
+            )}
+
+            {formError && (
+              <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                {formError}
+              </p>
+            )}
+          </div>
           <DialogFooter>
             {canManage && activeApp?.connected && (
               <Button variant="secondary" onClick={disconnectApp}>Disconnect</Button>
