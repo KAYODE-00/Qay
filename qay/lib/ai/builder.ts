@@ -714,6 +714,40 @@ function extractHtml(text: string) {
   return html;
 }
 
+function stripHtmlTags(value: string) {
+  return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function ensureQayMobileMenu(html: string) {
+  if (!/<nav\b/i.test(html) || /data-qay-click\s*=\s*["']toggle["']/i.test(html)) {
+    return html;
+  }
+
+  const navMatch = html.match(/<nav\b[\s\S]*?<\/nav>/i);
+  if (!navMatch?.[0]) return html;
+
+  const navHtml = navMatch[0];
+  const linkMatches = Array.from(navHtml.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi))
+    .slice(0, 6)
+    .map((match) => {
+      const href = match[1] || '#';
+      const label = stripHtmlTags(match[2] || 'Page') || 'Page';
+      return `<a href="${escapeHtml(href)}" class="rounded-2xl border border-current/10 px-4 py-3 text-sm font-medium">${escapeHtml(label)}</a>`;
+    });
+
+  const menuLinks = linkMatches.length
+    ? linkMatches.join('\n    ')
+    : '<a href="/" class="rounded-2xl border border-current/10 px-4 py-3 text-sm font-medium">Home</a>';
+  const menuId = 'qay-mobile-menu';
+  const menuButton = `<button type="button" class="inline-flex items-center justify-center rounded-full border border-current/15 px-4 py-2 text-sm font-medium md:hidden" aria-controls="${menuId}" aria-expanded="false" data-qay-click="toggle" data-qay-target="#${menuId}" data-qay-class="hidden">Menu</button>`;
+  const menuDrawer = `<div id="${menuId}" class="hidden fixed inset-x-4 top-20 z-50 flex flex-col gap-3 rounded-3xl border border-current/10 bg-white p-5 text-black shadow-2xl dark:bg-[#111111] dark:text-white md:hidden">
+    ${menuLinks}
+  </div>`;
+
+  const enhancedNav = navHtml.replace(/<\/nav>/i, `${menuButton}</nav>`);
+  return html.replace(navHtml, `${enhancedNav}\n${menuDrawer}`);
+}
+
 function buildHtmlPrompt({ prompt, mode = 'page', selectedLayers = [] }: GenerateAiLayersInput) {
   const diversityBrief = buildHtmlDiversityBrief(prompt);
 
@@ -1227,14 +1261,14 @@ export async function generateQayAiHtml(input: GenerateAiLayersInput): Promise<G
       buildHtmlPrompt(input),
       QAY_AI_HTML_SYSTEM_PROMPT,
       (text) => {
-        const html = extractHtml(text);
+        const html = ensureQayMobileMenu(extractHtml(text));
         assertUsableHtml(html, input.prompt, input.mode || 'page');
         return html;
       }
     );
 
     return {
-      html: providerResult.value || extractHtml(providerResult.text),
+      html: providerResult.value || ensureQayMobileMenu(extractHtml(providerResult.text)),
       provider: providerResult.provider,
       model: providerResult.model,
     };

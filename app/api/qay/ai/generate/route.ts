@@ -60,7 +60,9 @@ export async function POST(request: Request) {
           ? 'AI is not configured yet. Add at least one AI provider key to use this.'
           : isProviderLimits
             ? 'All AI providers are out of usable quota or rate limited. Add credits, wait for limits to reset, or add another provider key.'
-            : 'AI is busy. Try again shortly.',
+            : message.startsWith('AI response') || message.includes('QAY mobile menu') || message.includes('required QAY')
+              ? message
+              : 'AI is busy. Try again shortly.',
         ...(isProviderLimits ? {
           code: 'AI_PROVIDER_LIMITS_REACHED',
           providers: error.failures.map((failure) => ({

@@ -113,9 +113,9 @@ const OPENROUTER_MODEL = !process.env.OPENROUTER_MODEL || process.env.OPENROUTER
 function sortProvidersForRequest(providers: AiProvider[], system: string) {
   if (!wantsPlainHtml(system)) return providers;
 
-  const highQualityHtmlOrder = process.env.QAY_AI_FAST_HTML_FIRST === 'true'
-    ? ['groq', 'openai', 'claude', 'gemini', 'openrouter']
-    : ['claude', 'openai', 'gemini', 'groq', 'openrouter'];
+  const highQualityHtmlOrder = process.env.QAY_AI_QUALITY_HTML_FIRST === 'true'
+    ? ['claude', 'openai', 'gemini', 'groq', 'openrouter']
+    : ['groq', 'openai', 'claude', 'gemini', 'openrouter'];
   return [...providers].sort((a, b) => {
     const aIndex = highQualityHtmlOrder.indexOf(a.name);
     const bIndex = highQualityHtmlOrder.indexOf(b.name);
