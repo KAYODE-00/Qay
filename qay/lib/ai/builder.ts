@@ -773,6 +773,53 @@ function ensureQayMobileMenu(html: string) {
   return html.replace(navHtml, `${enhancedNav}\n${menuDrawer}`);
 }
 
+function ensureQayCommerceBasics(html: string, prompt: string) {
+  if (!isCommercePrompt(prompt)) return html;
+
+  const requiredHooks = ['product-card', 'add-to-cart', 'cart-button', 'cart-drawer', 'cart-items', 'checkout-button'];
+  if (requiredHooks.every((hook) => hasQayCommerceHook(html, hook))) return html;
+
+  const commerceScaffold = `<section class="bg-white px-6 py-16 text-black dark:bg-[#0D0D0D] dark:text-white" data-qay-commerce="product-grid" data-qay-animate="scroll-reveal">
+  <div class="mx-auto max-w-6xl">
+    <div class="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-black/45 dark:text-white/45">Shop essentials</p>
+        <h2 class="mt-3 text-3xl font-semibold md:text-5xl">Ready-to-edit commerce blocks</h2>
+      </div>
+      <button type="button" class="rounded-full border border-black/15 px-5 py-3 text-sm font-semibold dark:border-white/15" data-qay-commerce="cart-button" data-qay-cart-label="Cart">Cart (0)</button>
+    </div>
+    <div class="grid gap-5 md:grid-cols-3">
+      <article class="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm dark:border-white/10 dark:bg-[#151515]" data-qay-commerce="product-card" data-qay-product-id="sample-product-1" data-qay-product-handle="signature-product" data-qay-hover="lift">
+        <div class="overflow-hidden" data-qay-commerce="product-image" data-qay-hover="img-zoom">
+          <img src="https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=900&auto=format&q=85" alt="Signature product" class="aspect-[4/5] w-full object-cover" />
+        </div>
+        <div class="space-y-3 p-5">
+          <h3 class="text-xl font-semibold" data-qay-commerce="product-title">Signature product</h3>
+          <p class="text-sm leading-6 text-black/60 dark:text-white/60" data-qay-commerce="product-description">A sample product card ready to connect with Medusa.</p>
+          <div class="flex items-center justify-between gap-3">
+            <span class="font-semibold" data-qay-commerce="product-price">$49</span>
+            <button type="button" class="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-black" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-1">Add to cart</button>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+<aside class="hidden fixed right-4 top-20 z-50 w-[min(380px,calc(100vw-32px))] rounded-2xl border border-black/10 bg-white p-5 text-black shadow-2xl dark:border-white/10 dark:bg-[#111111] dark:text-white" data-qay-commerce="cart-drawer">
+  <div class="flex items-center justify-between gap-3">
+    <h2 class="text-xl font-semibold">Cart</h2>
+    <button type="button" class="rounded-full border border-black/10 px-3 py-2 text-xs font-semibold dark:border-white/15" data-qay-commerce="cart-close">Close</button>
+  </div>
+  <div class="mt-4 text-sm text-black/60 dark:text-white/60" data-qay-commerce="cart-items">Your cart is empty.</div>
+  <button type="button" class="mt-5 w-full rounded-full bg-black px-5 py-3 text-sm font-semibold text-white dark:bg-white dark:text-black" data-qay-commerce="checkout-button">Checkout</button>
+  <button type="button" class="mt-2 w-full rounded-full border border-black/10 px-5 py-3 text-sm font-semibold dark:border-white/15" data-qay-commerce="cart-cancel">Cancel</button>
+</aside>`;
+
+  if (/<\/main>/i.test(html)) return html.replace(/<\/main>/i, `${commerceScaffold}\n</main>`);
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${commerceScaffold}\n</body>`);
+  return `${html}\n${commerceScaffold}`;
+}
+
 function buildQayHtmlCapabilityReference(prompt: string) {
   const lines = [
     'Core QAY reference:',
@@ -1462,14 +1509,14 @@ export async function generateQayAiHtml(input: GenerateAiLayersInput): Promise<G
       buildHtmlPrompt(input),
       QAY_AI_HTML_COMPACT_SYSTEM_PROMPT,
       (text) => {
-        const html = ensureQayMobileMenu(extractHtml(text));
+        const html = ensureQayCommerceBasics(ensureQayMobileMenu(extractHtml(text)), input.prompt);
         assertUsableHtml(html, input.prompt, input.mode || 'page');
         return html;
       }
     );
 
     return {
-      html: providerResult.value || ensureQayMobileMenu(extractHtml(providerResult.text)),
+      html: providerResult.value || ensureQayCommerceBasics(ensureQayMobileMenu(extractHtml(providerResult.text)), input.prompt),
       provider: providerResult.provider,
       model: providerResult.model,
     };
