@@ -142,9 +142,10 @@ Rules:
 const QAY_AI_HTML_COMPACT_SYSTEM_PROMPT = `You are QAY's AI website designer.
 Return only HTML. No markdown, no explanations, no repeated prompt text.
 Use semantic HTML and Tailwind classes. Do not use JavaScript, onclick, external scripts, GSAP, or custom animation CSS.
-Create a polished, responsive, launch-ready site for the exact user request. The design must not copy QAY examples or reuse a fixed template. Vary hero composition, navigation, section rhythm, card shapes, imagery, palette, copy, CTAs, and motion.
+Create a polished, responsive, launch-ready site for the exact user request. The design must look like a real premium website, not a demo, starter template, or AI placeholder. The design must not copy QAY examples or reuse a fixed template. Vary hero composition, navigation, section rhythm, card shapes, imagery, palette, copy, CTAs, and motion.
 Use real, niche-specific copy. Avoid lorem ipsum, Feature 1, Service 1, placeholder boxes, and generic phrases like "transform your vision" or "unlock your potential".
 Use relevant absolute image URLs, preferably Unsplash with w/auto/q params, plus descriptive alt text.
+Avoid the ugly generic pattern: centered headline, three equal cards, gray backgrounds, vague copy, blue links, empty gradients, and repeated card text. Use an asymmetric hero, at least one strong image-led section, one contrasting band, deliberate spacing, and clear conversion paths.
 Full pages with nav must include a small-screen menu button using data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden"; the target must have that id, hidden, and a display class.
 Use QAY motion/state hooks where useful:
 data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
@@ -907,6 +908,14 @@ const HTML_MOTION_DIRECTIVES = [
   'include line-grow or stagger-children where the design has dividers, timelines, or grids',
 ];
 
+const HTML_VISUAL_QUALITY_DIRECTIVES = [
+  'make the first viewport feel designed: asymmetric composition, clear focal image, strong headline scale, and a real conversion path',
+  'use a restrained palette with one accent and varied section surfaces; avoid gray-card sameness and generic gradients',
+  'make sections feel intentionally different: one editorial/media section, one proof/detail section, and one action section',
+  'use product, venue, work, people, or dashboard imagery that matches the prompt instead of abstract filler',
+  'write page-specific microcopy for nav, badges, cards, testimonials, and buttons so no section reads like a template',
+];
+
 function pickDesignDirective(items: string[], salt: string, offset: number) {
   const hash = Array.from(`${salt}:${Date.now()}:${offset}`).reduce((total, char) => total + char.charCodeAt(0), 0);
   return items[hash % items.length];
@@ -918,6 +927,7 @@ function buildHtmlDiversityBrief(prompt: string) {
     `Section rhythm: ${pickDesignDirective(HTML_SECTION_RHYTHMS, prompt, 2)}.`,
     `Copy direction: ${pickDesignDirective(HTML_COPY_DIRECTIVES, prompt, 3)}.`,
     `Motion direction: ${pickDesignDirective(HTML_MOTION_DIRECTIVES, prompt, 4)}.`,
+    `Visual quality: ${pickDesignDirective(HTML_VISUAL_QUALITY_DIRECTIVES, prompt, 5)}.`,
     'Do not reuse the same hero, bento, sidebar, card, or color structure from previous generations.',
   ].join('\n');
 }
@@ -1000,6 +1010,8 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
   ].filter(Boolean).length;
   const grayCardCount = (classText.match(/\bbg-gray-(?:50|100|200)\b/g) || []).length;
   const defaultBlueLinks = /\btext-blue-(?:500|600|700)\b/.test(classText);
+  const textCenterCount = (classText.match(/\btext-center\b/g) || []).length;
+  const repeatedGenericHeadingCount = (html.match(/>\s*(Features|Solutions|Services|Product|About us|Get started)\s*</gi) || []).length;
   const placeholderCopy = /\blorem ipsum\b|placeholder text|card title|feature title|product name|transform your vision|elevate your experience|unlock your potential|seamless solutions|innovative platform/i.test(html);
   const promptEchoed =
     promptText.length > 300 && visibleText.includes(promptText.slice(0, 180));
@@ -1022,7 +1034,7 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
     throw new Error('AI response was not a usable design. Please try again.');
   }
 
-  if (grayCardCount > 4 || defaultBlueLinks || placeholderCopy || promptEchoed) {
+  if (grayCardCount > 4 || defaultBlueLinks || textCenterCount > 7 || repeatedGenericHeadingCount > 4 || placeholderCopy || promptEchoed) {
     throw new Error('AI response was not a usable design. Please try again.');
   }
 
