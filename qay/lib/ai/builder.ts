@@ -764,8 +764,42 @@ function ensureQayMobileMenu(html: string) {
   return html.replace(navHtml, `${enhancedNav}\n${menuDrawer}`);
 }
 
+function buildQayHtmlCapabilityReference(prompt: string) {
+  const lines = [
+    'Core QAY reference:',
+    '- Tailwind classes become editable styles; semantic HTML becomes editable layers.',
+    '- Use QAY state for menus/drawers/modals/accordions: data-qay-click="toggle" data-qay-target="#id" data-qay-class="hidden".',
+    '- Use QAY motion when useful: data-qay-animate, data-qay-hover, data-qay-duration, data-qay-y, data-qay-x, data-qay-ease.',
+    '- Supported animate values: fade-in, slide-up, slide-left, slide-right, scale-in, scroll-reveal, luxe-reveal, luxe-asym-reveal, line-grow, stagger-children, sidebar-slide, luxe-dock-reveal.',
+    '- Supported hover values: lift, scale, scale-btn, luxe-lift, img-zoom, border-gold, glow.',
+    '- Every nav needs a mobile menu toggle and matching hidden menu target.',
+    '- Multi-page import uses sibling data-qay-page wrappers with Homepage first.',
+  ];
+
+  if (isCommercePrompt(prompt)) {
+    lines.push(
+      'Ecommerce reference:',
+      '- Use data-qay-commerce values: product-grid, product-card, product-image, product-title, product-description, product-price, add-to-cart, remove-from-cart, cart-button, cart-drawer, cart-items, cart-count, cart-close, cart-cancel, checkout-button.',
+      '- Product cards/buttons need matching data-qay-product-id and useful data-qay-product-handle; include data-qay-variant-id when useful.',
+      '- Include product cards, visible Add to cart buttons, optional Remove buttons, cart button/count, editable hidden cart drawer, cart items, close/cancel, checkout button, trust/shipping copy, and Checkout page when useful.'
+    );
+  }
+
+  if (isAuthPrompt(prompt)) {
+    lines.push(
+      'Auth reference:',
+      '- Use data-qay-site-auth-form="signin|signup|forgot-password|reset-password".',
+      '- Include data-qay-site-auth-error and data-qay-site-auth-success.',
+      '- Use relative auth slugs: /login, /signup, /forgot-password, /reset-password.'
+    );
+  }
+
+  return lines.join('\n');
+}
+
 function buildHtmlPrompt({ prompt, mode = 'page', selectedLayers = [] }: GenerateAiLayersInput) {
   const diversityBrief = buildHtmlDiversityBrief(prompt);
+  const capabilityReference = buildQayHtmlCapabilityReference(prompt);
 
   if (mode === 'selected') {
     const selectedContext = JSON.stringify(selectedLayers, null, 2).slice(0, 2500);
@@ -776,6 +810,9 @@ ${prompt}
 
 Design direction for this generation:
 ${diversityBrief}
+
+QAY capability reference to use where relevant:
+${capabilityReference}
 
 Selected layer context, truncated:
 ${selectedContext}
@@ -790,6 +827,9 @@ ${prompt}
 
 Design direction for this generation:
 ${diversityBrief}
+
+QAY capability reference to use where relevant:
+${capabilityReference}
 
 Required:
 - Return only HTML, either one complete document or sibling data-qay-page wrappers.

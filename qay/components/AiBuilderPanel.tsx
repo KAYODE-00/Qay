@@ -219,7 +219,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         })));
       }
 
-      if (mode === 'page' && generatedPages.length > 1 && siteId) {
+      if (mode === 'page' && generatedPages.length > 0 && siteId) {
         const importResponse = await fetch(`/api/qay/sites/${siteId}/import-html`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -232,7 +232,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         }
 
         await loadPages();
-        setStatus(`Created ${generatedPages.length} pages.`);
+        setStatus(generatedPages.length === 1 ? 'Imported 1 AI-generated page.' : `Imported ${generatedPages.length} AI-generated pages.`);
         setPrompt('');
         addHistory({
           prompt: trimmedPrompt,
