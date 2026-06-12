@@ -142,11 +142,10 @@ Rules:
 const QAY_AI_HTML_COMPACT_SYSTEM_PROMPT = `You are QAY's AI website designer.
 Return only HTML. No markdown, no explanations, no repeated prompt text.
 Use semantic HTML and Tailwind classes. Do not use JavaScript, onclick, external scripts, GSAP, or custom animation CSS.
-Create a polished, responsive, launch-ready site for the exact user request. The design must look like a real premium website, not a demo, starter template, or AI placeholder. The design must not copy QAY examples or reuse a fixed template. Vary hero composition, navigation, section rhythm, card shapes, imagery, palette, copy, CTAs, and motion.
-Output raw HTML that could pass for an expensive agency build: confident art direction, deliberate spacing, real content hierarchy, strong image choices, responsive navigation, conversion-focused CTAs, and details that match the site category.
+Create raw HTML that could pass for an expensive agency build: confident art direction, deliberate spacing, real hierarchy, strong image choices, responsive navigation, conversion-focused CTAs, and details that match the exact site category.
 Use real, niche-specific copy. Avoid lorem ipsum, Feature 1, Service 1, placeholder boxes, and generic phrases like "transform your vision" or "unlock your potential".
 Use relevant absolute image URLs, preferably Unsplash with w/auto/q params, plus descriptive alt text.
-Avoid the ugly generic pattern: centered headline, three equal cards, gray backgrounds, vague copy, blue links, empty gradients, and repeated card text. Use an asymmetric hero, at least one strong image-led section, one contrasting band, deliberate spacing, and clear conversion paths.
+Avoid the ugly generic pattern: centered headline, three equal cards, gray backgrounds, vague copy, blue links, empty gradients, and repeated card text.
 Do not generate a safe generic SaaS/agency layout unless the prompt asks for SaaS/agency. A restaurant, clinic, school, church, hotel, portfolio, ecommerce store, course, directory, event, law firm, real estate site, marketplace, and community must each have a different visual language, vocabulary, page set, imagery, and CTAs.
 Full pages with nav must include a small-screen menu button using data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden"; the target must have that id, hidden, and a display class.
 Use QAY motion/state hooks where useful:
@@ -877,61 +876,157 @@ function isAuthPrompt(prompt: string) {
   return /\b(auth|login|sign in|signin|sign up|signup|membership|members|portal|private|dashboard|course|community)\b/i.test(prompt);
 }
 
-const HTML_ARCHITECTURES = [
-  'asymmetric editorial hero with a narrow metadata rail and oversized image crop',
-  'split-screen hero with layered product/story panels and a staggered card grid',
-  'bento homepage with one dominant feature tile, compact proof tiles, and a strong footer CTA',
-  'magazine-style layout with side navigation, numbered sections, and mixed media bands',
-  'product-led storefront with collection rails, sticky cart affordance, and trust blocks',
-  'service-business layout with proof-first hero, process timeline, and conversion-focused contact section',
-  'portfolio case-study layout with large visual entries, project metadata, and journal-style details',
-  'community or portal layout with member value blocks, login/signup paths, and private-area previews',
-];
+type SiteBrief = {
+  type: string;
+  architecture: string;
+  sections: string;
+  imagery: string;
+  copy: string;
+  ctas: string;
+  pages: string;
+};
 
-const HTML_SECTION_RHYTHMS = [
-  'alternate dense and airy sections; avoid equal-height cards everywhere',
-  'use one full-bleed media band, then tighter content sections',
-  'mix two-column storytelling with one bento/grid section',
-  'use a sidebar or docked nav feeling on desktop and a compact stacked mobile flow',
-  'lead with proof or product detail instead of a generic hero when that fits the prompt',
-  'make at least one section visually different in background, spacing, or card span',
-];
+function classifySitePrompt(prompt: string) {
+  const lower = prompt.toLowerCase();
+  if (isCommercePrompt(prompt)) return 'ecommerce';
+  if (/\b(restaurant|cafe|bar|bakery|food|menu|reservation|chef|hotel|resort|venue|hospitality)\b/.test(lower)) return 'hospitality';
+  if (/\b(portfolio|designer|developer|photographer|artist|case stud|work|creative)\b/.test(lower)) return 'portfolio';
+  if (/\b(saas|software|app|platform|startup|dashboard|analytics|crm|ai tool)\b/.test(lower)) return 'saas';
+  if (/\b(clinic|doctor|medical|health|dental|therapy|wellness|fitness|gym)\b/.test(lower)) return 'health';
+  if (/\b(school|course|academy|university|education|learn|training|bootcamp)\b/.test(lower)) return 'education';
+  if (/\b(church|mosque|ministry|nonprofit|ngo|charity|community)\b/.test(lower)) return 'community';
+  if (/\b(real estate|property|realtor|apartment|listing|homes?)\b/.test(lower)) return 'real-estate';
+  if (/\b(law|legal|attorney|lawyer|firm)\b/.test(lower)) return 'legal';
+  if (isAuthPrompt(prompt)) return 'portal';
+  return 'business';
+}
 
-const HTML_COPY_DIRECTIVES = [
-  'write concrete copy using the site niche, audience, product/service, location, or outcome from the prompt',
-  'name sections with domain-specific words rather than generic labels like Features or Solutions when possible',
-  'make CTAs specific to the goal, such as Book a table, View collection, Start membership, or See case studies',
-  'avoid vague SaaS/agency filler unless the user requested a SaaS or agency site',
-];
+const SITE_BRIEFS: Record<string, SiteBrief> = {
+  ecommerce: {
+    type: 'ecommerce storefront',
+    architecture: 'product-led storefront with collection rails, large product photography, editorial category blocks, sticky-feeling cart affordance, and a full checkout page when useful',
+    sections: 'nav/cart, image-led commerce hero, featured collections, product grid, product detail or bestseller band, shipping/returns/trust, checkout, footer',
+    imagery: 'use product-like photos that match the requested category; show texture, packaging, garments, food, interiors, or catalog shots instead of abstract backgrounds',
+    copy: 'write product/category names, prices, badges, shipping promises, return policy, and cart/checkout microcopy that match the store niche',
+    ctas: 'View collection, Add to cart, Shop new arrivals, Checkout',
+    pages: 'Homepage, Shop, Product, Checkout, Contact when the prompt implies a full store',
+  },
+  hospitality: {
+    type: 'restaurant, venue, or hospitality site',
+    architecture: 'immersive hospitality layout with full-bleed food/venue imagery, reservation-forward hero, menu highlights, atmosphere/story section, and location details',
+    sections: 'nav, hero with booking CTA, signature menu or rooms/experience, chef/venue story, hours/location, reservations/contact, footer',
+    imagery: 'use warm food, dining room, venue, hotel, or event photography with visible details and not generic office images',
+    copy: 'mention menu items, dates, table booking, opening hours, address, chef/host voice, and guest experience',
+    ctas: 'Book a table, View menu, Reserve a room, Plan a visit',
+    pages: 'Homepage, Menu or Rooms, Reservations, Contact',
+  },
+  portfolio: {
+    type: 'portfolio or personal brand',
+    architecture: 'editorial portfolio with oversized project imagery, case-study grid, process notes, credentials, and direct inquiry path',
+    sections: 'nav, distinctive intro, selected work, case-study details, process/about, testimonials or clients, contact/footer',
+    imagery: 'use work-like images, studio shots, interface/project crops, photography, or creative process visuals',
+    copy: 'write in the voice of a maker; mention craft, projects, outcomes, clients, process, and selected work',
+    ctas: 'See case studies, View work, Start a project, Book a call',
+    pages: 'Homepage, Work, About, Contact',
+  },
+  saas: {
+    type: 'SaaS or software product',
+    architecture: 'product-led SaaS page with UI/dashboard imagery, workflow proof, integration/security detail, pricing, and auth paths',
+    sections: 'nav, product hero, dashboard preview, workflow/use cases, proof metrics, integrations/security, pricing, login/signup footer',
+    imagery: 'use dashboard, interface, product, team workflow, or abstract-but-functional tech imagery only when it supports the product',
+    copy: 'mention workflows, analytics, automations, integrations, teams, security, onboarding, pricing, and measurable product value',
+    ctas: 'Start free, View pricing, Book demo, Sign in',
+    pages: 'Homepage, Pricing, Login, Sign up when useful',
+  },
+  health: {
+    type: 'health, wellness, clinic, or fitness site',
+    architecture: 'calm but credible service layout with practitioner/space imagery, treatment/service cards, booking path, trust signals, and patient/client details',
+    sections: 'nav, appointment hero, services, practitioner/team, outcomes or testimonials, location/hours, booking/contact',
+    imagery: 'use clinic, wellness space, treatment, training, practitioner, or human lifestyle images with bright trustworthy contrast',
+    copy: 'mention appointment types, care approach, outcomes, location, credentials, and patient/client comfort',
+    ctas: 'Book appointment, View services, Meet the team, Start consultation',
+    pages: 'Homepage, Services, About, Contact',
+  },
+  education: {
+    type: 'education, course, or school site',
+    architecture: 'learning-focused layout with program paths, student outcomes, curriculum/modules, instructor trust, and enrollment CTA',
+    sections: 'nav, enrollment hero, programs/courses, curriculum, outcomes, instructors, admissions/pricing, contact',
+    imagery: 'use learning, classroom, online course, students, instructor, or campus imagery',
+    copy: 'mention courses, modules, cohorts, outcomes, certification, enrollment dates, and support',
+    ctas: 'Explore programs, Enroll now, View curriculum, Talk to admissions',
+    pages: 'Homepage, Courses, About, Contact or Login when portal is requested',
+  },
+  community: {
+    type: 'community, church, nonprofit, or membership site',
+    architecture: 'mission-led layout with people/community imagery, event or program blocks, impact proof, membership/donation path, and gathering details',
+    sections: 'nav, mission hero, programs/events, impact numbers, stories, join/donate/visit CTA, contact/footer',
+    imagery: 'use people, gatherings, volunteering, worship, events, or community action imagery',
+    copy: 'mention mission, programs, gatherings, members, volunteers, donations, impact, and next steps',
+    ctas: 'Join us, Donate, Visit this week, See events',
+    pages: 'Homepage, Events or Programs, About, Contact',
+  },
+  'real-estate': {
+    type: 'real estate or property site',
+    architecture: 'property-led layout with high-end listing imagery, search/filter feel, neighborhood highlights, agent credibility, and inquiry flow',
+    sections: 'nav, listing/search hero, featured properties, neighborhood guide, agent/team proof, buyer/seller CTA, contact',
+    imagery: 'use homes, interiors, architecture, city/neighborhood, or property detail images',
+    copy: 'mention listings, neighborhoods, price ranges, tours, buyers, sellers, and market expertise',
+    ctas: 'View listings, Schedule a tour, Request valuation, Contact agent',
+    pages: 'Homepage, Listings, About, Contact',
+  },
+  legal: {
+    type: 'legal or professional firm site',
+    architecture: 'authoritative professional layout with crisp typography, practice areas, proof/credentials, process, and consultation path',
+    sections: 'nav, trust-first hero, practice areas, case/credential proof, attorney profile, process, consultation/contact',
+    imagery: 'use professional portraits, firm interiors, city/legal detail, or restrained editorial imagery',
+    copy: 'mention practice areas, consultation, client concerns, credentials, jurisdiction, and outcomes carefully',
+    ctas: 'Request consultation, View practice areas, Speak with the firm',
+    pages: 'Homepage, Practice Areas, About, Contact',
+  },
+  portal: {
+    type: 'auth-protected portal or membership product',
+    architecture: 'portal layout with protected-value preview, dashboard/account hints, member benefits, and dedicated auth pages',
+    sections: 'nav, value hero, member benefits, dashboard preview, pricing or access details, login/signup flows',
+    imagery: 'use dashboard, private community, course, account, or workflow imagery',
+    copy: 'mention account access, private content, member dashboard, course progress, client portal, or community benefits',
+    ctas: 'Sign in, Create account, Start membership, Enter portal',
+    pages: 'Homepage or Portal, Login, Sign up, Forgot password, Reset password',
+  },
+  business: {
+    type: 'business or service site',
+    architecture: 'service-business layout with proof-first hero, client outcome blocks, process timeline, service detail bands, and conversion-focused contact',
+    sections: 'nav, hero, proof/outcomes, services, process, testimonial or case snippet, contact/footer',
+    imagery: 'use category-relevant work, team, place, client, product, or service imagery; avoid generic office photos unless the prompt is corporate',
+    copy: 'mention the exact audience, services, outcomes, process, location or niche, and why the visitor should act',
+    ctas: 'Request a quote, Book a call, See services, Start a project',
+    pages: 'Homepage, Services, About, Contact',
+  },
+};
 
-const HTML_MOTION_DIRECTIVES = [
-  'use a few larger hero reveals and shorter card reveals with varied data-qay-duration values',
-  'use directional slide-left/slide-right for side panels and scroll-reveal for lower sections',
-  'use img-zoom only on image wrappers and subtle scale/lift on product cards or CTA buttons',
-  'include line-grow or stagger-children where the design has dividers, timelines, or grids',
-];
-
-const HTML_VISUAL_QUALITY_DIRECTIVES = [
-  'make the first viewport feel designed: asymmetric composition, clear focal image, strong headline scale, and a real conversion path',
-  'use a restrained palette with one accent and varied section surfaces; avoid gray-card sameness and generic gradients',
-  'make sections feel intentionally different: one editorial/media section, one proof/detail section, and one action section',
-  'use product, venue, work, people, or dashboard imagery that matches the prompt instead of abstract filler',
-  'write page-specific microcopy for nav, badges, cards, testimonials, and buttons so no section reads like a template',
-];
-
-function pickDesignDirective(items: string[], salt: string, offset: number) {
-  const hash = Array.from(`${salt}:${Date.now()}:${offset}`).reduce((total, char) => total + char.charCodeAt(0), 0);
-  return items[hash % items.length];
+function extractPromptKeywords(prompt: string) {
+  const ignored = new Set(['create', 'build', 'design', 'website', 'landing', 'page', 'site', 'with', 'that', 'this', 'from', 'using', 'make', 'need', 'needs', 'should', 'about', 'modern', 'premium', 'beautiful', 'responsive']);
+  return Array.from(new Set(prompt.toLowerCase().match(/[a-z0-9][a-z0-9-]{3,}/g) || []))
+    .filter((word) => !ignored.has(word))
+    .slice(0, 10)
+    .join(', ');
 }
 
 function buildHtmlDiversityBrief(prompt: string) {
+  const siteType = classifySitePrompt(prompt);
+  const brief = SITE_BRIEFS[siteType] || SITE_BRIEFS.business;
+  const keywords = extractPromptKeywords(prompt) || 'the requested niche';
+
   return [
-    `Architecture: ${pickDesignDirective(HTML_ARCHITECTURES, prompt, 1)}.`,
-    `Section rhythm: ${pickDesignDirective(HTML_SECTION_RHYTHMS, prompt, 2)}.`,
-    `Copy direction: ${pickDesignDirective(HTML_COPY_DIRECTIVES, prompt, 3)}.`,
-    `Motion direction: ${pickDesignDirective(HTML_MOTION_DIRECTIVES, prompt, 4)}.`,
-    `Visual quality: ${pickDesignDirective(HTML_VISUAL_QUALITY_DIRECTIVES, prompt, 5)}.`,
-    'Do not reuse the same hero, bento, sidebar, card, or color structure from previous generations.',
+    `Detected site type: ${brief.type}.`,
+    `Prompt anchors to reflect in copy and imagery: ${keywords}.`,
+    `Architecture: ${brief.architecture}.`,
+    `Required section logic: ${brief.sections}.`,
+    `Imagery direction: ${brief.imagery}.`,
+    `Copy direction: ${brief.copy}.`,
+    `CTA language: ${brief.ctas}.`,
+    `Natural page set: ${brief.pages}.`,
+    'Do not use a generic SaaS/agency card stack unless that is the detected site type.',
+    'Make the homepage first viewport specific enough that the business category is obvious before reading the footer.',
   ].join('\n');
 }
 
