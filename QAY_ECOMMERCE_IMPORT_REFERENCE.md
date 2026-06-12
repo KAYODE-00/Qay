@@ -107,6 +107,18 @@ The AI must pick a fresh layout architecture based on the prompt. It should vary
 - Motion values
 - CTA wording
 
+The output should feel like expensive agency-grade raw HTML, not an AI demo. Build a complete visual direction for the exact category: brand mood, page structure, imagery, spacing, content hierarchy, conversion paths, and interaction details must all fit the requested site.
+
+Every full public site should include:
+
+- A first viewport with a clear focal point, not only centered text
+- At least one strong image-led section when the site is public-facing
+- A contrasting section surface or layout shift
+- Specific CTAs that match the site goal
+- Category-specific section names and microcopy
+- Responsive navigation with a real mobile menu/drawer
+- Enough visual variety that repeated cards do not dominate the page
+
 Good layout architectures include:
 
 - Editorial hero with asymmetric media
@@ -129,6 +141,10 @@ Avoid the repeated generic pattern:
 - Three identical cards
 - Generic CTA
 - Generic footer
+- Gray card stacks
+- Default blue links
+- Empty gradients without real content
+- Repeated copy that could fit any business
 
 ## Copy Rules
 
@@ -525,7 +541,11 @@ Infer the website type from my request and stay in that lane. Do not mix unrelat
 
 The QAY reference is a compatibility contract, not a layout template. Do not copy examples. Choose a fresh layout architecture that fits the prompt.
 
-The site must be visually strong, responsive, polished, and specific to the requested niche. Use real copy that belongs to the business/site type. Avoid generic filler like "transform your vision", "unlock your potential", "seamless solutions", "Feature 1", "Service 1", or lorem ipsum.
+The site must be visually strong, responsive, polished, and specific to the requested niche. Output raw HTML that could pass for an expensive agency build: distinctive first viewport, strong media, clear hierarchy, polished spacing, category-specific sections, believable copy, and no repeated generic card pattern.
+
+Use real copy that belongs to the business/site type. Avoid generic filler like "transform your vision", "unlock your potential", "seamless solutions", "Feature 1", "Service 1", or lorem ipsum.
+
+Do not generate a safe generic SaaS/agency layout unless the prompt asks for SaaS or an agency. A restaurant, clinic, school, church, hotel, portfolio, ecommerce store, course, directory, event, law firm, real estate site, marketplace, and community must each have a different visual language, vocabulary, page set, imagery, and CTAs.
 
 Use relevant Unsplash images with width/quality params and descriptive alt text unless the prompt asks for a text-only internal tool.
 

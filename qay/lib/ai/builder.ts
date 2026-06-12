@@ -143,9 +143,11 @@ const QAY_AI_HTML_COMPACT_SYSTEM_PROMPT = `You are QAY's AI website designer.
 Return only HTML. No markdown, no explanations, no repeated prompt text.
 Use semantic HTML and Tailwind classes. Do not use JavaScript, onclick, external scripts, GSAP, or custom animation CSS.
 Create a polished, responsive, launch-ready site for the exact user request. The design must look like a real premium website, not a demo, starter template, or AI placeholder. The design must not copy QAY examples or reuse a fixed template. Vary hero composition, navigation, section rhythm, card shapes, imagery, palette, copy, CTAs, and motion.
+Output raw HTML that could pass for an expensive agency build: confident art direction, deliberate spacing, real content hierarchy, strong image choices, responsive navigation, conversion-focused CTAs, and details that match the site category.
 Use real, niche-specific copy. Avoid lorem ipsum, Feature 1, Service 1, placeholder boxes, and generic phrases like "transform your vision" or "unlock your potential".
 Use relevant absolute image URLs, preferably Unsplash with w/auto/q params, plus descriptive alt text.
 Avoid the ugly generic pattern: centered headline, three equal cards, gray backgrounds, vague copy, blue links, empty gradients, and repeated card text. Use an asymmetric hero, at least one strong image-led section, one contrasting band, deliberate spacing, and clear conversion paths.
+Do not generate a safe generic SaaS/agency layout unless the prompt asks for SaaS/agency. A restaurant, clinic, school, church, hotel, portfolio, ecommerce store, course, directory, event, law firm, real estate site, marketplace, and community must each have a different visual language, vocabulary, page set, imagery, and CTAs.
 Full pages with nav must include a small-screen menu button using data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden"; the target must have that id, hidden, and a display class.
 Use QAY motion/state hooks where useful:
 data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
@@ -835,6 +837,7 @@ ${capabilityReference}
 Required:
 - Return only HTML, either one complete document or sibling data-qay-page wrappers.
 - Make the site visually strong and specific to the request, with real niche copy, relevant images, responsive Tailwind layout, styled nav/CTA links, motion hooks, and footer.
+- Treat the output like a premium agency deliverable: distinctive first viewport, strong media, clear hierarchy, polished spacing, category-specific sections, believable copy, and no repeated generic card pattern.
 - If the request naturally needs pages, generate them together using sibling data-qay-page wrappers, Homepage first, max 5 pages.
 - Every nav needs a mobile hamburger/menu toggle with data-qay-click="toggle", data-qay-target="#id", data-qay-class="hidden", and a hidden matching menu target.
 - Use QAY motion hooks: data-qay-animate, data-qay-hover, data-qay-click/toggle, and varied tuning attributes.
@@ -1012,7 +1015,8 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
   const defaultBlueLinks = /\btext-blue-(?:500|600|700)\b/.test(classText);
   const textCenterCount = (classText.match(/\btext-center\b/g) || []).length;
   const repeatedGenericHeadingCount = (html.match(/>\s*(Features|Solutions|Services|Product|About us|Get started)\s*</gi) || []).length;
-  const placeholderCopy = /\blorem ipsum\b|placeholder text|card title|feature title|product name|transform your vision|elevate your experience|unlock your potential|seamless solutions|innovative platform/i.test(html);
+  const placeholderCopy = /\blorem ipsum\b|placeholder text|card title|feature title|product name/i.test(html);
+  const weakMarketingCopy = /\btransform your vision\b|\belevate your experience\b|\bunlock your potential\b|\bseamless solutions\b|\binnovative platform\b/i.test(html);
   const promptEchoed =
     promptText.length > 300 && visibleText.includes(promptText.slice(0, 180));
   const commerce = isCommercePrompt(userPrompt);
@@ -1034,8 +1038,20 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
     throw new Error('AI response was not a usable design. Please try again.');
   }
 
-  if (grayCardCount > 4 || defaultBlueLinks || textCenterCount > 7 || repeatedGenericHeadingCount > 4 || placeholderCopy || promptEchoed) {
+  if (placeholderCopy || promptEchoed) {
     throw new Error('AI response was not a usable design. Please try again.');
+  }
+
+  const qualityWarnings = [
+    grayCardCount > 4 ? 'too many default gray surfaces' : '',
+    defaultBlueLinks ? 'default blue links' : '',
+    textCenterCount > 7 ? 'too many centered text blocks' : '',
+    repeatedGenericHeadingCount > 4 ? 'too many generic headings' : '',
+    weakMarketingCopy ? 'weak generic marketing copy' : '',
+  ].filter(Boolean);
+
+  if (qualityWarnings.length > 0) {
+    console.warn(`[QAY AI] Generated HTML passed import checks but has quality warnings: ${qualityWarnings.join(', ')}.`);
   }
 
   if (!promptKeywordMatches(promptText, visibleText)) {

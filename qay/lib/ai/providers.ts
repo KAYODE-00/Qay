@@ -122,7 +122,7 @@ function wantsPlainHtml(system: string) {
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-const DEFAULT_OPENROUTER_MODEL = 'meta-llama/llama-3.1-8b-instruct';
+const DEFAULT_OPENROUTER_MODEL = 'qwen/qwen3-235b-a22b';
 const OPENROUTER_MODEL = !process.env.OPENROUTER_MODEL || process.env.OPENROUTER_MODEL === 'openrouter/free'
   ? DEFAULT_OPENROUTER_MODEL
   : process.env.OPENROUTER_MODEL;
@@ -130,9 +130,9 @@ const OPENROUTER_MODEL = !process.env.OPENROUTER_MODEL || process.env.OPENROUTER
 function sortProvidersForRequest(providers: AiProvider[], system: string) {
   if (!wantsPlainHtml(system)) return providers;
 
-  const highQualityHtmlOrder = process.env.QAY_AI_QUALITY_HTML_FIRST === 'true'
-    ? ['claude', 'openai', 'gemini', 'groq', 'openrouter']
-    : ['groq', 'openai', 'claude', 'gemini', 'openrouter'];
+  const highQualityHtmlOrder = process.env.QAY_AI_QUALITY_HTML_FIRST === 'false'
+    ? ['groq', 'openai', 'claude', 'gemini', 'openrouter']
+    : ['claude', 'openai', 'gemini', 'openrouter', 'groq'];
   return [...providers].sort((a, b) => {
     const aIndex = highQualityHtmlOrder.indexOf(a.name);
     const bIndex = highQualityHtmlOrder.indexOf(b.name);
