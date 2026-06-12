@@ -144,7 +144,7 @@ Return only HTML. No markdown, no explanations, no repeated prompt text.
 Use semantic HTML and Tailwind classes. Do not use JavaScript, onclick, external scripts, GSAP, or custom animation CSS.
 Create raw HTML that could pass for an expensive agency build: confident art direction, deliberate spacing, real hierarchy, strong image choices, responsive navigation, conversion-focused CTAs, and details that match the exact site category.
 Use real, niche-specific copy. Avoid lorem ipsum, Feature 1, Service 1, placeholder boxes, and generic phrases like "transform your vision" or "unlock your potential".
-Use relevant absolute image URLs, preferably Unsplash with w/auto/q params, plus descriptive alt text.
+Use meaningful absolute image URLs, preferably Unsplash with w/auto/q params, plus descriptive alt text. Every image must visibly belong to the section and site type: food for restaurants, garments/products for fashion, dashboards for SaaS, interiors/listings for real estate, practitioner/clinic imagery for health, venue/crowd imagery for events. Never use random office, abstract, blurred, or atmospheric images unless the prompt specifically asks for that.
 Avoid the ugly generic pattern: centered headline, three equal cards, gray backgrounds, vague copy, blue links, empty gradients, and repeated card text.
 Do not generate a safe generic SaaS/agency layout unless the prompt asks for SaaS/agency. A restaurant, clinic, school, church, hotel, portfolio, ecommerce store, course, directory, event, law firm, real estate site, marketplace, and community must each have a different visual language, vocabulary, page set, imagery, and CTAs.
 Full pages with nav must include a small-screen menu button using data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden"; the target must have that id, hidden, and a display class.
@@ -846,6 +846,7 @@ Required:
 - No Lorem ipsum. No Feature 1. No generic filler copy.
 - Hero: distinctive composition, not just centered text on a dark background.
 - Include strong imagery for public-facing visual sites.
+- Images must match the business/site type and the exact section they appear in; alt text must describe the actual subject.
 - All links and CTAs must be visually styled, never default browser blue links.
 - Mobile navigation must work via data-qay-click toggle hooks.
 - Use QAY motion on hero, cards, and section intros where it improves the design.
@@ -890,6 +891,7 @@ type SiteBrief = {
   palette?: string;
   sections: string;
   imagery: string;
+  imageSubjects: string;
   motion?: string;
   copy: string;
   ctas: string;
@@ -920,6 +922,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     palette: 'luxury prompts should use near-black #0d0d0d, bone #f8f4ec, and restrained gold #c9a84c; lighter prompts should use off-white #fafaf8, charcoal #1a1a1a, and one confident accent',
     sections: 'nav with cart count, editorial hero, collection grid, brand story split, testimonials or press rail, newsletter, footer',
     imagery: 'use fashion product, model, fabric, atelier, boutique, or editorial campaign imagery; avoid generic ecommerce boxes',
+    imageSubjects: 'editorial model wearing the collection, close-up fabric texture, boutique rack, product flat-lay, atelier workspace',
     motion: 'scale-in hero image, img-zoom on product image wrappers, slide-up collection headings, luxe-lift product cards',
     copy: 'use fashion vocabulary: drop, collection, edit, silhouette, craft, limited edition, ethically made, capsule, atelier',
     ctas: 'Shop the drop, View collection, Add to cart, Explore the edit',
@@ -930,6 +933,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'product-led storefront with collection rails, large product photography, editorial category blocks, sticky-feeling cart affordance, and a full checkout page when useful',
     sections: 'nav/cart, image-led commerce hero, featured collections, product grid, product detail or bestseller band, shipping/returns/trust, checkout, footer',
     imagery: 'use product-like photos that match the requested category; show texture, packaging, garments, food, interiors, or catalog shots instead of abstract backgrounds',
+    imageSubjects: 'hero product close-up, product packaging, category collection shot, product-in-use lifestyle scene, detail texture',
     copy: 'write product/category names, prices, badges, shipping promises, return policy, and cart/checkout microcopy that match the store niche',
     ctas: 'View collection, Add to cart, Shop new arrivals, Checkout',
     pages: 'Homepage, Shop, Product, Checkout, Contact when the prompt implies a full store',
@@ -940,6 +944,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     palette: 'dark prompts can use deep navy #080c14 or charcoal with gold #f59e0b or electric blue #38bdf8; light prompts should use bold contrast with a strong accent',
     sections: 'hero with date, event details, schedule/agenda, speakers or performers, venue, tickets/RSVP, footer',
     imagery: 'use venue, crowd, stage, wedding, gathering, or event-detail imagery that makes the occasion obvious',
+    imageSubjects: 'event venue, audience or guests, stage lighting, speaker on stage, wedding detail, registration or RSVP moment',
     motion: 'luxe-asym-reveal on event title, line-grow on schedule dividers, stagger-children on speakers/cards, scroll-reveal on venue section',
     copy: 'mention date, venue, schedule, RSVP, tickets, registration, session, keynote, ceremony, and location details',
     ctas: 'RSVP now, Get tickets, View schedule, Save the date',
@@ -950,6 +955,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'immersive hospitality layout with full-bleed food/venue imagery, reservation-forward hero, menu highlights, atmosphere/story section, and location details',
     sections: 'nav, hero with booking CTA, signature menu or rooms/experience, chef/venue story, hours/location, reservations/contact, footer',
     imagery: 'use warm food, dining room, venue, hotel, or event photography with visible details and not generic office images',
+    imageSubjects: 'signature dish, chef plating food, dining room interior, cocktail at bar, restaurant exterior, table setting',
     copy: 'mention menu items, dates, table booking, opening hours, address, chef/host voice, and guest experience',
     ctas: 'Book a table, View menu, Reserve a room, Plan a visit',
     pages: 'Homepage, Menu or Rooms, Reservations, Contact',
@@ -959,6 +965,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'editorial portfolio with oversized project imagery, case-study grid, process notes, credentials, and direct inquiry path',
     sections: 'nav, distinctive intro, selected work, case-study details, process/about, testimonials or clients, contact/footer',
     imagery: 'use work-like images, studio shots, interface/project crops, photography, or creative process visuals',
+    imageSubjects: 'portfolio project mockup, creative workspace, designer process, photography work sample, interface crop, studio portrait',
     copy: 'write in the voice of a maker; mention craft, projects, outcomes, clients, process, and selected work',
     ctas: 'See case studies, View work, Start a project, Book a call',
     pages: 'Homepage, Work, About, Contact',
@@ -968,6 +975,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'product-led SaaS page with UI/dashboard imagery, workflow proof, integration/security detail, pricing, and auth paths',
     sections: 'nav, product hero, dashboard preview, workflow/use cases, proof metrics, integrations/security, pricing, login/signup footer',
     imagery: 'use dashboard, interface, product, team workflow, or abstract-but-functional tech imagery only when it supports the product',
+    imageSubjects: 'dashboard interface, analytics screen, team using software, workflow board, product UI mockup, integration diagram',
     copy: 'mention workflows, analytics, automations, integrations, teams, security, onboarding, pricing, and measurable product value',
     ctas: 'Start free, View pricing, Book demo, Sign in',
     pages: 'Homepage, Pricing, Login, Sign up when useful',
@@ -977,6 +985,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'calm but credible service layout with practitioner/space imagery, treatment/service cards, booking path, trust signals, and patient/client details',
     sections: 'nav, appointment hero, services, practitioner/team, outcomes or testimonials, location/hours, booking/contact',
     imagery: 'use clinic, wellness space, treatment, training, practitioner, or human lifestyle images with bright trustworthy contrast',
+    imageSubjects: 'practitioner portrait, clinic room, wellness treatment, fitness class, consultation, calm waiting area',
     copy: 'mention appointment types, care approach, outcomes, location, credentials, and patient/client comfort',
     ctas: 'Book appointment, View services, Meet the team, Start consultation',
     pages: 'Homepage, Services, About, Contact',
@@ -986,6 +995,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'learning-focused layout with program paths, student outcomes, curriculum/modules, instructor trust, and enrollment CTA',
     sections: 'nav, enrollment hero, programs/courses, curriculum, outcomes, instructors, admissions/pricing, contact',
     imagery: 'use learning, classroom, online course, students, instructor, or campus imagery',
+    imageSubjects: 'students learning, instructor teaching, course dashboard, classroom, study group, graduation or certificate moment',
     copy: 'mention courses, modules, cohorts, outcomes, certification, enrollment dates, and support',
     ctas: 'Explore programs, Enroll now, View curriculum, Talk to admissions',
     pages: 'Homepage, Courses, About, Contact or Login when portal is requested',
@@ -995,6 +1005,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'mission-led layout with people/community imagery, event or program blocks, impact proof, membership/donation path, and gathering details',
     sections: 'nav, mission hero, programs/events, impact numbers, stories, join/donate/visit CTA, contact/footer',
     imagery: 'use people, gatherings, volunteering, worship, events, or community action imagery',
+    imageSubjects: 'community gathering, volunteers, worship or event, program activity, people connecting, donation impact scene',
     copy: 'mention mission, programs, gatherings, members, volunteers, donations, impact, and next steps',
     ctas: 'Join us, Donate, Visit this week, See events',
     pages: 'Homepage, Events or Programs, About, Contact',
@@ -1004,6 +1015,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'property-led layout with high-end listing imagery, search/filter feel, neighborhood highlights, agent credibility, and inquiry flow',
     sections: 'nav, listing/search hero, featured properties, neighborhood guide, agent/team proof, buyer/seller CTA, contact',
     imagery: 'use homes, interiors, architecture, city/neighborhood, or property detail images',
+    imageSubjects: 'home exterior, luxury interior, apartment living room, neighborhood street, agent portrait, property detail',
     copy: 'mention listings, neighborhoods, price ranges, tours, buyers, sellers, and market expertise',
     ctas: 'View listings, Schedule a tour, Request valuation, Contact agent',
     pages: 'Homepage, Listings, About, Contact',
@@ -1013,6 +1025,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'authoritative professional layout with crisp typography, practice areas, proof/credentials, process, and consultation path',
     sections: 'nav, trust-first hero, practice areas, case/credential proof, attorney profile, process, consultation/contact',
     imagery: 'use professional portraits, firm interiors, city/legal detail, or restrained editorial imagery',
+    imageSubjects: 'attorney portrait, law office, city courthouse detail, consultation table, legal books or documents, firm interior',
     copy: 'mention practice areas, consultation, client concerns, credentials, jurisdiction, and outcomes carefully',
     ctas: 'Request consultation, View practice areas, Speak with the firm',
     pages: 'Homepage, Practice Areas, About, Contact',
@@ -1022,6 +1035,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'portal layout with protected-value preview, dashboard/account hints, member benefits, and dedicated auth pages',
     sections: 'nav, value hero, member benefits, dashboard preview, pricing or access details, login/signup flows',
     imagery: 'use dashboard, private community, course, account, or workflow imagery',
+    imageSubjects: 'member dashboard, course progress screen, private community interface, client portal, account workflow',
     copy: 'mention account access, private content, member dashboard, course progress, client portal, or community benefits',
     ctas: 'Sign in, Create account, Start membership, Enter portal',
     pages: 'Homepage or Portal, Login, Sign up, Forgot password, Reset password',
@@ -1031,6 +1045,7 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     architecture: 'service-business layout with proof-first hero, client outcome blocks, process timeline, service detail bands, and conversion-focused contact',
     sections: 'nav, hero, proof/outcomes, services, process, testimonial or case snippet, contact/footer',
     imagery: 'use category-relevant work, team, place, client, product, or service imagery; avoid generic office photos unless the prompt is corporate',
+    imageSubjects: 'service in action, team at work, customer outcome, category-specific place or product, project result, client interaction',
     copy: 'mention the exact audience, services, outcomes, process, location or niche, and why the visitor should act',
     ctas: 'Request a quote, Book a call, See services, Start a project',
     pages: 'Homepage, Services, About, Contact',
@@ -1074,6 +1089,8 @@ function buildHtmlDiversityBrief(prompt: string) {
     ...optionalDirectives,
     `Required section logic: ${brief.sections}.`,
     `Imagery direction: ${brief.imagery}.`,
+    `Image subject targets: ${brief.imageSubjects}.`,
+    'Image rule: every img src, alt text, nearby heading, and section purpose must agree. Do not reuse one unrelated image across multiple sections. If the prompt names a product, service, place, audience, or industry, the images must visibly reflect it.',
     `Copy direction: ${brief.copy}.`,
     `CTA language: ${brief.ctas}.`,
     `Natural page set: ${brief.pages}.`,
