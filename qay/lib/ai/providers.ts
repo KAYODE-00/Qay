@@ -123,9 +123,12 @@ function wantsPlainHtml(system: string) {
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const DEFAULT_OPENROUTER_MODEL = 'qwen/qwen3-235b-a22b';
-const OPENROUTER_MODEL = !process.env.OPENROUTER_MODEL || process.env.OPENROUTER_MODEL === 'openrouter/free'
+const configuredOpenRouterModel = process.env.OPENROUTER_MODEL?.trim().replace(/^["']|["']$/g, '');
+const OPENROUTER_MODEL = !configuredOpenRouterModel
+  || configuredOpenRouterModel === 'openrouter/free'
+  || configuredOpenRouterModel === `${DEFAULT_OPENROUTER_MODEL}:free`
   ? DEFAULT_OPENROUTER_MODEL
-  : process.env.OPENROUTER_MODEL;
+  : configuredOpenRouterModel;
 
 function sortProvidersForRequest(providers: AiProvider[], system: string) {
   if (!wantsPlainHtml(system)) return providers;
