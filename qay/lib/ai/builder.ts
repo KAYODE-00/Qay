@@ -155,7 +155,14 @@ data-qay-click="toggle" data-qay-target="#id" data-qay-class="hidden"
 Optional tuning: data-qay-duration 0.35-1.4, data-qay-hover-duration 0.15-0.5, data-qay-y -80..80, data-qay-x -100..100, data-qay-ease power1.out|power2.out|power3.out|expo.out|back.out(1.2).
 For ecommerce, include product grid/cards/images/titles/descriptions/prices, add-to-cart, remove-from-cart where useful, cart button/count, hidden cart drawer, cart items, cart close/cancel, checkout button, product ids/handles, optional variant ids, trust/shipping content, and a checkout page when the store owns checkout UI. Use data-qay-commerce hooks exactly.
 For auth, membership, SaaS account, portal, course, or community flows, include useful auth pages/forms with data-qay-site-auth-form="signin|signup|forgot-password|reset-password", data-qay-site-auth-error, data-qay-site-auth-success, and relative links.
-For multi-page sites, return direct sibling wrappers with Homepage first: <div data-qay-page="Homepage" data-qay-slug="/">...</div>. Generate the natural page set, up to 5 pages, and keep nav hrefs aligned with slugs.`;
+For multi-page sites, return direct sibling wrappers with Homepage first: <div data-qay-page="Homepage" data-qay-slug="/">...</div>. Generate the natural page set, up to 5 pages, and keep nav hrefs aligned with slugs.
+
+Good output examples are structure guidance only, not visual templates:
+Restaurant: full-bleed food/venue hero, large restaurant name, Book a table CTA, categorized menu with dish names/descriptions/prices, chef story with kitchen image, hours and address.
+Fashion store: editorial product hero, asymmetric product grid, image/name/price/Add to cart on each product card, cart drawer from the right, collection and brand-story sections.
+Law firm: authority hero, Book a consultation CTA, practice areas, attorney profiles with specializations, track-record metrics, precise consultation/contact section.
+SaaS tool: dashboard-preview hero, specific workflow features, proof numbers, integrations, three pricing tiers, Start free trial CTA.
+Do not copy these examples. Use them to understand what specific means.`;
 
 export const QAY_AI_BUILDER_SYSTEM_PROMPT = `You are a website builder AI for QAY.
 Generate valid Ycode layer JSON from the user's description.
@@ -834,15 +841,16 @@ QAY capability reference to use where relevant:
 ${capabilityReference}
 
 Required:
-- Return only HTML, either one complete document or sibling data-qay-page wrappers.
-- Make the site visually strong and specific to the request, with real niche copy, relevant images, responsive Tailwind layout, styled nav/CTA links, motion hooks, and footer.
-- Treat the output like a premium agency deliverable: distinctive first viewport, strong media, clear hierarchy, polished spacing, category-specific sections, believable copy, and no repeated generic card pattern.
-- If the request naturally needs pages, generate them together using sibling data-qay-page wrappers, Homepage first, max 5 pages.
-- Every nav needs a mobile hamburger/menu toggle with data-qay-click="toggle", data-qay-target="#id", data-qay-class="hidden", and a hidden matching menu target.
-- Use QAY motion hooks: data-qay-animate, data-qay-hover, data-qay-click/toggle, and varied tuning attributes.
-- Ecommerce requests need product cards, add/remove cart buttons, cart button/count, hidden editable cart drawer, cart items, close/cancel, checkout button, trust/shipping content, product ids/handles, optional variant ids, and Checkout page when useful.
-- Auth/portal requests need useful Login/Sign up/Forgot/Reset pages/forms with QAY auth hooks.
-- Do not use JS, onclick, scripts, default blue links, placeholder copy, or copied examples.
+- This must look like an expensive agency-built site, not an AI demo.
+- Every section must have real, specific content for the requested site type.
+- No Lorem ipsum. No Feature 1. No generic filler copy.
+- Hero: distinctive composition, not just centered text on a dark background.
+- Include strong imagery for public-facing visual sites.
+- All links and CTAs must be visually styled, never default browser blue links.
+- Mobile navigation must work via data-qay-click toggle hooks.
+- Use QAY motion on hero, cards, and section intros where it improves the design.
+- Ecommerce/auth hooks must be included when the detected site type needs them.
+- Return only HTML.
 
 Return only HTML.`;
 }
@@ -879,8 +887,10 @@ function isAuthPrompt(prompt: string) {
 type SiteBrief = {
   type: string;
   architecture: string;
+  palette?: string;
   sections: string;
   imagery: string;
+  motion?: string;
   copy: string;
   ctas: string;
   pages: string;
@@ -888,6 +898,8 @@ type SiteBrief = {
 
 function classifySitePrompt(prompt: string) {
   const lower = prompt.toLowerCase();
+  if (/\b(fashion|clothing|apparel|boutique|wear|style|outfit|collection|couture|streetwear)\b/.test(lower)) return 'fashion';
+  if (/\b(event|wedding|conference|concert|festival|party|ceremony|venue|rsvp|ticket)\b/.test(lower)) return 'event';
   if (isCommercePrompt(prompt)) return 'ecommerce';
   if (/\b(restaurant|cafe|bar|bakery|food|menu|reservation|chef|hotel|resort|venue|hospitality)\b/.test(lower)) return 'hospitality';
   if (/\b(portfolio|designer|developer|photographer|artist|case stud|work|creative)\b/.test(lower)) return 'portfolio';
@@ -902,6 +914,17 @@ function classifySitePrompt(prompt: string) {
 }
 
 const SITE_BRIEFS: Record<string, SiteBrief> = {
+  fashion: {
+    type: 'fashion or apparel storefront',
+    architecture: 'editorial split-screen storefront with oversized product image, minimal brand text, asymmetric collection grid, product hover zoom, brand-values section, and right-side cart drawer',
+    palette: 'luxury prompts should use near-black #0d0d0d, bone #f8f4ec, and restrained gold #c9a84c; lighter prompts should use off-white #fafaf8, charcoal #1a1a1a, and one confident accent',
+    sections: 'nav with cart count, editorial hero, collection grid, brand story split, testimonials or press rail, newsletter, footer',
+    imagery: 'use fashion product, model, fabric, atelier, boutique, or editorial campaign imagery; avoid generic ecommerce boxes',
+    motion: 'scale-in hero image, img-zoom on product image wrappers, slide-up collection headings, luxe-lift product cards',
+    copy: 'use fashion vocabulary: drop, collection, edit, silhouette, craft, limited edition, ethically made, capsule, atelier',
+    ctas: 'Shop the drop, View collection, Add to cart, Explore the edit',
+    pages: 'Homepage, Shop, Product, Checkout, Contact',
+  },
   ecommerce: {
     type: 'ecommerce storefront',
     architecture: 'product-led storefront with collection rails, large product photography, editorial category blocks, sticky-feeling cart affordance, and a full checkout page when useful',
@@ -910,6 +933,17 @@ const SITE_BRIEFS: Record<string, SiteBrief> = {
     copy: 'write product/category names, prices, badges, shipping promises, return policy, and cart/checkout microcopy that match the store niche',
     ctas: 'View collection, Add to cart, Shop new arrivals, Checkout',
     pages: 'Homepage, Shop, Product, Checkout, Contact when the prompt implies a full store',
+  },
+  event: {
+    type: 'event, wedding, conference, or venue site',
+    architecture: 'dramatic event layout with full-screen event hero, visible date/venue block, schedule timeline, speakers/performers or couple/story grid, venue details, and RSVP/ticket path',
+    palette: 'dark prompts can use deep navy #080c14 or charcoal with gold #f59e0b or electric blue #38bdf8; light prompts should use bold contrast with a strong accent',
+    sections: 'hero with date, event details, schedule/agenda, speakers or performers, venue, tickets/RSVP, footer',
+    imagery: 'use venue, crowd, stage, wedding, gathering, or event-detail imagery that makes the occasion obvious',
+    motion: 'luxe-asym-reveal on event title, line-grow on schedule dividers, stagger-children on speakers/cards, scroll-reveal on venue section',
+    copy: 'mention date, venue, schedule, RSVP, tickets, registration, session, keynote, ceremony, and location details',
+    ctas: 'RSVP now, Get tickets, View schedule, Save the date',
+    pages: 'Homepage, Schedule, RSVP or Tickets, Venue, Contact',
   },
   hospitality: {
     type: 'restaurant, venue, or hospitality site',
@@ -1011,15 +1045,33 @@ function extractPromptKeywords(prompt: string) {
     .join(', ');
 }
 
+function buildThemeHint(prompt: string) {
+  const wantsDark = /\b(dark|black|obsidian|midnight|noir|moody|dramatic)\b/i.test(prompt);
+  const wantsLight = /\b(light|white|clean|minimal|airy|bright|fresh)\b/i.test(prompt);
+  const wantsLuxury = /\b(luxury|premium|high-end|exclusive|bespoke|couture|elite)\b/i.test(prompt);
+
+  if (wantsLuxury && wantsDark) return 'Use a luxury dark palette with restrained accents, high contrast, and no muddy gradients.';
+  if (wantsLuxury) return 'Use a premium palette with restrained accent color, editorial spacing, and polished contrast.';
+  if (wantsDark) return 'Use a dark palette only if it fits the category; keep text contrast high and surfaces intentional.';
+  if (wantsLight) return 'Use a clean light palette with clear hierarchy, not washed-out low contrast.';
+  return 'Choose a palette that fits the detected site category; do not default to gray cards or generic blue.';
+}
+
 function buildHtmlDiversityBrief(prompt: string) {
   const siteType = classifySitePrompt(prompt);
   const brief = SITE_BRIEFS[siteType] || SITE_BRIEFS.business;
   const keywords = extractPromptKeywords(prompt) || 'the requested niche';
+  const optionalDirectives = [
+    brief.palette ? `Palette direction: ${brief.palette}.` : '',
+    `Theme hint: ${buildThemeHint(prompt)}`,
+    brief.motion ? `Motion direction: ${brief.motion}.` : '',
+  ].filter(Boolean);
 
   return [
     `Detected site type: ${brief.type}.`,
     `Prompt anchors to reflect in copy and imagery: ${keywords}.`,
     `Architecture: ${brief.architecture}.`,
+    ...optionalDirectives,
     `Required section logic: ${brief.sections}.`,
     `Imagery direction: ${brief.imagery}.`,
     `Copy direction: ${brief.copy}.`,
@@ -1110,18 +1162,19 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
   const defaultBlueLinks = /\btext-blue-(?:500|600|700)\b/.test(classText);
   const textCenterCount = (classText.match(/\btext-center\b/g) || []).length;
   const repeatedGenericHeadingCount = (html.match(/>\s*(Features|Solutions|Services|Product|About us|Get started)\s*</gi) || []).length;
-  const placeholderCopy = /\blorem ipsum\b|placeholder text|card title|feature title|product name/i.test(html);
+  const placeholderCopy = /\blorem ipsum\b/i.test(html);
   const weakMarketingCopy = /\btransform your vision\b|\belevate your experience\b|\bunlock your potential\b|\bseamless solutions\b|\binnovative platform\b/i.test(html);
   const promptEchoed =
     promptText.length > 300 && visibleText.includes(promptText.slice(0, 180));
   const commerce = isCommercePrompt(userPrompt);
   const auth = isAuthPrompt(userPrompt);
+  const isObviouslyVisual = commerce || /\b(restaurant|hotel|fashion|portfolio|event|wedding|venue|real estate|property|photographer|artist|food|boutique)\b/i.test(userPrompt);
 
-  if (html.length < 1800 || classMatches.length < 18 || linkOrButtonCount < 2) {
+  if (html.length < 800 || classMatches.length < 8 || linkOrButtonCount < 1) {
     throw new Error('AI response was not a usable design. Please try again.');
   }
 
-  if (sectionCount + pageWrapperCount < 3 || motionCount < 3 || hasComposition < 5 || !hasResponsive) {
+  if (sectionCount + pageWrapperCount < 2 || hasComposition < 3) {
     throw new Error('AI response was not a usable design. Please try again.');
   }
 
@@ -1129,7 +1182,7 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
     throw new Error('AI response was missing a QAY mobile menu toggle.');
   }
 
-  if (!auth && imageCount < 1) {
+  if (!auth && isObviouslyVisual && imageCount < 1) {
     throw new Error('AI response was not a usable design. Please try again.');
   }
 
@@ -1142,6 +1195,8 @@ function assertUsableHtml(html: string, userPrompt: string, mode: AiBuilderMode)
     defaultBlueLinks ? 'default blue links' : '',
     textCenterCount > 7 ? 'too many centered text blocks' : '',
     repeatedGenericHeadingCount > 4 ? 'too many generic headings' : '',
+    motionCount < 2 ? 'few QAY motion hooks' : '',
+    !hasResponsive ? 'few responsive Tailwind utilities' : '',
     weakMarketingCopy ? 'weak generic marketing copy' : '',
   ].filter(Boolean);
 
