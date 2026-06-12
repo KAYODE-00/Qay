@@ -103,6 +103,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isBusyDialogOpen, setIsBusyDialogOpen] = useState(false);
+  const [busyDialogDetails, setBusyDialogDetails] = useState<string | null>(null);
 
   const draft = currentPageId ? draftsByPageId[currentPageId] : null;
   const selectedIds = useMemo(() => {
@@ -195,6 +196,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         }
 
         if (body.code === 'AI_PROVIDER_LIMITS_REACHED' || body.code === 'AI_PROVIDERS_FAILED') {
+          setBusyDialogDetails(body.error || body.details || null);
           setIsBusyDialogOpen(true);
           throw new Error(body.error || 'AI is currently busy. Please try again shortly.');
         }
@@ -385,16 +387,40 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       </footer>
     </section>
     <Dialog open={isBusyDialogOpen} onOpenChange={setIsBusyDialogOpen}>
-      <DialogContent>
+      <DialogContent className="border-border bg-background text-foreground shadow-2xl">
         <DialogHeader>
-          <DialogTitle>AI is currently busy</DialogTitle>
-          <DialogDescription>
-            QAY tried every configured AI provider, but they are out of quota, rate limited, or temporarily unavailable. Please try again shortly.
+          <div className="mb-2 flex size-10 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+            <Icon name="wand-sparkles" className="size-5" />
+          </div>
+          <DialogTitle>AI is currently unavailable</DialogTitle>
+          <DialogDescription className="leading-6">
+            Sorry about that. QAY tried the configured AI providers, but they are out of quota, rate limited, or temporarily unavailable right now.
           </DialogDescription>
         </DialogHeader>
+        {busyDialogDetails ? (
+          <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs leading-5 text-muted-foreground">
+            {busyDialogDetails}
+          </div>
+        ) : null}
         <DialogFooter>
-          <Button type="button" onClick={() => setIsBusyDialogOpen(false)}>
-            Got it
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setBusyDialogDetails(null);
+              setIsBusyDialogOpen(false);
+            }}
+          >
+            Close
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              setBusyDialogDetails(null);
+              setIsBusyDialogOpen(false);
+            }}
+          >
+            Try again shortly
           </Button>
         </DialogFooter>
       </DialogContent>

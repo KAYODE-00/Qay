@@ -5,6 +5,18 @@ import type { FormEvent } from 'react';
 
 type FeedbackState = 'idle' | 'submitting' | 'success' | 'error';
 
+const MAX_ATTACHMENTS = 3;
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read an attachment.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function FeedbackForm() {
   const [state, setState] = useState<FeedbackState>('idle');
   const [message, setMessage] = useState('');
@@ -18,6 +30,29 @@ export function FeedbackForm() {
     const formData = new FormData(form);
 
     try {
+      const files = formData
+        .getAll('attachments')
+        .filter((file): file is File => file instanceof File && file.size > 0);
+
+      if (files.length > MAX_ATTACHMENTS) {
+        throw new Error(`Please upload no more than ${MAX_ATTACHMENTS} files.`);
+      }
+
+      const attachments = await Promise.all(
+        files.map(async (file) => {
+          if (!/^(image|video)\//.test(file.type) || file.size > MAX_ATTACHMENT_BYTES) {
+            throw new Error('Please upload only images or videos under 8MB each.');
+          }
+
+          return {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            dataUrl: await readFileAsDataUrl(file),
+          };
+        })
+      );
+
       const response = await fetch('/api/qay/feedback', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -27,6 +62,7 @@ export function FeedbackForm() {
           category: String(formData.get('category') || 'general'),
           message: String(formData.get('message') || ''),
           sourcePath: window.location.pathname,
+          attachments,
         }),
       });
 
@@ -91,6 +127,20 @@ export function FeedbackForm() {
           className="mt-2 w-full rounded-md border border-border bg-background px-3 py-3 text-sm outline-none transition focus:border-foreground"
           placeholder="Tell us what felt good, confusing, broken, or missing."
         />
+      </label>
+
+      <label className="mt-4 block text-sm font-medium">
+        Screenshots or screen recordings
+        <input
+          name="attachments"
+          type="file"
+          multiple
+          accept="image/*,video/*"
+          className="mt-2 block w-full rounded-md border border-dashed border-border bg-background px-3 py-3 text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-foreground file:px-4 file:py-2 file:text-sm file:font-medium file:text-background hover:border-foreground/40"
+        />
+        <span className="mt-2 block text-xs font-normal text-muted-foreground">
+          Optional. Upload up to 3 images or videos, 8MB each.
+        </span>
       </label>
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
