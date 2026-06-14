@@ -33,12 +33,21 @@ export async function pickTheme(prompt: string, themes: QmTheme[]) {
 
 export function pickSection(prompt: string, sectionType: SectionType, availableSections: QmSection[]) {
   const normalized = prompt.toLowerCase();
-  return [...availableSections]
+  const scored = [...availableSections]
     .map((section) => ({
       section,
       score: section.keywords.reduce((total, keyword) => total + (normalized.includes(keyword.toLowerCase()) ? 1 : 0), 0),
     }))
-    .sort((a, b) => b.score - a.score || b.section.rank - a.section.rank)[0]?.section;
+    .sort((a, b) => b.score - a.score || b.section.rank - a.section.rank);
+
+  if (!scored.length) return undefined;
+
+  const topScore = scored[0].score;
+  const pool = scored
+    .filter((item) => item.score === topScore)
+    .slice(0, Math.min(5, scored.length));
+  const hash = Array.from(`${normalized}:${sectionType}`).reduce((total, char) => total + char.charCodeAt(0), 0);
+  return pool[hash % pool.length]?.section;
 }
 
 function extractBusinessName(prompt: string) {
