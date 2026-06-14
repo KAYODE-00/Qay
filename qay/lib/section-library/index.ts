@@ -5,6 +5,9 @@ type Library = { themes: QmTheme[]; sections: QmSection[] };
 const loaders: Partial<Record<SiteType, () => Promise<Library>>> = {
   restaurant: () => import('./restaurant'),
   ecommerce: () => import('./ecommerce'),
+  portfolio: () => import('./portfolio'),
+  agency: () => import('./agency'),
+  saas: () => import('./saas'),
 };
 
 const genericTheme: QmTheme = {
