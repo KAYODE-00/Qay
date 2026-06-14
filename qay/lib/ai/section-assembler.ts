@@ -58,6 +58,98 @@ function deterministicCopy(prompt: string, siteType: SiteType): Record<string, s
       : siteType === 'ecommerce' ? 'ARYKTEEMAH'
         : 'QAY Studio'
   );
+  const industryCopy: Partial<Record<SiteType, { title: string; subtitle: string; about: string }>> = {
+    agency: {
+      title: `${brand} turns unclear offers into brands people remember.`,
+      subtitle: 'Strategy, identity, web design, and launch systems for teams that need sharper positioning and better conversion.',
+      about: `${brand} works from audience insight to visual system, then turns the strategy into pages, assets, and launch details that feel finished.`,
+    },
+    saas: {
+      title: `${brand} helps teams see the work, automate the handoff, and move faster.`,
+      subtitle: 'A focused product website for workflows, dashboards, integrations, pricing, and proof that speaks to modern operators.',
+      about: `${brand} brings messy team processes into one calmer operating system with analytics, automations, permissions, and clear next steps.`,
+    },
+    portfolio: {
+      title: `${brand} presents selected work with clarity, texture, and point of view.`,
+      subtitle: 'A portfolio built around case studies, craft, process, proof, and a direct path for the right collaborators to reach out.',
+      about: `${brand} balances visual taste with practical outcomes, showing not only what was made but why the work mattered.`,
+    },
+    law: {
+      title: `${brand} gives clients steady counsel when the stakes are high.`,
+      subtitle: 'A confident legal website for practice areas, attorney trust, consultation requests, and proof of disciplined representation.',
+      about: `${brand} combines careful preparation, direct communication, and courtroom-ready strategy for clients who need serious legal support.`,
+    },
+    medical: {
+      title: `${brand} makes healthcare feel clearer, calmer, and easier to access.`,
+      subtitle: 'A patient-first website for services, practitioners, appointments, location details, and trustworthy care information.',
+      about: `${brand} helps patients understand their options, book confidently, and feel supported before they arrive.`,
+    },
+    hotel: {
+      title: `${brand} creates stays that feel considered from arrival to checkout.`,
+      subtitle: 'A hospitality website for rooms, amenities, gallery, booking prompts, guest reviews, and location storytelling.',
+      about: `${brand} blends comfort, service, and place into a stay guests can picture before they book.`,
+    },
+    'real-estate': {
+      title: `${brand} helps buyers find the right property with less noise.`,
+      subtitle: 'A real estate website for listings, agent proof, neighborhood expertise, property galleries, and qualified inquiries.',
+      about: `${brand} pairs local knowledge with clear presentation so buyers, sellers, and renters know what to do next.`,
+    },
+    education: {
+      title: `${brand} helps learners build skills they can prove.`,
+      subtitle: 'A course and academy website for programs, instructors, outcomes, pricing, student proof, and enrollment.',
+      about: `${brand} turns learning goals into structured paths with practical modules, support, and measurable progress.`,
+    },
+    event: {
+      title: `${brand} gives the event a reason to be on the calendar.`,
+      subtitle: 'An event website for date, venue, speakers, schedule, RSVP, tickets, sponsors, and the energy of the room.',
+      about: `${brand} brings people together around a clear agenda, strong venue details, and a simple path to attend.`,
+    },
+    beauty: {
+      title: `${brand} makes booking beauty services feel polished and personal.`,
+      subtitle: 'A salon and spa website for services, gallery, specialists, packages, reviews, and appointment requests.',
+      about: `${brand} combines technique, hospitality, and a refined client experience from booking to final look.`,
+    },
+    fitness: {
+      title: `${brand} helps members train with structure, energy, and accountability.`,
+      subtitle: 'A fitness website for programs, class schedules, trainers, pricing, testimonials, and booking.',
+      about: `${brand} turns motivation into repeatable training through coaching, community, and visible progress.`,
+    },
+    church: {
+      title: `${brand} welcomes people into worship, community, and service.`,
+      subtitle: 'A ministry website for service times, groups, events, leadership, giving, and first-time visitors.',
+      about: `${brand} helps people find belonging, take next steps, and stay connected through the week.`,
+    },
+    blog: {
+      title: `${brand} publishes stories with a clear editorial voice.`,
+      subtitle: 'A publication website for featured articles, categories, newsletter capture, author trust, and readable archives.',
+      about: `${brand} gives readers a consistent place for sharp ideas, useful context, and original perspective.`,
+    },
+    nonprofit: {
+      title: `${brand} turns attention into action that reaches people.`,
+      subtitle: 'A nonprofit website for mission storytelling, donations, volunteers, impact metrics, campaigns, and trust.',
+      about: `${brand} makes the need clear, the work visible, and the next act of support easy to take.`,
+    },
+    construction: {
+      title: `${brand} builds with discipline, documentation, and visible standards.`,
+      subtitle: 'A construction website for services, project galleries, safety proof, estimates, team credibility, and commercial leads.',
+      about: `${brand} keeps clients informed from scope to handoff with clean project management and dependable crews.`,
+    },
+    'tech-startup': {
+      title: `${brand} explains a technical product without losing the human reason to care.`,
+      subtitle: 'A startup website for product positioning, proof, integrations, waitlists, pricing, and investor-ready clarity.',
+      about: `${brand} connects technical depth to a clear use case so buyers understand the value quickly.`,
+    },
+    photography: {
+      title: `${brand} frames moments with atmosphere, patience, and intent.`,
+      subtitle: 'A photography website for galleries, services, booking, testimonials, portfolio proof, and contact.',
+      about: `${brand} creates images that feel honest, composed, and useful for personal, editorial, and commercial stories.`,
+    },
+    music: {
+      title: `${brand} gives the sound a home for releases, shows, and fans.`,
+      subtitle: 'A music website for tour dates, releases, gallery, newsletter, press details, and listening CTAs.',
+      about: `${brand} brings the artist world together: sound, visuals, dates, story, and the next way to listen.`,
+    },
+  };
 
   if (siteType === 'restaurant') {
     return {
@@ -81,6 +173,20 @@ function deterministicCopy(prompt: string, siteType: SiteType): Record<string, s
     };
   }
 
+  const copy = industryCopy[siteType];
+  if (copy) {
+    return {
+      'brand-name': brand,
+      'hero-title': copy.title,
+      'hero-subtitle': copy.subtitle,
+      'about-title': `Why ${brand} works`,
+      'about-copy': copy.about,
+      'features-title': `What ${brand} does best`,
+      'contact-title': `Start with ${brand}`,
+      'footer-brand': brand,
+    };
+  }
+
   return {
     'brand-name': brand,
     'hero-title': `${brand} is built to look clear, credible, and ready to launch.`,
@@ -89,6 +195,12 @@ function deterministicCopy(prompt: string, siteType: SiteType): Record<string, s
     'about-copy': `${brand} gets a complete page structure with copy, visuals, calls to action, and room to grow.`,
     'footer-brand': brand,
   };
+}
+
+function materializeThemeVariables(html: string, theme: QmTheme) {
+  return Object.entries(theme.css_variables).reduce((current, [key, value]) => (
+    current.replaceAll(`var(${key})`, value)
+  ), html);
 }
 
 function escapeHtml(value: string) {
@@ -133,7 +245,10 @@ async function aiCopyOverrides(html: string, prompt: string, siteType: SiteType)
 async function personalizeSections(html: string, prompt: string, siteType: SiteType, theme: QmTheme) {
   const deterministic = deterministicCopy(prompt, siteType);
   const aiOverrides = await aiCopyOverrides(html, prompt, siteType);
-  const copied = replaceTextZones(html, { ...deterministic, ...aiOverrides });
+  const copied = materializeThemeVariables(
+    replaceTextZones(html, { ...deterministic, ...aiOverrides }),
+    theme
+  );
   const cssVars = Object.entries(theme.css_variables).map(([key, value]) => `  ${key}: ${value};`).join('\n');
   const fontLinks = theme.google_fonts.length
     ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?${theme.google_fonts.map((font) => `family=${font}`).join('&')}&display=swap" rel="stylesheet">`

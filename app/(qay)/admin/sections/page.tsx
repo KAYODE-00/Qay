@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { QayLogo } from '@/qay/components/QayLogo';
+import { SectionWorkbench } from '@/qay/components/admin/SectionWorkbench';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { hasQayAdminAccess } from '@/qay/lib/admin-access';
 import { assembleSiteFromSections } from '@/qay/lib/ai/section-assembler';
+import { SECTION_ORDER, SITE_TYPE_KEYWORDS } from '@/qay/lib/section-library/types';
+import type { SectionType, SiteType } from '@/qay/lib/section-library/types';
 
 export const metadata: Metadata = {
   title: 'QAY Section Test',
@@ -26,6 +29,8 @@ export default async function SectionTestPage({ searchParams }: PageProps) {
   const params = searchParams ? await searchParams : {};
   const prompt = first(params.prompt) || 'A premium law firm for business litigation';
   const assembly = await assembleSiteFromSections(prompt);
+  const siteTypes = Object.keys(SITE_TYPE_KEYWORDS) as SiteType[];
+  const sectionTypes = Array.from(new Set(Object.values(SECTION_ORDER).flat())) as SectionType[];
 
   return (
     <main className="min-h-screen bg-background px-6 py-8 text-foreground sm:px-10 lg:px-16">
@@ -35,42 +40,17 @@ export default async function SectionTestPage({ searchParams }: PageProps) {
           <p className="mt-6 text-sm uppercase tracking-[0.24em] text-muted-foreground">Admin only</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-normal sm:text-5xl">Section assembly test</h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Submit a prompt and preview the exact section-library HTML before it reaches the importer.
+            Submit a prompt, preview the exact section-library HTML before it reaches the importer, and save new
+            reusable sections into QAY.
           </p>
         </header>
 
-        <form className="mt-8 flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row">
-          <input
-            name="prompt"
-            defaultValue={prompt}
-            className="h-12 flex-1 rounded-md border border-border bg-background px-4 text-sm outline-none focus:border-foreground"
-          />
-          <button className="h-12 rounded-md bg-foreground px-5 text-sm font-medium text-background" type="submit">
-            Test prompt
-          </button>
-        </form>
-
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Site type</p><p className="mt-2 font-medium">{assembly.siteType}</p></div>
-          <div className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Theme</p><p className="mt-2 font-medium">{assembly.theme.label}</p></div>
-          <div className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Sections</p><p className="mt-2 font-medium">{assembly.sectionsUsed.length}</p></div>
-        </section>
-
-        <section className="mt-6 rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-medium">Sections used</h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {assembly.sectionsUsed.map((section) => (
-              <span key={`${section.type}-${section.sectionId}`} className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
-                {section.type}: {section.sectionId}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-6 overflow-hidden rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-4 py-3 text-sm font-medium">Preview</div>
-          <iframe title="Section assembly preview" srcDoc={assembly.html} className="h-[760px] w-full bg-white" />
-        </section>
+        <SectionWorkbench
+          initialPrompt={prompt}
+          assembly={assembly}
+          siteTypes={siteTypes}
+          sectionTypes={sectionTypes}
+        />
       </div>
     </main>
   );
