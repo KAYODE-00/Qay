@@ -3,6 +3,8 @@ import { generateId } from '@/lib/utils';
 import { createDynamicTextVariable, createStaticTextVariable } from '@/lib/variable-utils';
 import { callWithFallbackDetailed } from '@/qay/lib/ai/providers';
 import { layersContainPromptLeak } from '@/qay/lib/ai/prompt-leak';
+import { assembleSiteFromSections } from '@/qay/lib/ai/section-assembler';
+import type { AssemblyResult } from '@/qay/lib/section-library/types';
 
 export type AiBuilderMode = 'page' | 'selected';
 
@@ -22,6 +24,9 @@ type GenerateAiHtmlResult = {
   html: string;
   provider: string;
   model: string;
+  theme?: AssemblyResult['theme'];
+  sectionsUsed?: AssemblyResult['sectionsUsed'];
+  siteType?: AssemblyResult['siteType'];
 };
 
 const ALLOWED_LAYER_NAMES = new Set([
@@ -1504,6 +1509,33 @@ export async function generateQayAiLayers(input: GenerateAiLayersInput): Promise
 }
 
 export async function generateQayAiHtml(input: GenerateAiLayersInput): Promise<GenerateAiHtmlResult> {
+  if ((input.mode || 'page') === 'page') {
+    try {
+      const assembly = await assembleSiteFromSections(input.prompt);
+      const html = ensureQayCommerceBasics(ensureQayMobileMenu(assembly.html), input.prompt);
+
+      if (html.length > 500) {
+        assertUsableHtml(html, input.prompt, input.mode || 'page');
+        console.log('[QAY AI] Used section library:', {
+          siteType: assembly.siteType,
+          theme: assembly.theme.theme_id,
+          sections: assembly.sectionsUsed.map((section) => section.type),
+        });
+
+        return {
+          html,
+          provider: 'section-library',
+          model: `${assembly.siteType}/${assembly.theme.theme_id}`,
+          theme: assembly.theme,
+          sectionsUsed: assembly.sectionsUsed,
+          siteType: assembly.siteType,
+        };
+      }
+    } catch (assemblyError) {
+      console.warn('[QAY AI] Section assembly failed, falling back to AI generation:', assemblyError);
+    }
+  }
+
   try {
     const providerResult = await callWithFallbackDetailed<string>(
       buildHtmlPrompt(input),

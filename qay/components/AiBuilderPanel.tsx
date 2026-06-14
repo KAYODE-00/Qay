@@ -30,6 +30,16 @@ type GenerateResponse = {
     html?: string;
     provider: string;
     model: string;
+    siteType?: string;
+    theme?: {
+      label: string;
+      theme_id: string;
+      css_variables?: Record<string, string>;
+    };
+    sectionsUsed?: Array<{
+      type: string;
+      sectionId: string;
+    }>;
   };
   error?: string;
   details?: string;
@@ -104,6 +114,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
   const [error, setError] = useState<string | null>(null);
   const [isBusyDialogOpen, setIsBusyDialogOpen] = useState(false);
   const [busyDialogDetails, setBusyDialogDetails] = useState<string | null>(null);
+  const [generationMeta, setGenerationMeta] = useState<GenerateResponse['data'] | null>(null);
 
   const draft = currentPageId ? draftsByPageId[currentPageId] : null;
   const selectedIds = useMemo(() => {
@@ -172,8 +183,9 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
     }
 
     setIsGenerating(true);
-    setStatus('Generating with AI...');
+    setStatus(mode === 'page' ? 'Selecting design from QAY section library...' : 'Generating with AI...');
     setError(null);
+    setGenerationMeta(null);
 
     try {
       const response = await fetch('/api/qay/ai/generate', {
@@ -205,6 +217,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       }
 
       console.log('[QAY AI Builder] Provider:', body.data.provider, body.data.model);
+      setGenerationMeta(body.data);
       if (body.data.html) {
         console.log('[QAY AI Builder] Generated import HTML:', body.data.html);
       }
@@ -236,6 +249,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         await loadPages();
         setStatus(generatedPages.length === 1 ? 'Imported 1 AI-generated page.' : `Imported ${generatedPages.length} AI-generated pages.`);
         setPrompt('');
+        setGenerationMeta(body.data);
         addHistory({
           prompt: trimmedPrompt,
           mode,
@@ -336,6 +350,41 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         {status ? (
           <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
             {status}
+          </div>
+        ) : null}
+
+        {generationMeta?.provider === 'section-library' ? (
+          <div className="rounded-lg border border-border bg-card p-3 text-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium text-foreground">Assembled from QAY sections</p>
+                <p className="mt-1 text-muted-foreground">
+                  {generationMeta.theme?.label || generationMeta.model} theme
+                  {generationMeta.siteType ? ` for ${generationMeta.siteType}` : ''}
+                </p>
+              </div>
+              <div className="flex gap-1">
+                {['--qm-bg', '--qm-surface', '--qm-accent'].map((key) => {
+                  const color = generationMeta.theme?.css_variables?.[key];
+                  return color ? (
+                    <span
+                      key={key}
+                      className="size-4 rounded-full border border-border"
+                      style={{ backgroundColor: color }}
+                    />
+                  ) : null;
+                })}
+              </div>
+            </div>
+            {generationMeta.sectionsUsed?.length ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {generationMeta.sectionsUsed.map((section) => (
+                  <span key={`${section.type}-${section.sectionId}`} className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
+                    {section.type}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
