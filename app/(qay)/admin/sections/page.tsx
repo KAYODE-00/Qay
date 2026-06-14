@@ -24,7 +24,7 @@ function first(value: string | string[] | undefined) {
 export default async function SectionTestPage({ searchParams }: PageProps) {
   const user = await getQayAuthUser();
   if (!user) redirect('/login?next=/admin/sections');
-  if (!(await hasQayAdminAccess(user))) redirect('/dashboard');
+  if (!(await hasQayAdminAccess(user))) redirect('/admin/access?next=/admin/sections');
 
   const params = searchParams ? await searchParams : {};
   const prompt = first(params.prompt) || 'A premium law firm for business litigation';

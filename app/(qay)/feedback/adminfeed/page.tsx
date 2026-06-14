@@ -59,7 +59,7 @@ export default async function FeedbackAdminFeedPage() {
   const isAdmin = await hasQayAdminAccess(user);
 
   if (!isAdmin) {
-    redirect('/dashboard');
+    redirect('/admin/access?next=/feedback/adminfeed');
   }
 
   const admin = getQayAdmin() as any;

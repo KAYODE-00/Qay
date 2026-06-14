@@ -39,7 +39,7 @@ function formatDate(value: string | null | undefined) {
 export default async function QayAdminPage() {
   const user = await getQayAuthUser();
   if (!user) redirect('/login?next=/admin');
-  if (!(await hasQayAdminAccess(user))) redirect('/dashboard');
+  if (!(await hasQayAdminAccess(user))) redirect('/admin/access?next=/admin');
 
   const admin = getQayAdmin() as any;
   const [{ data: authUsers }, { data: profiles }, { data: subscriptions }, { count: siteCount }, { count: feedbackCount }] = await Promise.all([
