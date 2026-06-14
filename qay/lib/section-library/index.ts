@@ -8,6 +8,21 @@ const loaders: Partial<Record<SiteType, () => Promise<Library>>> = {
   portfolio: () => import('./portfolio'),
   agency: () => import('./agency'),
   saas: () => import('./saas'),
+  law: () => import('./law'),
+  medical: () => import('./medical'),
+  education: () => import('./education'),
+  event: () => import('./event'),
+  'real-estate': () => import('./real-estate'),
+  beauty: () => import('./beauty'),
+  fitness: () => import('./fitness'),
+  church: () => import('./church'),
+  blog: () => import('./blog'),
+  hotel: () => import('./hotel'),
+  nonprofit: () => import('./nonprofit'),
+  construction: () => import('./construction'),
+  'tech-startup': () => import('./tech-startup'),
+  photography: () => import('./photography'),
+  music: () => import('./music'),
 };
 
 const genericTheme: QmTheme = {

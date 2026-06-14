@@ -205,12 +205,12 @@ export default async function Home({
 
             <div className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.03fr_0.97fr]">
               <div className="max-w-3xl">
-                <p className="qay-animate-rise mb-5 text-sm uppercase tracking-[0.26em] text-muted-foreground">AI builder, visual editor, client handoff</p>
+                <p className="qay-animate-rise mb-5 text-sm uppercase tracking-[0.26em] text-muted-foreground">Launch-ready sites, client handoff, ecommerce</p>
                 <h1 className="qay-animate-rise qay-animate-delay-1 text-5xl font-semibold leading-[0.98] tracking-normal text-foreground sm:text-6xl lg:text-7xl">
                   QAY builds the site. You keep the control.
                 </h1>
                 <p className="qay-animate-rise qay-animate-delay-2 mt-7 max-w-2xl text-lg leading-8 text-muted-foreground">
-                  A focused website workspace for freelancers and small teams: generate, import, edit, publish, invite clients, and manage every site without mixing projects together.
+                  A focused website workspace for freelancers and small teams: start from polished designs, customize visually, publish confidently, invite clients, and manage every project from one calm dashboard.
                 </p>
                 <div className="qay-animate-rise qay-animate-delay-3 mt-9 flex flex-wrap gap-3">
                   <Link href="/signup" className="rounded-md bg-foreground px-5 py-3 text-sm font-medium text-background transition hover:bg-foreground/90">
@@ -222,7 +222,7 @@ export default async function Home({
                 </div>
                 <div className="qay-animate-fade qay-animate-delay-3 mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-border pt-6">
                   {[
-                    ['AI + import', 'Build faster'],
+                    ['Ready designs', 'Build faster'],
                     ['2 published', 'Free plan'],
                     ['Per-site data', 'Clean handoff'],
                   ].map(([value, label]) => (
@@ -273,13 +273,13 @@ export default async function Home({
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {[
-              ['AI builder', 'Generate full pages, refine selected sections, and keep prompt history per site.'],
-              ['HTML importer', 'Bring in Tailwind HTML and map clean layouts into editable QAY layers.'],
-              ['Visual editor', 'Edit layout, content, media, forms, CMS, integrations, and site settings.'],
-              ['Medusa ecommerce', 'Prepare storefront blocks, product grids, carts, and checkout-ready pages powered by Medusa.'],
-              ['Client dashboard', 'Let clients see only published/assigned sites and edit approved content.'],
-              ['Publishing controls', 'Preview, publish, connect domains, manage slugs, and track site URLs.'],
-              ['Ycode-powered editor', 'Build on a serious visual editor foundation while QAY adds site isolation, AI, billing, client flow, and publishing.'],
+              ['AI design assistant', 'Start with polished page drafts, improve selected sections, and keep creative momentum inside each site.'],
+              ['Ready-to-use sections', 'Use strong layouts for shops, agencies, portfolios, SaaS, restaurants, hotels, clinics, real estate, and more.'],
+              ['Visual editor', 'Edit layout, content, media, forms, CMS, integrations, and site settings without handing clients the whole builder.'],
+              ['Medusa ecommerce', 'Create storefronts with product cards, cart flows, checkout-ready pages, and a path to serious commerce.'],
+              ['Client dashboard', 'Let clients review assigned sites and update approved content without breaking the design.'],
+              ['Publishing controls', 'Preview, publish, connect domains, manage slugs, and keep every site organized.'],
+              ['Business workspace', 'Keep design, handoff, billing, feedback, ecommerce, and publishing together for real client work.'],
             ].map(([title, body]) => (
               <article key={title} className="rounded-lg border border-border bg-card p-5">
                 <h3 className="text-lg font-medium text-foreground">{title}</h3>
@@ -297,7 +297,7 @@ export default async function Home({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                ['01', 'Create from AI, a template, blank canvas, or imported code.'],
+                ['01', 'Create from AI, a proven section set, a template, or a blank canvas.'],
                 ['02', 'Edit with the builder while site data stays isolated by project.'],
                 ['03', 'Invite clients for review, approvals, and content updates.'],
                 ['04', 'Publish, connect a domain, and watch analytics from dashboard.'],
@@ -314,9 +314,9 @@ export default async function Home({
         <section className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16">
           <div className="mb-8 grid gap-4 md:grid-cols-3">
             {[
-              ['QAY vs Framer', 'For builders who need import, client handoff, ecommerce prep, and editable published sites.', '/compare/framer'],
-              ['QAY vs Wix', 'For freelancers who want a cleaner professional workspace without the heavy all-in-one lock-in feeling.', '/compare/wix'],
-              ['QAY vs others', 'See where QAY fits against common site builders, page builders, and design-first tools.', '/compare'],
+              ['QAY vs Framer', 'Choose QAY when client operations, ecommerce, auth, feedback, and editable handoff matter as much as visual polish.', '/compare/framer'],
+              ['QAY vs Wix', 'Choose QAY when you want a cleaner professional workspace for custom client projects, not a crowded all-in-one template lane.', '/compare/wix'],
+              ['QAY vs others', 'See why QAY is built for freelancers and agencies who need generation, editing, handoff, and business control together.', '/compare'],
             ].map(([title, body, href]) => (
               <Link
                 key={title} href={href}
@@ -358,7 +358,7 @@ export default async function Home({
             <div className="grid gap-3 border-t border-border pt-6 md:grid-cols-3">
               <p>Ecommerce powered by Medusa.</p>
               <p>Editor powered by Ycode.</p>
-              <p className="md:text-right">QAY adds AI import, client flow, publishing, billing, and site isolation.</p>
+              <p className="md:text-right">QAY helps freelancers and agencies create, manage, sell, and hand off better client websites.</p>
             </div>
           </div>
         </footer>
