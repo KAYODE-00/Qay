@@ -201,6 +201,34 @@ export function QayAppsPage({ siteId, canManage }: { siteId: string; canManage: 
           </p>
         </header>
 
+        <section className="mb-5 rounded-lg border border-border bg-card p-5">
+          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="text-sm font-medium">Import from Figma or Webflow</h2>
+              <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">
+                Copy frames or elements from Figma/Webflow, open the QAY editor canvas, then paste. QAY reads the external clipboard data and converts supported layout, text, images, and styles into editable layers.
+              </p>
+            </div>
+            <div className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+              Paste workflow
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            <div className="rounded-md border border-border bg-background p-4">
+              <h3 className="text-xs font-medium text-foreground">Figma</h3>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Select the frame, section, or component in Figma, copy it, then paste directly onto the QAY canvas. No API key is required for clipboard import.
+              </p>
+            </div>
+            <div className="rounded-md border border-border bg-background p-4">
+              <h3 className="text-xs font-medium text-foreground">Webflow</h3>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Copy elements from the Webflow Designer and paste them into QAY. For site-level checks and future Webflow mapping, connect Webflow below with an API token and live site URL.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {error && (
           <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
             {error}
