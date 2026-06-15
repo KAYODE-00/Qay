@@ -2,6 +2,27 @@ import type { QmSection, QmTheme } from './types';
 
 export const themes: QmTheme[] = [
   {
+    id: 'ecommerce-theme-urban-streetwear',
+    site_type: 'ecommerce',
+    theme_id: 'urban-streetwear',
+    label: 'Urban Streetwear',
+    keywords: ['streetwear', 'urban', 'clothing', 'fashion', 'hoodie', 't-shirt', 'jogger', 'cap', 'afro', 'youth', 'drop', 'hype', 'black', 'neon', 'gold'],
+    css_variables: {
+      '--qm-bg': '#050505',
+      '--qm-surface': '#111111',
+      '--qm-text': '#f7f7f2',
+      '--qm-text-muted': '#a1a1aa',
+      '--qm-accent': '#d7ff2f',
+      '--qm-accent-text': '#050505',
+      '--qm-border': 'rgba(255,255,255,0.14)',
+      '--qm-heading-font': '"Bebas Neue", sans-serif',
+      '--qm-body-font': '"Inter", sans-serif',
+    },
+    google_fonts: ['Bebas+Neue', 'Inter:wght@400;500;600;700;800;900'],
+    is_dark: true,
+    rank: 99,
+  },
+  {
     id: 'ecommerce-theme-luxury-dark',
     site_type: 'ecommerce',
     theme_id: 'luxury-dark',
