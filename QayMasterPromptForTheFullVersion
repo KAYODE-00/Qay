@@ -91,7 +91,7 @@ FOLDER STRUCTURE (what we create):
     supabase-admin.ts
     ai/providers.ts
     ai/builder.ts
-    billing/flutterwave.ts
+    billing/paddle.ts
     billing/plan-limits.ts
   styles/
     brand.css
