@@ -1,0 +1,310 @@
+# QAY AI Builder Fix Prompt
+# Give this to Codex in one session.
+# NEVER modify Ycode files.
+# Only touch: qay/lib/ai/builder.ts
+
+================================================================================
+WHAT TO FIX
+================================================================================
+
+The AI builder (qay/lib/ai/builder.ts) produces ugly or generic sites.
+
+ROOT CAUSES:
+1. buildHtmlDiversityBrief() is too generic — AI ignores it
+2. System prompt has too many constraints — AI takes safe path
+3. assertUsableHtml() is too strict — valid good output gets rejected
+4. The local fallback fires too often — users see same template repeatedly
+
+READ THESE FILES FIRST:
+→ qay/lib/ai/builder.ts (FULL — you just read it)
+→ qay/lib/ai/providers.ts (callWithFallbackDetailed)
+→ .env.example (QAY_AI_HTML_PROVIDER, QAY_AI_ALLOW_LOCAL_FALLBACK)
+
+Tell me your full plan BEFORE writing code.
+Only modify qay/lib/ai/builder.ts.
+Do NOT touch any Ycode files.
+
+================================================================================
+FIX 1 — REPLACE buildHtmlDiversityBrief() WITH PROMPT-AWARE VERSION
+================================================================================
+
+The current function picks generic directives randomly.
+Replace it with one that analyzes the user's prompt
+and gives SPECIFIC, tailored direction.
+
+Replace the entire buildHtmlDiversityBrief function with:
+
+function buildHtmlDiversityBrief(prompt: string): string {
+  const p = prompt.toLowerCase();
+
+  // Detect site category from prompt
+  const isRestaurant = /restaurant|cafe|coffee|food|dining|menu|chef|cuisine|bar|bistro|eatery/i.test(prompt);
+  const isFashion = /fashion|clothing|apparel|boutique|wear|style|outfit|brand|collection/i.test(prompt);
+  const isAgency = /agency|studio|design|creative|branding|marketing|consulting/i.test(prompt);
+  const isSaas = /saas|software|app|platform|dashboard|tool|productivity|workflow|automation/i.test(prompt);
+  const isPortfolio = /portfolio|designer|developer|photographer|artist|freelance|creative/i.test(prompt);
+  const isEvent = /event|wedding|conference|concert|festival|party|ceremony|venue/i.test(prompt);
+  const isHealth = /clinic|health|medical|wellness|fitness|gym|yoga|spa|therapy/i.test(prompt);
+  const isEducation = /school|course|learning|education|academy|training|university|tutor/i.test(prompt);
+  const isRealEstate = /real estate|property|listing|homes|realty|apartment|housing/i.test(prompt);
+  const isLaw = /law|legal|attorney|lawyer|firm|counsel/i.test(prompt);
+
+  // Dark/light theme hints
+  const wantsDark = /dark|black|obsidian|midnight|noir|moody|dramatic/i.test(prompt);
+  const wantsLight = /light|white|clean|minimal|airy|bright|fresh/i.test(prompt);
+  const wantsLuxury = /luxury|premium|high-end|exclusive|bespoke|couture|elite/i.test(prompt);
+
+  // Build specific directives based on category
+  let architecture = '';
+  let palette = '';
+  let sections = '';
+  let motion = '';
+  let copy = '';
+
+  if (isRestaurant) {
+    architecture = 'Full-bleed hero image of the signature dish or dining space. Sticky navigation with reservation CTA. Menu section with categories and dish cards. About/story section with chef photo. Opening hours and location prominently placed.';
+    palette = wantsDark
+      ? 'Deep charcoal #1a1209 background with warm amber #c9a040 accents, cream #f5f0e8 text.'
+      : 'Warm ivory #fdf6ec background with deep forest green #1d3d2f headings, terracotta #c2601f accents.';
+    sections = 'Hero → Featured dishes grid → Our story split → Menu categories → Reservations CTA → Location/hours → Footer';
+    motion = 'Slow luxe-reveal on hero title (1.2s). Stagger-children on dish cards (0.15s apart). Scroll-reveal on story section.';
+    copy = 'Use food-specific vocabulary: signature dishes, farm-to-table, craft cocktails, ambiance, reservation, tasting menu, Chef name. Avoid generic phrases.';
+  } else if (isFashion) {
+    architecture = 'Editorial split-screen hero with oversized product image and minimal text. Horizontal collection rail with hover zoom on products. About/values section with brand story. Cart drawer that slides from right.';
+    palette = wantsLuxury
+      ? 'Near-black #0d0d0d with bone white #f8f4ec and restrained gold #c9a84c accent.'
+      : 'Off-white #fafaf8 with charcoal #1a1a1a typography and one confident accent color.';
+    sections = 'Nav with cart count → Editorial hero → Collection grid → Brand story split → Testimonials rail → Newsletter → Footer';
+    motion = 'Scale-in on hero image (0.9s). Img-zoom on every product card. Slide-up on collection heading. Luxe-lift on product cards.';
+    copy = 'Fashion vocabulary: drop, collection, edit, silhouette, craft, limited edition, ethically made. Product names should sound like real fashion items.';
+  } else if (isAgency) {
+    architecture = 'Asymmetric hero with large work preview on right, studio name and tagline left. Work/case-study grid with varied card sizes. Team section with photos. Process timeline with numbered steps.';
+    palette = wantsDark
+      ? '#0f0f0f background, #f0ede6 text, subtle #ffffff/8 card surfaces, one vivid accent for CTAs.'
+      : '#f8f8f6 background, #111 text, white cards with precise border, black CTA buttons.';
+    sections = 'Hero → Selected work (bento) → Services → Process → Team → Clients/trust → Contact → Footer';
+    motion = 'Slide-up hero text (0.8s, expo.out). Stagger-children on work grid. Scroll-reveal on process steps. Scale-btn hover on CTAs.';
+    copy = 'Agency vocabulary: craft, strategy, brand identity, digital, launch, clients, case studies. Name real service types: UI design, brand strategy, web development.';
+  } else if (isSaas) {
+    architecture = 'Dashboard-preview hero — show a real UI screenshot or mockup on the right. Feature sections with icon + heading + description layout. Pricing section with 3 tiers. Integration logos strip.';
+    palette = wantsDark
+      ? 'Dark #0a0a0f with blue-violet #6366f1 primary, white text, subtle #ffffff/5 card borders.'
+      : 'Clean white with slate #1e293b text, indigo #4f46e5 primary, light gray card surfaces.';
+    sections = 'Hero with product preview → Social proof numbers → Features grid → How it works → Pricing → FAQ → CTA → Footer';
+    motion = 'Fade-in on hero (0.6s). Scale-in on dashboard preview. Scroll-reveal on feature cards with 0.08s stagger.';
+    copy = 'SaaS vocabulary: automate, workflows, integrations, team, analytics, dashboard, API. Name specific pain points and outcomes. No "transform your workflow" filler.';
+  } else if (isPortfolio) {
+    architecture = 'Full-name hero with role/discipline. Bento project grid with varied card sizes. About section with process description. Skills/tools list. Contact with social links.';
+    palette = wantsDark
+      ? '#0a0a0a background, #e8e6e1 text, subtle accent color for hover states and tags.'
+      : 'White background, black text, one saturated accent color for active states.';
+    sections = 'Hero → Featured projects (bento) → About/process → Skills → Experience/timeline → Contact → Footer';
+    motion = 'Luxe-reveal on name (1.0s, expo.out). Scroll-reveal with stagger-children on project grid. Img-zoom on project images. Lift hover on cards.';
+    copy = 'Portfolio vocabulary: crafted, designed, built, shipped, case study, year, role, outcome. Use real-sounding project names and client industries.';
+  } else if (isEvent) {
+    architecture = 'Dramatic full-screen hero with event name, date, and venue. Countdown-style date display. Schedule/timeline section. Speakers or performers grid. Tickets/RSVP CTA.';
+    palette = wantsDark
+      ? 'Deep navy #080c14 or charcoal with electric accent — gold #f59e0b or electric blue #38bdf8.'
+      : 'Bold contrast: deep color background for hero, white content sections, strong accent.';
+    sections = 'Hero with date → Event details → Schedule/agenda → Speakers → Venue → Tickets/RSVP → Footer';
+    motion = 'Luxe-asym-reveal on event title (1.4s). Line-grow on schedule dividers. Stagger-children on speakers. Scroll-reveal on venue section.';
+    copy = 'Event vocabulary: date, venue, schedule, speakers, RSVP, tickets, registration, session, keynote. Make dates/location feel real and specific.';
+  } else if (isHealth) {
+    architecture = 'Warm split-screen hero with practitioner photo or clinic image. Services grid with icons. About/approach section emphasizing trust and care. Booking CTA. Testimonials.';
+    palette = wantsLuxury
+      ? 'Sage green #3d6b4f with warm white #fafaf8, gold accents for premium wellness.'
+      : 'Calm teal #0d7377 or soft green with white surfaces and warm gray text.';
+    sections = 'Hero → Services → About/approach → Team → Testimonials → Booking CTA → Location → Footer';
+    motion = 'Fade-in on hero (0.7s). Scroll-reveal on service cards with lift. Scale-in on stats/numbers.';
+    copy = 'Healthcare vocabulary: care, treatment, wellness, consultation, booking, patients, evidence-based, holistic. Avoid generic "transform your health" language.';
+  } else if (isEducation) {
+    architecture = 'Energetic hero with student/learning imagery. Course grid with category filters placeholder. Instructor profiles. Testimonials from students. Enrollment CTA.';
+    palette = wantsDark
+      ? 'Deep purple #1e1b4b with violet #7c3aed accent, white text.'
+      : 'Royal blue #1d4ed8 with white surfaces, yellow #fbbf24 accent for highlights.';
+    sections = 'Hero → Course grid → How it works → Instructors → Student results → Pricing → FAQ → Enroll → Footer';
+    motion = 'Slide-up hero (0.8s). Stagger-children on course cards. Scroll-reveal on process steps.';
+    copy = 'Education vocabulary: course, module, certification, enroll, instructor, curriculum, outcomes, students. Be specific about what is taught.';
+  } else if (isLaw) {
+    architecture = 'Authority-driven hero with law firm name and clear practice areas. Services/practice areas grid. Attorney profiles. Case results or trust metrics. Contact form.';
+    palette = wantsDark
+      ? 'Deep navy #0c1326 with gold #b8922a accents, white text for authority.'
+      : 'Conservative white with dark navy #0f172a typography, gold accents, precise borders.';
+    sections = 'Hero → Practice areas → Attorney profiles → Results/track record → Testimonials → Contact → Footer';
+    motion = 'Slide-up hero (0.7s). Scroll-reveal on practice cards. Line-grow on dividers. Subtle lift on attorney cards.';
+    copy = 'Legal vocabulary: counsel, litigation, practice areas, attorney, case, settlement, consultation, jurisdiction. Sound authoritative and specific.';
+  } else {
+    // Generic but better than before
+    architecture = 'Strong editorial hero with clear value proposition on left and relevant image on right. Feature/service section with varied card sizes. Proof section (testimonials or stats). Contact/CTA.';
+    palette = wantsDark
+      ? '#0d0d0d background with #f0ede6 text and one accent color from the brand description.'
+      : '#fafaf8 background with #111111 text and one confident accent.';
+    sections = 'Hero → Core features/services → Social proof → About → Contact → Footer';
+    motion = 'Slide-up on hero title (0.8s). Stagger-children on feature cards. Scroll-reveal on proof section.';
+    copy = 'Use specific vocabulary that matches the requested business type. Avoid filler phrases.';
+  }
+
+  return [
+    `DESIGN DIRECTION FOR THIS GENERATION:`,
+    `Architecture: ${architecture}`,
+    `Color palette: ${palette}`,
+    `Page sections: ${sections}`,
+    `Motion: ${motion}`,
+    `Copy: ${copy}`,
+    ``,
+    `MANDATORY: Do not reuse the structure, palette, or layout from any previous generation.`,
+    `The site must look visually distinct from a generic template.`,
+    `Every section must contain real, specific content that belongs to this exact site type.`,
+  ].join('\n');
+}
+
+================================================================================
+FIX 2 — MAKE assertUsableHtml() LESS STRICT
+================================================================================
+
+The current validation rejects valid, good output.
+When it rejects → retry → same result → fallback.
+Users see the boring fallback template.
+
+Update assertUsableHtml() — find these checks and RELAX them:
+
+CURRENT (too strict):
+if (html.length < 1800 || classMatches.length < 18 || linkOrButtonCount < 2) {
+  throw new Error('AI response was not a usable design. Please try again.')
+}
+
+REPLACE WITH:
+if (html.length < 800 || classMatches.length < 8 || linkOrButtonCount < 1) {
+  throw new Error('AI response was not a usable design. Please try again.')
+}
+
+CURRENT (too strict):
+if (sectionCount + pageWrapperCount < 3 || motionCount < 3 || hasComposition < 5 || !hasResponsive) {
+  throw new Error('AI response was not a usable design. Please try again.')
+}
+
+REPLACE WITH:
+if (sectionCount + pageWrapperCount < 2 || hasComposition < 3) {
+  throw new Error('AI response was not a usable design. Please try again.')
+}
+// Remove the motionCount < 3 check entirely — motion is optional
+// Remove the hasResponsive check — not all sites need responsive classes
+
+CURRENT (too strict — rejects good sites):
+if (!auth && imageCount < 1) {
+  throw new Error('AI response was not a usable design. Please try again.')
+}
+
+REPLACE WITH:
+// Only fail if it's a clearly visual site type AND has zero images
+const isObviouslyVisual = isCommercePrompt(userPrompt) || /restaurant|hotel|fashion|portfolio|event/i.test(userPrompt);
+if (isObviouslyVisual && imageCount < 1) {
+  throw new Error('AI response was not a usable design. Please try again.')
+}
+
+CURRENT (rejects valid copy):
+const placeholderCopy = /lorem ipsum|placeholder text|card title|feature title|product name|transform your vision|elevate your experience|unlock your potential|seamless solutions|innovative platform/i.test(html);
+
+REPLACE WITH (keep this check but don't reject):
+const placeholderCopy = /lorem ipsum\b|Lorem ipsum\b/i.test(html); // Only reject actual Lorem ipsum
+
+================================================================================
+FIX 3 — BETTER USER PROMPT IN buildHtmlPrompt()
+================================================================================
+
+The current user prompt for HTML generation has a massive checklist.
+AI models reading a 25-point checklist write safe/boring output.
+
+Update buildHtmlPrompt() — find the return statement
+for mode !== 'selected' and SIMPLIFY the checklist.
+
+Find this in buildHtmlPrompt() for 'page' mode:
+"Silent checklist:\n- The output is actual website HTML..."
+
+REPLACE THE ENTIRE SILENT CHECKLIST with this shorter, stronger version:
+
+Silent checklist:
+- This must look like an expensive agency-built site, not an AI demo.
+- Every section must have real, specific content for the requested site type.
+- No Lorem ipsum. No "Feature 1". No generic filler copy.
+- Hero: distinctive composition, not just centered text on a dark background.
+- At least one strong image per public-facing page.
+- All links and CTAs visually styled — never default browser blue links.
+- Mobile navigation must work via data-qay-click toggle hooks.
+- QAY motion attributes on hero, cards, and section intros (not on everything).
+- Return only HTML.
+
+================================================================================
+FIX 4 — ADD SITE-SPECIFIC EXAMPLES TO SYSTEM PROMPT
+================================================================================
+
+At the END of QAY_AI_HTML_SYSTEM_PROMPT, APPEND:
+
+\n\nGOOD OUTPUT EXAMPLES (structure only, not visual templates):\n\nFor a restaurant:\n- Hero: full-bleed food/venue image, restaurant name in large serif, "Book a table" CTA\n- Menu section: categories (Starters, Mains, Desserts) with dish names, descriptions, prices\n- About: chef story with kitchen image\n- Hours + Location: specific address, opening times by day\n\nFor a fashion store:\n- Hero: editorial product photo taking 60% of viewport, brand name minimal\n- Products: asymmetric grid, some cards spanning 2 columns\n- Each product card: image, product name, price, Add to cart button\n- Cart drawer: slides from right with cart items list\n\nFor a law firm:\n- Hero: firm name, tagline about expertise, "Book a consultation" CTA\n- Practice areas: grid with icons — Corporate Law, Litigation, Real Estate, Employment\n- Attorneys: photo + name + specialization for 3 attorneys\n- Track record: metric tiles — 500+ cases, 20 years, 98% success rate\n\nFor a SaaS tool:\n- Hero: product name, one-line value prop, dashboard screenshot on right\n- Features: 6-card grid with specific feature names and outcomes\n- Pricing: 3 tiers with specific prices and feature lists\n- CTA: "Start free trial" with no credit card required\n\nDo not copy these examples. Use them to understand what "specific" means.
+
+================================================================================
+FIX 5 — DISABLE LOCAL FALLBACK IN PRODUCTION
+================================================================================
+
+The local fallback fires when providers fail validation.
+It always returns the same generic template.
+Users see it far too often.
+
+In generateQayAiHtml(), find:
+if (process.env.QAY_AI_ALLOW_LOCAL_FALLBACK !== 'true') {
+
+This means fallback is DISABLED unless you opt in.
+This is already correct. Make sure in Vercel:
+QAY_AI_ALLOW_LOCAL_FALLBACK = (not set, or false)
+
+So in production, if all providers fail, users get
+a real error message instead of the generic fallback.
+This is better UX — they retry with a different prompt.
+
+================================================================================
+FIX 6 — ADD TIMEOUT HANDLING
+================================================================================
+
+In qay/lib/ai/providers.ts (if it has timeouts):
+Make sure QAY_AI_HTML_PROVIDER_TIMEOUT_MS is respected.
+
+The .env already has: QAY_AI_HTML_PROVIDER_TIMEOUT_MS=30000
+
+If providers.ts doesn't implement this timeout yet:
+Find callWithFallbackDetailed and add:
+
+const timeout = parseInt(process.env.QAY_AI_HTML_PROVIDER_TIMEOUT_MS || '30000')
+
+Wrap each provider call with a Promise.race against
+a timeout promise that rejects after `timeout` ms.
+
+================================================================================
+AFTER ALL FIXES — TEST WITH THESE PROMPTS
+================================================================================
+
+Test 1 — Restaurant:
+"A Nigerian jollof rice restaurant in Lagos called 'Mama Titi's Kitchen'"
+Expected: warm colors, food images, menu section, reservation CTA ✅
+
+Test 2 — Fashion store:
+"A luxury streetwear brand called KODE targeting Lagos youth"
+Expected: dark editorial hero, product grid with cart, fashion vocabulary ✅
+
+Test 3 — Law firm:
+"A corporate law firm in Abuja called Okonkwo & Partners"
+Expected: navy + gold, practice areas grid, attorneys section, consultation CTA ✅
+Test 4 — Portfolio:
+"A frontend developer portfolio for Kay Abdulwahab from Abeokuta"
+Expected: bento project grid, about section, dark minimal aesthetic ✅
+
+Test 5 — SaaS:
+"An AI invoice management tool for African freelancers called InvoiceAI"
+Expected: dashboard preview hero, 6 features, 3 pricing tiers ✅
+
+For each: the output should look DIFFERENT from the others.
+Not the same dark template with different text.
+Different layouts. Different palettes. Different section structures.
+
+npx tsc --noEmit → zero errors
+Do NOT modify any Ycode file.
+Show all changes made to qay/lib/ai/builder.ts.

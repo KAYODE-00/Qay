@@ -186,7 +186,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
     }
 
     setIsGenerating(true);
-    setStatus(mode === 'page' ? 'Selecting design from QAY section library...' : 'Generating with AI...');
+    setStatus(mode === 'page' ? 'Selecting design from section library...' : 'Generating with AI...');
     setError(null);
     setGenerationMeta(null);
 
@@ -360,14 +360,14 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
           <div className="rounded-lg border border-border bg-card p-3 text-xs">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-medium text-foreground">Assembled from QAY sections</p>
+                <p className="font-medium text-foreground">Assembled from sections</p>
                 <p className="mt-1 text-muted-foreground">
                   {generationMeta.theme?.label || generationMeta.model} system
                   {generationMeta.siteType ? ` for ${generationMeta.siteType}` : ''}
                   {generationMeta.navMode ? ` · ${generationMeta.navMode}` : ''}
                 </p>
                 <p className="mt-2 text-muted-foreground">
-                  To replace a section, open the left sidebar, choose QAY Sections, then pick the same website type and section type.
+                  To replace a section, open the left sidebar, choose Sections, then pick the same website type and section type.
                 </p>
               </div>
               <div className="flex gap-1">

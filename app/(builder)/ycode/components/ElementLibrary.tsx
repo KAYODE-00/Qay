@@ -407,7 +407,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
     fetch(`/api/qay/sections?siteType=${encodeURIComponent(qaySectionSiteType)}&sectionType=${encodeURIComponent(qaySectionType)}`)
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body?.error || 'Could not load QAY sections.');
+        if (!response.ok) throw new Error(body?.error || 'Could not load sections.');
         if (cancelled) return;
         setQaySections(body?.data?.sections || []);
         setQaySectionTypes(body?.data?.sectionTypes || []);
@@ -417,7 +417,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
       .catch((error) => {
         if (cancelled) return;
         setQaySections([]);
-        setQaySectionsStatus(error instanceof Error ? error.message : 'Could not load QAY sections.');
+        setQaySectionsStatus(error instanceof Error ? error.message : 'Could not load sections.');
       });
 
     return () => {
@@ -1520,9 +1520,9 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
   const deleteConfirmDescription = `Are you sure you want to delete "${componentName}"? ${usageSuffix}`;
   const { width: libraryWidth, startResize } = useResizablePanel({
     storageKey: 'qay-editor-element-library-width',
-    defaultWidth: 360,
-    minWidth: 328,
-    maxWidth: 680,
+    defaultWidth: 420,
+    minWidth: 380,
+    maxWidth: 720,
     direction: 'right',
   });
 
@@ -1552,7 +1552,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
         >
           <div className="flex flex-col shrink-0 gap-2">
             <div className="p-4 pb-0">
-              <TabsList className="grid w-full grid-cols-4 gap-1 overflow-hidden">
+              <TabsList className="grid w-full grid-cols-4 gap-1.5">
                 <TabsTrigger value="elements">Elements</TabsTrigger>
                 <TabsTrigger value="sections">Sections</TabsTrigger>
                 <TabsTrigger value="layouts">Layouts</TabsTrigger>
@@ -1595,36 +1595,43 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
           >
             <div className="flex flex-col gap-4 pb-5">
               <div className="sticky top-0 z-10 border-b border-border bg-background pb-4 pt-5">
-                <Label>Designed sections</Label>
+                <Label>Sections</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Pick by website type and section type. These are the same sections AI can choose.
+                  Browse by website type and section type.
                 </p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <label className="text-xs text-muted-foreground">
-                    Website type
-                    <select
-                      value={qaySectionSiteType}
-                      onChange={(event) => setQaySectionSiteType(event.target.value)}
-                      className="mt-1 h-10 w-full appearance-none rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground shadow-sm outline-none transition focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
-                    >
-                      {qaySiteTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-                    </select>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Website</span>
+                    <div className="relative">
+                      <select
+                        value={qaySectionSiteType}
+                        onChange={(event) => setQaySectionSiteType(event.target.value)}
+                        className="qay-select h-9 w-full cursor-pointer appearance-none rounded-lg border border-border bg-card px-3 pr-8 text-xs font-medium text-foreground shadow-sm outline-none transition-all duration-200 hover:border-foreground/30 focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
+                      >
+                        {qaySiteTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                      <Icon name="chevronDown" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+                    </div>
                   </label>
-                  <label className="text-xs text-muted-foreground">
-                    Section type
-                    <select
-                      value={qaySectionType}
-                      onChange={(event) => setQaySectionType(event.target.value)}
-                      className="mt-1 h-10 w-full appearance-none rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground shadow-sm outline-none transition focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
-                    >
-                      {qaySectionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-                    </select>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Type</span>
+                    <div className="relative">
+                      <select
+                        value={qaySectionType}
+                        onChange={(event) => setQaySectionType(event.target.value)}
+                        className="qay-select h-9 w-full cursor-pointer appearance-none rounded-lg border border-border bg-card px-3 pr-8 text-xs font-medium text-foreground shadow-sm outline-none transition-all duration-200 hover:border-foreground/30 focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
+                      >
+                        {qaySectionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                      <Icon name="chevronDown" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+                    </div>
                   </label>
                 </div>
               </div>
 
               {qaySectionsStatus ? (
-                <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
+                  <span className="inline-block size-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground/60" />
                   {qaySectionsStatus}
                 </div>
               ) : null}
@@ -1636,33 +1643,36 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
                 </Empty>
               ) : null}
 
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-2.5">
                 {qaySections.map((section) => (
                   <button
                     key={`${section.sectionType}-${section.index}-${section.label}`}
                     type="button"
                     onClick={() => handleAddQaySection(section)}
-                    className="group overflow-hidden rounded-lg border border-border bg-card text-left transition hover:border-foreground/30"
+                    className="group overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition-all duration-200 hover:border-foreground/25 hover:shadow-md"
                   >
-                    <div className="flex items-start justify-between gap-3 p-3">
+                    <div className="relative">
+                      <iframe
+                        title={`${section.label} preview`}
+                        srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script><style>html,body{margin:0;overflow:hidden;scrollbar-width:none}::-webkit-scrollbar{display:none}</style></head><body>${section.html}</body></html>`}
+                        scrolling="no"
+                        className="pointer-events-none h-32 w-full bg-white"
+                      />
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent" />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 border-t border-border/50 px-3 py-2.5">
                       <div className="min-w-0">
                         <p className="truncate text-xs font-medium text-foreground">
-                          [{section.index}] {section.label}
+                          {section.label}
                         </p>
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                          {section.manifestLine}
+                        <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                          {section.sectionType} · #{section.index}
                         </p>
                       </div>
-                      <span className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground group-hover:bg-accent">
+                      <span className="shrink-0 rounded-md bg-foreground/5 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors duration-200 group-hover:bg-foreground group-hover:text-background">
                         Add
                       </span>
                     </div>
-                    <iframe
-                      title={`${section.label} preview`}
-                      srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script><style>html,body{margin:0;overflow:hidden;scrollbar-width:none}::-webkit-scrollbar{display:none}</style></head><body>${section.html}</body></html>`}
-                      scrolling="no"
-                      className="pointer-events-none h-36 w-full bg-white"
-                    />
                   </button>
                 ))}
               </div>
