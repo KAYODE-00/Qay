@@ -155,6 +155,7 @@ interface ElementLibraryProps {
 type LibraryTab = 'elements' | 'layouts' | 'components' | 'sections';
 
 type QayCatalogSection = {
+  id?: string | null;
   siteType: string;
   sectionType: string;
   index: number;
@@ -1519,9 +1520,9 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
   const deleteConfirmDescription = `Are you sure you want to delete "${componentName}"? ${usageSuffix}`;
   const { width: libraryWidth, startResize } = useResizablePanel({
     storageKey: 'qay-editor-element-library-width',
-    defaultWidth: 288,
-    minWidth: 256,
-    maxWidth: 560,
+    defaultWidth: 360,
+    minWidth: 328,
+    maxWidth: 680,
     direction: 'right',
   });
 
@@ -1551,9 +1552,9 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
         >
           <div className="flex flex-col shrink-0 gap-2">
             <div className="p-4 pb-0">
-              <TabsList className="w-full">
+              <TabsList className="grid w-full grid-cols-4 gap-1 overflow-hidden">
                 <TabsTrigger value="elements">Elements</TabsTrigger>
-                <TabsTrigger value="sections">QAY Sections</TabsTrigger>
+                <TabsTrigger value="sections">Sections</TabsTrigger>
                 <TabsTrigger value="layouts">Layouts</TabsTrigger>
                 <TabsTrigger value="components">Components</TabsTrigger>
               </TabsList>
@@ -1594,7 +1595,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
           >
             <div className="flex flex-col gap-4 pb-5">
               <div className="sticky top-0 z-10 border-b border-border bg-background pb-4 pt-5">
-                <Label>Designed QAY sections</Label>
+                <Label>Designed sections</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Pick by website type and section type. These are the same sections AI can choose.
                 </p>
@@ -1604,7 +1605,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
                     <select
                       value={qaySectionSiteType}
                       onChange={(event) => setQaySectionSiteType(event.target.value)}
-                      className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                      className="mt-1 h-10 w-full appearance-none rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground shadow-sm outline-none transition focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
                     >
                       {qaySiteTypes.map((type) => <option key={type} value={type}>{type}</option>)}
                     </select>
@@ -1614,7 +1615,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
                     <select
                       value={qaySectionType}
                       onChange={(event) => setQaySectionType(event.target.value)}
-                      className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                      className="mt-1 h-10 w-full appearance-none rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground shadow-sm outline-none transition focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
                     >
                       {qaySectionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
                     </select>
@@ -1658,7 +1659,8 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
                     </div>
                     <iframe
                       title={`${section.label} preview`}
-                      srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script></head><body>${section.html}</body></html>`}
+                      srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script><style>html,body{margin:0;overflow:hidden;scrollbar-width:none}::-webkit-scrollbar{display:none}</style></head><body>${section.html}</body></html>`}
+                      scrolling="no"
                       className="pointer-events-none h-36 w-full bg-white"
                     />
                   </button>

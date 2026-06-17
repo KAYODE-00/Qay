@@ -13,6 +13,7 @@ type SectionWorkbenchProps = {
 type SaveState = 'idle' | 'saving' | 'success' | 'error';
 
 type CatalogSection = {
+  id?: string | null;
   siteType: SiteType;
   sectionType: string;
   index: number;
@@ -39,6 +40,8 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
   const [catalog, setCatalog] = useState<CatalogSection[]>([]);
   const [isCatalogLoading, setIsCatalogLoading] = useState(false);
   const [catalogMessage, setCatalogMessage] = useState('');
+  const [sectionToDelete, setSectionToDelete] = useState<CatalogSection | null>(null);
+  const [isDeletingSection, setIsDeletingSection] = useState(false);
 
   const fullPreview = useMemo(() => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script></head><body>${html}</body></html>`, [html]);
 
@@ -96,6 +99,32 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
     } catch (error) {
       setState('error');
       setMessage(error instanceof Error ? error.message : 'Could not save section.');
+    }
+  }
+
+  async function deleteSection() {
+    if (!sectionToDelete?.id) return;
+
+    setIsDeletingSection(true);
+    setCatalogMessage('');
+
+    try {
+      const response = await fetch(`/api/qay/admin/sections?id=${encodeURIComponent(sectionToDelete.id)}`, {
+        method: 'DELETE',
+      });
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body?.error || 'Could not delete section.');
+      }
+
+      setCatalog((current) => current.filter((section) => section.id !== sectionToDelete.id));
+      setSectionToDelete(null);
+      setCatalogMessage('Section deleted. It will no longer be used by AI.');
+    } catch (error) {
+      setCatalogMessage(error instanceof Error ? error.message : 'Could not delete section.');
+    } finally {
+      setIsDeletingSection(false);
     }
   }
 
@@ -162,6 +191,15 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
                   >
                     Load
                   </button>
+                  {section.id ? (
+                    <button
+                      type="button"
+                      onClick={() => setSectionToDelete(section)}
+                      className="rounded-md border border-red-500/30 px-2 py-1 text-xs text-red-500 hover:bg-red-500/10"
+                    >
+                      Delete
+                    </button>
+                  ) : null}
                 </div>
                 <iframe
                   title={`${section.label} preview`}
@@ -272,6 +310,37 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
           {message ? <p className={`text-sm ${state === 'error' ? 'text-red-500' : 'text-muted-foreground'}`}>{message}</p> : null}
         </div>
       </section>
+
+      {sectionToDelete ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-red-500">Delete section</p>
+            <h2 className="mt-3 text-xl font-semibold text-foreground">Remove this section from AI selection?</h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              This will deactivate <span className="font-medium text-foreground">{sectionToDelete.label}</span> for {sectionToDelete.siteType} / {sectionToDelete.sectionType}.
+              Built-in sections cannot be deleted here, only saved admin sections.
+            </p>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setSectionToDelete(null)}
+                disabled={isDeletingSection}
+                className="h-10 rounded-md border border-border px-4 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteSection}
+                disabled={isDeletingSection}
+                className="h-10 rounded-md bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {isDeletingSection ? 'Deleting...' : 'Delete section'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

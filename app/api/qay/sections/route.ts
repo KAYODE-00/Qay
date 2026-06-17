@@ -34,6 +34,7 @@ export async function GET(request: Request) {
     .flatMap(([slot, designs]) => (designs as any[]).map((design) => ({
       siteType,
       sectionType: slot,
+      id: design.id || null,
       index: design.index,
       label: design.label,
       manifestLine: design.manifestLine,

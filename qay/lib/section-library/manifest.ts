@@ -3,6 +3,7 @@ import { getLibraryForType } from '@/qay/lib/section-library';
 import { SECTION_ORDER, SITE_TYPE_KEYWORDS, type QmSection, type SiteType } from './types';
 
 export interface SectionDesign {
+  id?: string;
   index: number;
   label: string;
   manifestLine: string;
@@ -124,6 +125,7 @@ export async function loadLibrary(siteType: SiteType | string): Promise<SiteType
 
   for (const design of dbDesigns) {
     pushDesign(library, design.section_type, {
+      id: design.id,
       index: design.array_index,
       label: design.label,
       manifestLine: design.manifest_line,
