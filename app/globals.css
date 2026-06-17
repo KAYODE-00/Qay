@@ -68,71 +68,71 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #A4CE8B;
-  --foreground: #86BCBD;
-  --card: #A4CE8B;
-  --card-foreground: #86BCBD;
-  --popover: #A4CE8B;
-  --popover-foreground: #86BCBD;
-  --primary: #86BCBD;
-  --primary-foreground: #A4CE8B;
-  --secondary: #A4CE8B;
-  --secondary-foreground: #86BCBD;
-  --muted: #A4CE8B;
-  --muted-foreground: rgba(134, 188, 189, 0.85);
-  --accent: #A4CE8B;
-  --accent-foreground: #86BCBD;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.145 0 0);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: rgba(134, 188, 189, 0.15);
-  --input: rgba(134, 188, 189, 0.15);
-  --ring: #86BCBD;
+  --border: oklch(14.5% 0 0 / 5%);
+  --input: oklch(14.5% 0 0 / 5%);
+  --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: #A4CE8B;
-  --sidebar-foreground: #86BCBD;
-  --sidebar-primary: #86BCBD;
-  --sidebar-primary-foreground: #A4CE8B;
-  --sidebar-accent: #A4CE8B;
-  --sidebar-accent-foreground: #86BCBD;
-  --sidebar-border: rgba(134, 188, 189, 0.2);
-  --sidebar-ring: #86BCBD;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.145 0 0);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-  --background: #86BCBD;
-  --foreground: #A4CE8B;
-  --card: #86BCBD;
-  --card-foreground: #A4CE8B;
-  --popover: #86BCBD;
-  --popover-foreground: #A4CE8B;
-  --primary: #A4CE8B;
-  --primary-foreground: #86BCBD;
-  --secondary: rgba(164, 206, 139, 0.1);
-  --secondary-foreground: #A4CE8B;
-  --muted: #86BCBD;
-  --muted-foreground: rgba(164, 206, 139, 0.85);
-  --accent: #86BCBD;
-  --accent-foreground: #A4CE8B;
+  --background: oklch(0.2046 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.708 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.145 0 0);
+  --secondary: oklch(1 0 0 / 10%);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.32 0 0);
+  --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: rgba(164, 206, 139, 0.15);
-  --input: rgba(164, 206, 139, 0.15);
-  --ring: #A4CE8B;
+  --border: oklch(1 0 0 / 5%);
+  --input: oklch(1 0 0 / 5%);
+  --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: #86BCBD;
-  --sidebar-foreground: #A4CE8B;
-  --sidebar-primary: #A4CE8B;
-  --sidebar-primary-foreground: #86BCBD;
-  --sidebar-accent: #86BCBD;
-  --sidebar-accent-foreground: #A4CE8B;
-  --sidebar-border: rgba(164, 206, 139, 0.2);
-  --sidebar-ring: #A4CE8B;
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.985 0 0);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {
@@ -167,15 +167,15 @@
 
 /* QAY uses a binary accent: black in light mode, white in dark mode. */
 :root {
-  --qay-binary-accent: #86BCBD;
-  --qay-binary-accent-foreground: #A4CE8B;
-  --qay-binary-accent-border: rgba(134, 188, 189, 0.35);
+  --qay-binary-accent: #000;
+  --qay-binary-accent-foreground: #fff;
+  --qay-binary-accent-border: rgb(0 0 0 / 35%);
 }
 
 .dark {
-  --qay-binary-accent: #A4CE8B;
-  --qay-binary-accent-foreground: #86BCBD;
-  --qay-binary-accent-border: rgba(164, 206, 139, 0.45);
+  --qay-binary-accent: #fff;
+  --qay-binary-accent-foreground: #000;
+  --qay-binary-accent-border: rgb(255 255 255 / 45%);
 }
 
 :where(
