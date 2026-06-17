@@ -22,9 +22,9 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
 </section>`);
   const [siteType, setSiteType] = useState<SiteType>(assembly.siteType);
   const [sectionType, setSectionType] = useState<SectionType>('hero');
-  const [themeId, setThemeId] = useState(assembly.theme.theme_id);
-  const [keywords, setKeywords] = useState('custom, premium, editorial');
-  const [previewDescription, setPreviewDescription] = useState('Custom admin-created section');
+  const [label, setLabel] = useState('Premium custom section');
+  const [manifestLine, setManifestLine] = useState('Premium responsive section with strong hierarchy, useful spacing, and QAY editable zones');
+  const [navLinkStyle, setNavLinkStyle] = useState<'routes' | 'anchors' | 'none'>('routes');
   const [state, setState] = useState<SaveState>('idle');
   const [message, setMessage] = useState('');
 
@@ -41,9 +41,9 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
         body: JSON.stringify({
           siteType,
           sectionType,
-          themeId,
-          keywords,
-          previewDescription,
+          label,
+          manifestLine,
+          navLinkStyle,
           html,
         }),
       });
@@ -106,7 +106,7 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
           <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Create section</p>
           <h2 className="mt-2 text-2xl font-semibold">Add a reusable section from your phone</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Paste or write an HTML fragment, preview it, then save it into the section library table.
+            Paste or write an HTML fragment, preview it, then save it into the AI-pickable section library.
           </p>
         </div>
 
@@ -130,28 +130,36 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
             </select>
           </label>
           <label className="text-sm font-medium">
-            Theme ID
+            Label
             <input
-              value={themeId} onChange={(event) => setThemeId(event.target.value)}
-              className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
-            />
-          </label>
-          <label className="text-sm font-medium">
-            Keywords
-            <input
-              value={keywords} onChange={(event) => setKeywords(event.target.value)}
+              value={label} onChange={(event) => setLabel(event.target.value)}
               className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
             />
           </label>
         </div>
 
         <label className="mt-4 block text-sm font-medium">
-          Preview description
+          Manifest line
           <input
-            value={previewDescription} onChange={(event) => setPreviewDescription(event.target.value)}
+            value={manifestLine} onChange={(event) => setManifestLine(event.target.value)}
             className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
           />
         </label>
+
+        {sectionType === 'nav' && (
+          <label className="mt-4 block text-sm font-medium">
+            Nav link style
+            <select
+              value={navLinkStyle}
+              onChange={(event) => setNavLinkStyle(event.target.value as 'routes' | 'anchors' | 'none')}
+              className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
+            >
+              <option value="routes">Routes</option>
+              <option value="anchors">Anchors</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+        )}
 
         <label className="mt-4 block text-sm font-medium">
           Section HTML

@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { Layer } from '@/types';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
+import { assembleFromDecision } from '@/qay/lib/ai/assemble-from-decision';
 import { generateQayAiHtml, generateQayAiLayers, type AiBuilderMode } from '@/qay/lib/ai/builder';
 import { AiProviderFailureError, AiProviderLimitsError } from '@/qay/lib/ai/providers';
+import { translatePromptToDecision } from '@/qay/lib/ai/translate-prompt';
 
 export const runtime = 'nodejs';
 
@@ -43,6 +45,27 @@ export async function POST(request: Request) {
 
     if (mode === 'selected' && selectedLayers.length === 0) {
       return NextResponse.json({ error: 'Select a layer before asking AI to redesign it.' }, { status: 400 });
+    }
+
+    if (body.output === 'html' && mode === 'page') {
+      try {
+        const decision = await translatePromptToDecision(prompt);
+        const { html, pages } = await assembleFromDecision(decision);
+        console.log('[QAY AI generate] Generated section-library-v2 HTML:', html);
+
+        return NextResponse.json({
+          data: {
+            html,
+            pages,
+            siteType: decision.siteType,
+            navMode: decision.navMode,
+            provider: 'section-library-v2',
+            model: 'prompt-translator',
+          },
+        });
+      } catch (err) {
+        console.warn('[AI Generate] Falling back to free-form generation:', err);
+      }
     }
 
     const result = body.output === 'html'
