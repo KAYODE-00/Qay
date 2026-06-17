@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AssemblyResult, SectionType, SiteType } from '@/qay/lib/section-library/types';
 
 type SectionWorkbenchProps = {
@@ -11,6 +11,15 @@ type SectionWorkbenchProps = {
 };
 
 type SaveState = 'idle' | 'saving' | 'success' | 'error';
+
+type CatalogSection = {
+  siteType: SiteType;
+  sectionType: string;
+  index: number;
+  label: string;
+  manifestLine: string;
+  html: string;
+};
 
 export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTypes }: SectionWorkbenchProps) {
   const [html, setHtml] = useState(`<section class="px-6 py-20 bg-[#0f172a] text-white">
@@ -27,8 +36,37 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
   const [navLinkStyle, setNavLinkStyle] = useState<'routes' | 'anchors' | 'none'>('routes');
   const [state, setState] = useState<SaveState>('idle');
   const [message, setMessage] = useState('');
+  const [catalog, setCatalog] = useState<CatalogSection[]>([]);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(false);
+  const [catalogMessage, setCatalogMessage] = useState('');
 
   const fullPreview = useMemo(() => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script></head><body>${html}</body></html>`, [html]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsCatalogLoading(true);
+    setCatalogMessage('');
+
+    fetch(`/api/qay/sections?siteType=${encodeURIComponent(siteType)}&sectionType=${encodeURIComponent(sectionType)}`)
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body?.error || 'Could not load section catalog.');
+        if (!cancelled) setCatalog(body?.data?.sections || []);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCatalog([]);
+          setCatalogMessage(error instanceof Error ? error.message : 'Could not load section catalog.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsCatalogLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sectionType, siteType]);
 
   async function saveSection() {
     setState('saving');
@@ -88,6 +126,49 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
               <span key={`${section.type}-${section.sectionId}`} className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
                 {section.type}: {section.sectionId}
               </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-medium">AI-usable section catalog</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Showing designs for {siteType} / {sectionType}. These are the exact sections the prompt translator can pick.
+              </p>
+            </div>
+            <span className="rounded-full border border-border px-2 py-1 text-xs text-muted-foreground">
+              {isCatalogLoading ? 'Loading' : `${catalog.length} designs`}
+            </span>
+          </div>
+          {catalogMessage && <p className="mt-3 text-xs text-red-500">{catalogMessage}</p>}
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {catalog.slice(0, 12).map((section) => (
+              <article key={`${section.sectionType}-${section.index}-${section.label}`} className="overflow-hidden rounded-lg border border-border">
+                <div className="flex items-start justify-between gap-3 border-b border-border p-3">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">[{section.index}] {section.label}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{section.manifestLine}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHtml(section.html);
+                      setLabel(section.label);
+                      setManifestLine(section.manifestLine);
+                    }}
+                    className="rounded-md border border-border px-2 py-1 text-xs hover:bg-accent"
+                  >
+                    Load
+                  </button>
+                </div>
+                <iframe
+                  title={`${section.label} preview`}
+                  srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script></head><body>${section.html}</body></html>`}
+                  className="h-40 w-full bg-white"
+                />
+              </article>
             ))}
           </div>
         </div>

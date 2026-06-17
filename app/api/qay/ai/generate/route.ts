@@ -59,6 +59,7 @@ export async function POST(request: Request) {
             pages,
             siteType: decision.siteType,
             navMode: decision.navMode,
+            sectionPicks: decision.sectionPicks,
             provider: 'section-library-v2',
             model: 'prompt-translator',
           },

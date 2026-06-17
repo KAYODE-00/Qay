@@ -40,6 +40,9 @@ type GenerateResponse = {
       type: string;
       sectionId: string;
     }>;
+    navMode?: string;
+    pages?: string[];
+    sectionPicks?: Record<string, number>;
   };
   error?: string;
   details?: string;
@@ -353,14 +356,18 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
           </div>
         ) : null}
 
-        {generationMeta?.provider === 'section-library' ? (
+        {generationMeta?.provider === 'section-library' || generationMeta?.provider === 'section-library-v2' ? (
           <div className="rounded-lg border border-border bg-card p-3 text-xs">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-medium text-foreground">Assembled from QAY sections</p>
                 <p className="mt-1 text-muted-foreground">
-                  {generationMeta.theme?.label || generationMeta.model} theme
+                  {generationMeta.theme?.label || generationMeta.model} system
                   {generationMeta.siteType ? ` for ${generationMeta.siteType}` : ''}
+                  {generationMeta.navMode ? ` · ${generationMeta.navMode}` : ''}
+                </p>
+                <p className="mt-2 text-muted-foreground">
+                  To replace a section, open the left sidebar, choose QAY Sections, then pick the same website type and section type.
                 </p>
               </div>
               <div className="flex gap-1">
@@ -381,6 +388,15 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
                 {generationMeta.sectionsUsed.map((section) => (
                   <span key={`${section.type}-${section.sectionId}`} className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
                     {section.type}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {generationMeta.sectionPicks && Object.keys(generationMeta.sectionPicks).length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {Object.entries(generationMeta.sectionPicks).map(([slot, index]) => (
+                  <span key={`${slot}-${index}`} className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">
+                    {slot} [{index}]
                   </span>
                 ))}
               </div>

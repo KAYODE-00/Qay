@@ -37,6 +37,7 @@ import { checkCircularReference, isCircularComponentReference } from '@/lib/comp
 import { cn, generateId } from '@/lib/utils';
 import { toast } from 'sonner';
 import { componentsApi } from '@/lib/api';
+import { htmlToLayers } from '@/lib/html-layer-converter';
 import type { Layer } from '@/types';
 import ComponentCard from './ComponentCard';
 import SaveLayoutDialog from './SaveLayoutDialog';
@@ -150,6 +151,17 @@ interface ElementLibraryProps {
   offsetLeft?: number;
   liveLayerUpdates?: UseLiveLayerUpdatesReturn | null;
 }
+
+type LibraryTab = 'elements' | 'layouts' | 'components' | 'sections';
+
+type QayCatalogSection = {
+  siteType: string;
+  sectionType: string;
+  index: number;
+  label: string;
+  manifestLine: string;
+  html: string;
+};
 
 // Category definitions
 const elementCategories: Record<string, string[]> = {
@@ -283,16 +295,22 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
   const [componentToDelete, setComponentToDelete] = useState<Component | null>(null);
   const [deletePreviewInfo, setDeletePreviewInfo] = useState<{ pageCount: number; componentCount: number } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [activeTab, setActiveTab] = React.useState<'elements' | 'layouts' | 'components'>(() => {
+  const [activeTab, setActiveTab] = React.useState<LibraryTab>(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('elementLibrary-activeTab');
-      if (saved && ['elements', 'layouts', 'components'].includes(saved)) {
-        return saved as 'elements' | 'layouts' | 'components';
+      if (saved && ['elements', 'layouts', 'components', 'sections'].includes(saved)) {
+        return saved as LibraryTab;
       }
     }
     return 'elements';
   });
   const [componentSearch, setComponentSearch] = useState('');
+  const [qaySectionSiteType, setQaySectionSiteType] = useState('ecommerce');
+  const [qaySectionType, setQaySectionType] = useState('navbar');
+  const [qaySectionTypes, setQaySectionTypes] = useState<string[]>(['navbar', 'hero', 'footer']);
+  const [qaySiteTypes, setQaySiteTypes] = useState<string[]>(['ecommerce']);
+  const [qaySections, setQaySections] = useState<QayCatalogSection[]>([]);
+  const [qaySectionsStatus, setQaySectionsStatus] = useState('');
   const tabRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
 
   const circularComponentIds = useMemo(() => {
@@ -364,8 +382,8 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
   React.useEffect(() => {
     const handleToggle = (event: Event) => {
       const tab = (event as CustomEvent<{ tab?: string }>).detail?.tab;
-      if (tab && ['elements', 'layouts', 'components'].includes(tab)) {
-        setActiveTab(tab as 'elements' | 'layouts' | 'components');
+      if (tab && ['elements', 'layouts', 'components', 'sections'].includes(tab)) {
+        setActiveTab(tab as LibraryTab);
       }
     };
     window.addEventListener('toggleElementLibrary', handleToggle);
@@ -378,6 +396,33 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
       sessionStorage.setItem('elementLibrary-activeTab', activeTab);
     }
   }, [activeTab]);
+
+  React.useEffect(() => {
+    if (!isOpen || activeTab !== 'sections') return;
+
+    let cancelled = false;
+    setQaySectionsStatus('Loading sections...');
+
+    fetch(`/api/qay/sections?siteType=${encodeURIComponent(qaySectionSiteType)}&sectionType=${encodeURIComponent(qaySectionType)}`)
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body?.error || 'Could not load QAY sections.');
+        if (cancelled) return;
+        setQaySections(body?.data?.sections || []);
+        setQaySectionTypes(body?.data?.sectionTypes || []);
+        setQaySiteTypes(body?.data?.siteTypes || []);
+        setQaySectionsStatus('');
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setQaySections([]);
+        setQaySectionsStatus(error instanceof Error ? error.message : 'Could not load QAY sections.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, isOpen, qaySectionSiteType, qaySectionType]);
 
   React.useEffect(() => {
     if (activeTab !== 'components') return;
@@ -693,6 +738,72 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
     // Close the panel
     onClose();
   };
+
+  const appendImportedLayers = useCallback((tree: Layer[], importedLayers: Layer[]) => {
+    const addToBody = (nodes: Layer[]): { found: boolean; layers: Layer[] } => {
+      let found = false;
+      const layers = nodes.map((node) => {
+        if (node.id === 'body' || node.name === 'body') {
+          found = true;
+          return { ...node, children: [...(node.children || []), ...importedLayers] };
+        }
+        if (node.children?.length) {
+          const result = addToBody(node.children);
+          if (result.found) {
+            found = true;
+            return { ...node, children: result.layers };
+          }
+        }
+        return node;
+      });
+      return { found, layers };
+    };
+
+    const result = addToBody(tree);
+    return result.found ? result.layers : [...tree, ...importedLayers];
+  }, []);
+
+  const handleAddQaySection = useCallback((section: QayCatalogSection) => {
+    const importedLayers = htmlToLayers(section.html);
+    if (!importedLayers.length) {
+      toast.error('This section could not be imported.');
+      return;
+    }
+
+    if (editingComponentId) {
+      const layers = componentDrafts[editingComponentId] || [];
+      updateComponentDraft(editingComponentId, appendImportedLayers(layers, importedLayers));
+      setSelectedLayerId(importedLayers[0]?.id || null);
+      toast.success(`Added ${section.label}`);
+      onClose();
+      return;
+    }
+
+    if (!currentPageId) {
+      toast.error('Open a page before adding a section.');
+      return;
+    }
+
+    const freshDraft = usePagesStore.getState().draftsByPageId[currentPageId];
+    if (!freshDraft) {
+      toast.error('Page draft is still loading.');
+      return;
+    }
+
+    setDraftLayers(currentPageId, appendImportedLayers(freshDraft.layers, importedLayers));
+    setSelectedLayerId(importedLayers[0]?.id || null);
+    toast.success(`Added ${section.label}`);
+    onClose();
+  }, [
+    appendImportedLayers,
+    componentDrafts,
+    currentPageId,
+    editingComponentId,
+    onClose,
+    setDraftLayers,
+    setSelectedLayerId,
+    updateComponentDraft,
+  ]);
 
   const handleAddLayout = async (layoutKey: string) => {
     // If editing component, use component draft instead
@@ -1432,7 +1543,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
         {/* Tabs */}
         <Tabs
           value={activeTab} onValueChange={(value) => {
-            const tab = value as 'elements' | 'layouts' | 'components';
+            const tab = value as LibraryTab;
             setActiveTab(tab);
             tabRefs.current[tab]?.scrollTo(0, 0);
           }}
@@ -1442,6 +1553,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
             <div className="p-4 pb-0">
               <TabsList className="w-full">
                 <TabsTrigger value="elements">Elements</TabsTrigger>
+                <TabsTrigger value="sections">QAY Sections</TabsTrigger>
                 <TabsTrigger value="layouts">Layouts</TabsTrigger>
                 <TabsTrigger value="components">Components</TabsTrigger>
               </TabsList>
@@ -1474,6 +1586,85 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
                 </div>
               </div>
             ))}
+          </TabsContent>
+
+          <TabsContent
+            value="sections" forceMount
+            ref={(el) => { tabRefs.current.sections = el; }} className="flex flex-col overflow-y-auto flex-1 px-4 pb-4 no-scrollbar"
+          >
+            <div className="flex flex-col gap-4 pb-5">
+              <div className="sticky top-0 z-10 border-b border-border bg-background pb-4 pt-5">
+                <Label>Designed QAY sections</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Pick by website type and section type. These are the same sections AI can choose.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <label className="text-xs text-muted-foreground">
+                    Website type
+                    <select
+                      value={qaySectionSiteType}
+                      onChange={(event) => setQaySectionSiteType(event.target.value)}
+                      className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                    >
+                      {qaySiteTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs text-muted-foreground">
+                    Section type
+                    <select
+                      value={qaySectionType}
+                      onChange={(event) => setQaySectionType(event.target.value)}
+                      className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                    >
+                      {qaySectionTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              {qaySectionsStatus ? (
+                <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  {qaySectionsStatus}
+                </div>
+              ) : null}
+
+              {!qaySectionsStatus && qaySections.length === 0 ? (
+                <Empty>
+                  <EmptyTitle>No sections found</EmptyTitle>
+                  <EmptyDescription>Try another website type or section type.</EmptyDescription>
+                </Empty>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-2">
+                {qaySections.map((section) => (
+                  <button
+                    key={`${section.sectionType}-${section.index}-${section.label}`}
+                    type="button"
+                    onClick={() => handleAddQaySection(section)}
+                    className="group overflow-hidden rounded-lg border border-border bg-card text-left transition hover:border-foreground/30"
+                  >
+                    <div className="flex items-start justify-between gap-3 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-foreground">
+                          [{section.index}] {section.label}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                          {section.manifestLine}
+                        </p>
+                      </div>
+                      <span className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground group-hover:bg-accent">
+                        Add
+                      </span>
+                    </div>
+                    <iframe
+                      title={`${section.label} preview`}
+                      srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script></head><body>${section.html}</body></html>`}
+                      className="pointer-events-none h-36 w-full bg-white"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent
