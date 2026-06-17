@@ -7,13 +7,52 @@ const SYSTEM_PROMPT = `You are the prompt-translation layer for QAY, a website b
 
 You NEVER invent layout, HTML, or visual design. Every navbar, hero, footer, and section already exists as a numbered design in a library.
 
-Your only job:
-1. Detect intent from the user's prompt.
-2. Read the available section manifest and pick section indexes.
-3. Decide single-page-scroll vs multi-page.
-4. Extract user-supplied brand name, colors, fonts, and image URLs exactly when present.
-5. Generate specific text content only for missing copy zones.
+## Your Job
+1. Detect the site type from the user's prompt.
+2. Read the available section manifest and pick ONLY section indexes that exist in the manifest for the detected site type.
+3. Decide single-page-scroll vs multi-page based on the prompt.
+4. Extract OR generate brand details.
+5. Generate compelling, realistic text content for every zone.
 6. Return ONLY valid JSON matching the SiteDecision schema. No markdown. No commentary.
+
+## CRITICAL: Section Compatibility Rules
+You MUST only pick sections that belong to the detected site type. Each site type has specific section types:
+- **restaurant**: nav, hero, menu, about, gallery, testimonials, contact, footer — uses MENU sections (dishes, prices, cuisine), NOT product grids or collections
+- **ecommerce**: nav, hero, collection, products, about, testimonials, cta, footer — uses PRODUCT sections (product grids, collections, shop), NOT menus or schedules
+- **portfolio**: nav, hero, features, about, gallery, testimonials, contact, footer — uses GALLERY and WORK sections
+- **agency**: nav, hero, features, about, team, testimonials, cta, footer — uses TEAM and FEATURES sections
+- **saas**: nav, hero, features, stats, testimonials, pricing, faq, cta, footer — uses PRICING and FAQ sections
+- **law/medical**: nav, hero, services, team, stats, testimonials, contact, footer — uses SERVICES and TEAM sections
+- **hotel**: nav, hero, features, gallery, pricing, testimonials, contact, footer — uses ROOM/AMENITY sections
+- **fitness**: nav, hero, features, schedule, team, testimonials, pricing, footer — uses SCHEDULE and TRAINER sections
+- **event**: nav, hero, schedule, team, gallery, stats, contact, footer — uses SCHEDULE and SPEAKER sections
+- **beauty**: nav, hero, services, gallery, team, testimonials, cta, footer — uses TREATMENT/SERVICE sections
+- **church**: nav, hero, about, schedule, team, gallery, cta, footer — uses SERMON/EVENT SCHEDULE sections
+- **construction**: nav, hero, services, gallery, stats, team, contact, footer — uses PROJECT/SERVICE sections
+
+NEVER assign a "menu" section to an ecommerce site. NEVER assign a "productGrid" or "collection" section to a restaurant. Each section type MUST match the site type's industry.
+
+## Text Content Generation
+Generate specific, realistic, compelling copy for ALL text zones:
+- Brand name: Use the user's specified name, or generate a memorable, industry-appropriate name
+- Hero title: A powerful, specific headline that captures the brand's essence — NOT generic marketing filler
+- Hero subtitle: A supporting line that adds detail and emotional depth
+- Hero CTA: Action-oriented button text specific to the industry (e.g., "Shop Collection" for ecommerce, "Book a Table" for restaurant, "Get Started" for SaaS)
+- Tagline: A memorable brand tagline that feels authentic to the niche
+- All text should feel like it was written by a professional copywriter who understands the specific industry
+
+## Color Palette Generation
+If the user did NOT specify colors in the prompt, generate a beautiful, cohesive color palette:
+- Choose colors that evoke the mood and industry of the brand
+- Ensure sufficient contrast between text and background
+- The accent color should be vibrant and attention-grabbing
+- Set isUserSupplied to true so the system uses your generated palette
+- Example moods: luxury = deep darks + gold/champagne, tech = navy + cyan, food = warm earth tones, fashion = bold contrast
+
+## Page Structure
+- For single-page prompts or simple sites: use single-page-scroll
+- For e-commerce, multi-service businesses, or when user mentions multiple pages: use multi-page
+- E-commerce sites should ALWAYS be multi-page with: Homepage, Shop, Product, Cart, Checkout, About, Contact
 
 Long briefs must be read in full. Map explicit page lists, product names, colors, slogans, CTAs, and features into the JSON.`;
 
@@ -46,20 +85,47 @@ const defaultFonts = {
   isUserSupplied: false,
 };
 
+export async function detectSiteTypeWithAi(prompt: string): Promise<SiteType> {
+  const localType = detectSiteTypeFast(prompt);
+  try {
+    const response = await callWithFallback(
+      `User prompt: "${prompt}"\n\nChoose the single most appropriate SiteType from this list:\n${JSON.stringify(Object.keys(SECTION_ORDER))}\n\nReturn only the lowercase string matching one of the options. No explanation, no punctuation.`,
+      'You are a site classifier. Return only the correct SiteType string.'
+    );
+    const cleaned = response.trim().toLowerCase().replace(/['"`.]/g, '');
+    if (Object.keys(SECTION_ORDER).includes(cleaned)) {
+      return cleaned as SiteType;
+    }
+  } catch (err) {
+    console.warn('[AI Classifier] Site classification failed, using fast local match:', err);
+  }
+  return localType;
+}
+
 export async function translatePromptToDecision(
   userPrompt: string,
   forcedSiteType?: SiteType
 ): Promise<SiteDecision> {
-  const siteType = forcedSiteType || detectSiteTypeFast(userPrompt);
+  const siteType = forcedSiteType || await detectSiteTypeWithAi(userPrompt);
   const manifest = await getLibraryManifest(siteType);
+
+  const validSlots = (SECTION_ORDER[siteType] || SECTION_ORDER.agency).map((s) => s === 'nav' ? 'navbar' : s);
 
   const userMessage = `
 SITE TYPE DETECTED: ${siteType}
+VALID SECTION TYPES FOR "${siteType}": ${validSlots.join(', ')}
 
-AVAILABLE SECTION DESIGNS FOR "${siteType}" (pick by index):
+AVAILABLE SECTION DESIGNS (pick by index number ONLY from the list below):
 ${manifest}
 
-USER REQUEST (read in full, map every explicit detail):
+IMPORTANT RULES:
+- Your sectionPicks keys MUST only use the section types listed above for "${siteType}".
+- Do NOT include section types from other site types (e.g., no "menu" for ecommerce, no "productGrid" for restaurant).
+- For each sectionPicks key, the value must be a valid index number from the manifest above.
+- Generate compelling, niche-specific text for brand name, tagline, hero title, hero subtitle.
+- If user did not specify colors, generate a beautiful cohesive palette and set isUserSupplied to true.
+
+USER REQUEST (read every detail carefully):
 """
 ${userPrompt}
 """
@@ -145,6 +211,31 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode']): Sit
 function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, siteType: SiteType): SiteDecision {
   const brandName = decision.brand?.name || extractBrandName(prompt, siteType);
   const navMode = decision.navMode || detectNavMode(prompt, siteType);
+
+  // Validate sectionPicks: only keep picks that belong to this site type
+  const validSectionTypes: Set<string> = new Set(
+    (SECTION_ORDER[siteType] || SECTION_ORDER.agency).map((s) => {
+      if (s === 'nav') return 'navbar';
+      if (s === 'products') return 'productGrid';
+      if (s === 'collection') return 'collectionsLanding';
+      return s;
+    })
+  );
+  // Also add the raw names so both 'products' and 'productGrid' work
+  for (const s of SECTION_ORDER[siteType] || SECTION_ORDER.agency) {
+    validSectionTypes.add(s);
+  }
+
+  const rawPicks = decision.sectionPicks || {};
+  const validatedPicks: Record<string, number> = {};
+  for (const [key, value] of Object.entries(rawPicks)) {
+    if (validSectionTypes.has(key)) {
+      validatedPicks[key] = value;
+    } else {
+      console.warn(`[QAY AI] Stripped invalid sectionPick "${key}" for site type "${siteType}"`);
+    }
+  }
+
   const textContent = {
     'brand-name': brandName,
     'footer-brand': brandName,
@@ -157,7 +248,7 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     siteType,
     confidence: decision.confidence || 'medium',
     navMode,
-    sectionPicks: decision.sectionPicks || {},
+    sectionPicks: validatedPicks,
     pages: decision.pages?.length ? decision.pages : defaultPages(siteType, navMode),
     brand: {
       name: brandName,

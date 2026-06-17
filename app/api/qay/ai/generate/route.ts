@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     if (body.output === 'html' && mode === 'page') {
       try {
         const decision = await translatePromptToDecision(prompt);
-        const { html, pages } = await assembleFromDecision(decision);
+        const { html, pages } = await assembleFromDecision(decision, prompt);
         console.log('[QAY AI generate] Generated section-library-v2 HTML:', html);
 
         return NextResponse.json({

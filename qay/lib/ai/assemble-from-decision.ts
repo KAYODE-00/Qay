@@ -1,8 +1,9 @@
 import type { SiteDecision } from './decision-schema';
 import { loadLibrary, normalizeDecisionSlot } from '../section-library/manifest';
 import type { SectionDesign } from '../section-library/manifest';
+import { callWithFallbackDetailed } from './providers';
 
-export async function assembleFromDecision(decision: SiteDecision): Promise<{
+export async function assembleFromDecision(decision: SiteDecision, prompt?: string): Promise<{
   html: string;
   pages: string[];
 }> {
@@ -59,21 +60,91 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
     return out;
   }
 
+  let rawHtml = '';
+  let pageNames: string[] = [];
+
   if (decision.navMode === 'single-page-scroll') {
     const page = decision.pages[0] || { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'footer'] };
     const body = page.sectionSlots.map(pickSection).join('\n\n');
-    return { html: `${themeCss}\n${injectContentAndImages(body)}`, pages: [page.name] };
+    rawHtml = `${themeCss}\n${injectContentAndImages(body)}`;
+    pageNames = [page.name];
+  } else {
+    const pageBlocks: string[] = [];
+    for (const page of decision.pages) {
+      const sectionsHtml = page.sectionSlots.map(pickSection).join('\n\n');
+      pageBlocks.push(`<div data-qay-page="${escapeAttribute(page.name)}" data-qay-slug="${escapeAttribute(page.slug)}">\n${injectContentAndImages(sectionsHtml)}\n</div>`);
+      pageNames.push(page.name);
+    }
+    rawHtml = `${themeCss}\n${pageBlocks.join('\n\n')}`;
   }
 
-  const pageBlocks: string[] = [];
-  const pageNames: string[] = [];
-  for (const page of decision.pages) {
-    const sectionsHtml = page.sectionSlots.map(pickSection).join('\n\n');
-    pageBlocks.push(`<div data-qay-page="${escapeAttribute(page.name)}" data-qay-slug="${escapeAttribute(page.slug)}">\n${injectContentAndImages(sectionsHtml)}\n</div>`);
-    pageNames.push(page.name);
-  }
+  const html = (prompt && prompt.length > 5) ? await personalizeAssembledHtml(rawHtml, decision, prompt) : rawHtml;
 
-  return { html: `${themeCss}\n${pageBlocks.join('\n\n')}`, pages: pageNames };
+  return { html, pages: pageNames };
+}
+
+async function personalizeAssembledHtml(html: string, decision: SiteDecision, prompt: string): Promise<string> {
+  try {
+    const systemPrompt = `You are an expert copywriter and content personalization engine for the QAY website builder.
+You will receive the user's original website prompt, the site type, brand details, and a fully styled HTML template.
+Your ONLY job is to rewrite ALL visible text content to make it hyper-specific to the user's brand and industry.
+
+## What to Personalize
+- ALL headings (h1-h6): Make them compelling, specific, and on-brand
+- ALL paragraphs: Write real, detailed copy — no placeholder text
+- ALL button/link text: Use action-oriented, industry-specific CTAs
+- ALL list items, table cells, card titles, card descriptions
+- ALL prices: Use realistic prices for the industry
+- ALL product/service names: Use specific, believable names
+- ALL menu items (for restaurants): Use real dish names with descriptions
+- ALL team member names and roles: Use realistic names and titles
+- ALL testimonial quotes and attribution: Write believable, specific reviews
+- ALL image alt attributes: Make them descriptive and relevant
+- Copyright year and company references: Use the brand name
+
+## Industry-Specific Copy Guidelines
+- **Restaurant**: Use appetizing food descriptions, real dish names, cooking techniques, ingredient details
+- **E-commerce**: Use product-focused copy, collection names, shopping CTAs ("Shop Now", "Add to Cart")
+- **SaaS/Tech**: Use feature-benefit language, metrics, integration mentions
+- **Law/Medical**: Use professional, trustworthy language with credentials
+- **Portfolio/Agency**: Use creative, confident language about capabilities
+- **Hotel**: Use hospitality language about experiences, amenities, bookings
+- **Fitness**: Use motivational, energetic language about programs and results
+
+## STRICT Rules
+- NEVER change ANY HTML tags, CSS classes, inline styles, IDs, or data-* attributes
+- NEVER alter any data-qay-*, data-qm, data-qay-commerce, or structural attributes
+- NEVER change image src URLs
+- Keep text length roughly similar to the template to preserve layout
+- Return ONLY the final HTML. No markdown code fences, no explanations, no commentary.`;
+
+    const userMessage = `User prompt: "${prompt}"
+Site type: ${decision.siteType}
+Brand name: ${decision.brand.name}
+Tagline: ${decision.brand.tagline}
+
+HTML template to personalize:
+"""
+${html}
+"""`;
+
+    const result = await callWithFallbackDetailed<string>(
+      userMessage,
+      systemPrompt,
+      (text) => {
+        const cleaned = text.trim().replace(/^```html\n?/i, '').replace(/\n?```$/i, '').trim();
+        if (!/<[a-z][\s\S]*>/i.test(cleaned)) {
+          throw new Error('Invalid HTML returned');
+        }
+        return cleaned;
+      }
+    );
+
+    return result.value || html;
+  } catch (err) {
+    console.warn('[QAY AI] Assembled HTML copy personalization failed, using raw template:', err);
+    return html;
+  }
 }
 
 function safeColor(value: string | undefined, fallback: string) {
