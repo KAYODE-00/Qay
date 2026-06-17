@@ -152,6 +152,68 @@ const siteImages: Record<SiteType, { hero: string; alt: string; gallery: string 
 };
 
 const variantNames = ['split', 'magazine', 'bento', 'sidebar', 'immersive', 'stacked', 'rail', 'poster', 'offset', 'cinematic'];
+const entranceAnimations = [
+  'fade-in',
+  'slide-up',
+  'slide-left',
+  'slide-right',
+  'scale-in',
+  'scroll-reveal',
+  'luxe-reveal',
+  'luxe-asym-reveal',
+  'line-grow',
+  'stagger-children',
+  'sidebar-slide',
+  'luxe-dock-reveal',
+] as const;
+const hoverAnimations = ['lift', 'scale', 'scale-btn', 'luxe-lift', 'img-zoom', 'border-gold', 'glow'] as const;
+const easePresets = ['power1.out', 'power2.out', 'power3.out', 'expo.out', 'back.out(1.2)'] as const;
+
+function motionForIndex(index: number) {
+  const safeIndex = Math.max(0, index - 1);
+  return {
+    entrance: entranceAnimations[safeIndex % entranceAnimations.length],
+    hover: hoverAnimations[safeIndex % hoverAnimations.length],
+    duration: (0.55 + (safeIndex % 6) * 0.12).toFixed(2),
+    hoverDuration: (0.18 + (safeIndex % 4) * 0.06).toFixed(2),
+    y: String([20, 32, 44, -24, 56, 16][safeIndex % 6]),
+    x: String([0, 48, -48, 72, -72, 24][safeIndex % 6]),
+    ease: easePresets[safeIndex % easePresets.length],
+  };
+}
+
+function withSectionMotion(section: QmSection, index: number): QmSection {
+  const motion = motionForIndex(index);
+  let html = section.html;
+
+  if (!html.includes('data-qay-animate=')) {
+    html = html.replace(
+      /^<(section|nav|footer)(\s)/i,
+      `<$1 data-qay-animate="${motion.entrance}" data-qay-duration="${motion.duration}" data-qay-y="${motion.y}" data-qay-x="${motion.x}" data-qay-ease="${motion.ease}"$2`
+    );
+  }
+
+  if (!html.includes('data-qay-hover=') && section.section_type !== 'nav' && section.section_type !== 'footer') {
+    html = html.replace(
+      /<(article|a|button)(\s)/i,
+      `<$1 data-qay-hover="${motion.hover}" data-qay-hover-duration="${motion.hoverDuration}"$2`
+    );
+  }
+
+  return {
+    ...section,
+    html,
+    keywords: Array.from(new Set([
+      ...section.keywords,
+      'animated',
+      motion.entrance,
+      motion.hover,
+      'transition',
+      'motion',
+    ])),
+    preview_description: `${section.preview_description || `${section.section_type} section`} Motion: ${motion.entrance}${section.section_type !== 'nav' && section.section_type !== 'footer' ? ` + ${motion.hover}` : ''}.`,
+  };
+}
 
 function linkSet(siteType: SiteType) {
   if (siteType === 'ecommerce') return [{ label: 'Shop', href: '/shop' }, { label: 'Story', href: '/about' }, { label: 'Support', href: '/contact' }];
@@ -292,7 +354,15 @@ function ensureSectionVariants(siteType: SiteType, library: Library): Library {
     }
   }
 
-  return { themes: library.themes, sections };
+  const occurrenceCount = new Map<string, number>();
+  const animatedSections = sections.map((section) => {
+    const key = `${section.theme_id}:${section.section_type}`;
+    const nextIndex = (occurrenceCount.get(key) || 0) + 1;
+    occurrenceCount.set(key, nextIndex);
+    return withSectionMotion(section, nextIndex);
+  });
+
+  return { themes: library.themes, sections: animatedSections };
 }
 
 function genericLibrary(siteType: SiteType): Library {
