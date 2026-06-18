@@ -45,9 +45,10 @@ export function pickSection(prompt: string, sectionType: SectionType, availableS
   const topScore = scored[0].score;
   const pool = scored
     .filter((item) => item.score === topScore)
-    .slice(0, Math.min(10, scored.length));
-  const hash = Array.from(`${normalized}:${sectionType}`).reduce((total, char) => total + char.charCodeAt(0), 0);
-  return pool[hash % pool.length]?.section;
+    .slice(0, Math.min(20, scored.length));
+  // Random selection from matching pool — ensures different layouts on each generation
+  const randomIndex = Math.floor(Math.random() * pool.length);
+  return pool[randomIndex]?.section;
 }
 
 function extractBusinessName(prompt: string) {
@@ -298,9 +299,10 @@ function pageWrapper(name: string, slug: string, html: string) {
 }
 
 function shouldGenerateMultiPage(prompt: string, siteType: SiteType) {
-  if (/\bsingle[- ]page\b|\bone page\b|\blanding page only\b/i.test(prompt)) return false;
-  if (siteType === 'ecommerce') return true;
-  return /multi[- ]page|pages?|login|signup|checkout|shop|about|contact|pricing|services|portfolio|blog/i.test(prompt);
+  // Only return false if user EXPLICITLY requests a single page
+  if (/\bsingle[- ]page\b|\bone page\b|\blanding page only\b|\blanding\b/i.test(prompt)) return false;
+  // Default to multi-page for all site types
+  return true;
 }
 
 function productCard(id: string, name: string, price: string, description: string, image: string) {

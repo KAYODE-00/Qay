@@ -112,7 +112,7 @@ export async function loadLibrary(siteType: SiteType | string): Promise<SiteType
   for (const sectionType of order) {
     const pool = sections
       .filter((section) => section.section_type === sectionType && section.is_active !== false)
-      .slice(0, 10);
+      .slice(0, 50);
 
     pool.forEach((section, index) => pushDesign(library, sectionType, {
       index,

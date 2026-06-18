@@ -13,6 +13,7 @@ import { AccountAvatar } from '@/qay/components/account/AccountAvatar';
 import { PlanRestrictionDialog } from '@/qay/components/billing/PlanRestrictionDialog';
 import { htmlToPageImports } from '@/lib/html-layer-converter';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 type DashboardProps = {
   initialSites: QaySite[];
@@ -78,6 +79,78 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
   const [error, setError] = useState<string | null>(null);
   const [restriction, setRestriction] = useState<{ title: string; message: string } | null>(null);
   const [demoStatus, setDemoStatus] = useState<string | null>(null);
+  const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [sitesToDelete, setSitesToDelete] = useState<string[]>([]);
+
+  function toggleSiteSelection(siteId: string) {
+    setSelectedSiteIds((current) =>
+      current.includes(siteId)
+        ? current.filter((id) => id !== siteId)
+        : [...current, siteId]
+    );
+  }
+
+  function selectAllSites() {
+    setSelectedSiteIds(sites.map((s) => s.id));
+  }
+
+  function clearSelection() {
+    setSelectedSiteIds([]);
+  }
+
+  function requestDeleteSite(siteId: string) {
+    setSitesToDelete([siteId]);
+    setDeleteConfirmOpen(true);
+  }
+
+  function requestDeleteSelectedSites() {
+    if (selectedSiteIds.length === 0) return;
+    setSitesToDelete(selectedSiteIds);
+    setDeleteConfirmOpen(true);
+  }
+
+  async function handleConfirmDelete() {
+    if (sitesToDelete.length === 0) return;
+
+    const previousSites = sites;
+    const idsToDelete = [...sitesToDelete];
+
+    // Optimistically remove from state
+    setSites((current) => current.filter((site) => !idsToDelete.includes(site.id)));
+    // Clear selections if deleted
+    setSelectedSiteIds((current) => current.filter((id) => !idsToDelete.includes(id)));
+
+    try {
+      const results = await Promise.all(
+        idsToDelete.map(async (siteId) => {
+          const response = await fetch(`/api/qay/sites/${siteId}`, { method: 'DELETE' });
+          const payload = await response.json().catch(() => null);
+          return { siteId, ok: response.ok, error: payload?.error || 'Unable to delete site' };
+        })
+      );
+
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        // Re-add failed ones to state
+        const failedIds = failed.map((f) => f.siteId);
+        const failedSites = previousSites.filter((site) => failedIds.includes(site.id));
+        setSites((current) => {
+          const unique = new Map();
+          [...current, ...failedSites].forEach((s) => unique.set(s.id, s));
+          return Array.from(unique.values());
+        });
+        toast.error(`Failed to delete ${failed.length} site(s): ` + failed.map((f) => f.error).join(', '));
+      } else {
+        toast.success(`Successfully deleted ${idsToDelete.length} site(s).`);
+      }
+    } catch (err) {
+      setSites(previousSites);
+      toast.error(err instanceof Error ? err.message : 'Unable to delete site(s)');
+    } finally {
+      setSitesToDelete([]);
+    }
+  }
 
   function openEditor(siteId: string) {
     window.location.assign(`/dashboard/sites/${siteId}/editor`);
@@ -225,25 +298,8 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
     }
   }
 
-  async function deleteSite(siteId: string) {
-    const confirmed = window.confirm('Delete this site? This cannot be undone.');
-    if (!confirmed) return;
-
-    const previousSites = sites;
-    setSites((current) => current.filter((site) => site.id !== siteId));
-
-    try {
-      const response = await fetch(`/api/qay/sites/${siteId}`, { method: 'DELETE' });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        setSites(previousSites);
-        toast.error(payload.error || 'Unable to delete site');
-      }
-    } catch (err) {
-      setSites(previousSites);
-      toast.error(err instanceof Error ? err.message : 'Unable to delete site');
-    }
+  function deleteSite(siteId: string) {
+    requestDeleteSite(siteId);
   }
 
   async function createDemoLink(siteId: string) {
@@ -406,9 +462,64 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
             <article
               key={site.id}
               className={view === 'grid'
-                ? 'rounded-lg border border-border bg-card p-4'
-                : 'flex items-center gap-4 rounded-lg border border-border bg-card p-4'}
+                ? 'relative group rounded-lg border border-border bg-card p-4'
+                : 'flex items-center gap-4 rounded-lg border border-border bg-card p-4 group'}
             >
+              {view === 'grid' ? (
+                <div className={`absolute left-3 top-3 z-10 transition-opacity duration-200 ${selectedSiteIds.length > 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSiteSelection(site.id);
+                    }}
+                    className={`flex size-6 items-center justify-center rounded-md border transition-all duration-200 ${
+                      selectedSiteIds.includes(site.id)
+                        ? 'border-foreground bg-foreground text-background scale-100 shadow-sm'
+                        : 'border-border bg-card text-transparent hover:border-foreground/50 hover:scale-105'
+                    }`}
+                  >
+                    {selectedSiteIds.includes(site.id) && (
+                      <svg
+                        className="size-3.5 stroke-[3]" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round" strokeLinejoin="round"
+                          strokeWidth="3" d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center shrink-0 pl-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSiteSelection(site.id);
+                    }}
+                    className={`flex size-6 items-center justify-center rounded-md border transition-all duration-200 ${
+                      selectedSiteIds.includes(site.id)
+                        ? 'border-foreground bg-foreground text-background scale-100 shadow-sm'
+                        : 'border-border bg-card text-transparent hover:border-foreground/50 hover:scale-105'
+                    }`}
+                  >
+                    {selectedSiteIds.includes(site.id) && (
+                      <svg
+                        className="size-3.5 stroke-[3]" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round" strokeLinejoin="round"
+                          strokeWidth="3" d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              )}
               <div
                 className={view === 'grid'
                   ? 'flex aspect-video items-center justify-center rounded-md border border-border bg-muted'
@@ -654,6 +765,52 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
         onOpenChange={(open) => { if (!open) setRestriction(null); }}
         title={restriction?.title}
         message={restriction?.message}
+      />
+
+      {selectedSiteIds.length > 0 && (
+        <div className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2 flex items-center gap-4 rounded-full border border-border bg-card/95 px-6 py-3 shadow-2xl backdrop-blur-md transition-all duration-300 ease-out transform translate-y-0">
+          <span className="text-xs font-semibold tracking-wide text-foreground/80">
+            {selectedSiteIds.length} site{selectedSiteIds.length > 1 ? 's' : ''} selected
+          </span>
+          <div className="h-4 w-px bg-border" />
+          <button
+            type="button"
+            onClick={selectedSiteIds.length === sites.length ? clearSelection : selectAllSites}
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground transition"
+          >
+            {selectedSiteIds.length === sites.length ? 'Deselect all' : 'Select all'}
+          </button>
+          <div className="h-4 w-px bg-border" />
+          <button
+            type="button"
+            onClick={requestDeleteSelectedSites}
+            className="flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-700 shadow-sm"
+          >
+            <Trash2 className="size-3.5" />
+            Delete Selected
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="rounded-full border border-border px-3 py-2 text-xs font-bold transition hover:bg-accent"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title={sitesToDelete.length === 1 ? 'Delete Site' : 'Delete Sites'}
+        description={
+          sitesToDelete.length === 1
+            ? `Delete site "${sites.find((s) => s.id === sitesToDelete[0])?.name || 'this site'}"? This action cannot be undone.`
+            : `Delete the ${sitesToDelete.length} selected sites? This action cannot be undone.`
+        }
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+        onConfirm={handleConfirmDelete}
       />
       </div>
     </main>

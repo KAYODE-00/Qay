@@ -37,9 +37,16 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
     const slot = normalizeDecisionSlot(sectionType);
     const pool = lib[slot] as SectionDesign[] | undefined;
     if (!pool?.length) return '';
-    const rawIndex = decision.sectionPicks[slot] ?? decision.sectionPicks[sectionType] ?? 0;
-    const index = Number.isFinite(Number(rawIndex)) ? Number(rawIndex) : 0;
-    return pool.find((item) => item.index === index)?.html || pool[index % pool.length]?.html || pool[0].html;
+    const rawIndex = decision.sectionPicks[slot] ?? decision.sectionPicks[sectionType];
+    // If AI picked a specific index, try to use it
+    if (rawIndex !== undefined && rawIndex !== null) {
+      const index = Number.isFinite(Number(rawIndex)) ? Number(rawIndex) : 0;
+      const exact = pool.find((item) => item.index === index);
+      if (exact) return exact.html;
+    }
+    // Random fallback — ensures different layouts when regenerating
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    return pool[randomIndex]?.html || pool[0].html;
   }
 
   function injectContentAndImages(html: string): string {

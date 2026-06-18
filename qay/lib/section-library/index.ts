@@ -151,7 +151,18 @@ const siteImages: Record<SiteType, { hero: string; alt: string; gallery: string 
   },
 };
 
-const variantNames = ['split', 'magazine', 'bento', 'sidebar', 'immersive', 'stacked', 'rail', 'poster', 'offset', 'cinematic'];
+const variantNames = [
+  'split', 'magazine', 'bento', 'sidebar', 'immersive',
+  'stacked', 'rail', 'poster', 'offset', 'cinematic',
+  'diagonal', 'mosaic', 'editorial', 'cascade', 'spotlight',
+  'ribbon', 'parallax', 'floating', 'layered', 'panorama',
+  'zigzag', 'marquee', 'brutalist', 'glassmorphic', 'minimal',
+  'neon-glow', 'duotone', 'asymmetric', 'card-stack', 'hero-grid',
+  'metro', 'masonry', 'carousel-strip', 'filmstrip', 'viewport',
+  'dock', 'orbital', 'radial', 'stepped', 'kinetic',
+  'revealer', 'slideshow', 'scroller', 'horizon', 'pillbox',
+  'tabloid', 'gallery-wall', 'band', 'curtain', 'hologram',
+];
 const entranceAnimations = [
   'fade-in',
   'slide-up',
@@ -428,7 +439,7 @@ function ensureSectionVariants(siteType: SiteType, library: Library): Library {
         && section.is_active !== false
       ));
 
-      for (let index = existing.length + 1; index <= 10; index += 1) {
+      for (let index = existing.length + 1; index <= 50; index += 1) {
         sections.push(makeVariantSection(siteType, theme, sectionType, index));
       }
     }

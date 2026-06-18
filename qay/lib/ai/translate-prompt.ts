@@ -178,10 +178,10 @@ function extractTagline(prompt: string, brandName: string, siteType: SiteType) {
 }
 
 function detectNavMode(prompt: string, siteType: SiteType): SiteDecision['navMode'] {
-  if (/\bsingle[- ]page\b|\bone page\b|\blanding page only\b/i.test(prompt)) return 'single-page-scroll';
-  if (siteType === 'ecommerce') return 'multi-page';
-  if (/\b(homepage|shop|product|cart|checkout|about page|contact page|pricing page|login|signup|pages?)\b/i.test(prompt)) return 'multi-page';
-  return 'single-page-scroll';
+  // Only single-page if user explicitly asks
+  if (/\bsingle[- ]page\b|\bone page\b|\blanding page only\b|\blanding\b/i.test(prompt)) return 'single-page-scroll';
+  // Default everything to multi-page
+  return 'multi-page';
 }
 
 function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode']): SiteDecision['pages'] {
@@ -206,6 +206,61 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode']): Sit
     { name: siteType === 'saas' || siteType === 'tech-startup' ? 'Features' : 'Services', slug: siteType === 'saas' || siteType === 'tech-startup' ? 'features' : 'services', sectionSlots: ['navbar', siteType === 'saas' || siteType === 'tech-startup' ? 'features' : 'services', 'footer'] },
     { name: 'Contact', slug: 'contact', sectionSlots: ['navbar', 'contact', 'footer'] },
   ];
+}
+
+function extractUserColors(prompt: string): Partial<SiteDecision['brand']['colors']> | null {
+  const colors: Partial<SiteDecision['brand']['colors']> = {};
+  let found = false;
+
+  // Match hex colors like #ff0000, #f00
+  const hexMatches = prompt.match(/#[0-9a-fA-F]{3,8}/g);
+  if (hexMatches?.length) {
+    found = true;
+    if (hexMatches.length >= 1) colors.accent = hexMatches[0];
+    if (hexMatches.length >= 2) colors.primary = hexMatches[1];
+    if (hexMatches.length >= 3) colors.background = hexMatches[2];
+  }
+
+  // Match named color keywords with intent
+  const colorMap: Record<string, string> = {
+    red: '#e53e3e', crimson: '#dc143c', scarlet: '#ff2400',
+    blue: '#3b82f6', navy: '#1e3a5f', 'royal blue': '#4169e1', cobalt: '#0047ab',
+    green: '#22c55e', emerald: '#059669', lime: '#84cc16', forest: '#228b22',
+    purple: '#8b5cf6', violet: '#7c3aed', indigo: '#4f46e5', lavender: '#967bb6',
+    pink: '#ec4899', rose: '#f43f5e', magenta: '#ff00ff', coral: '#ff7f50',
+    orange: '#f97316', amber: '#f59e0b', tangerine: '#ff9966',
+    yellow: '#eab308', gold: '#d4af37', champagne: '#f7e7ce',
+    teal: '#14b8a6', cyan: '#06b6d4', turquoise: '#40e0d0', aqua: '#00ffff',
+    black: '#111111', white: '#ffffff', cream: '#fffdd0', ivory: '#fffff0',
+    gray: '#6b7280', silver: '#c0c0c0', charcoal: '#36454f', slate: '#475569',
+    brown: '#92400e', chocolate: '#7b3f00', maroon: '#800000', burgundy: '#800020',
+    beige: '#f5f5dc', tan: '#d2b48c', khaki: '#c3b091',
+    mint: '#3eb489', sage: '#b2ac88', olive: '#808000',
+    peach: '#ffcba4', salmon: '#fa8072',
+    'neon green': '#39ff14', 'neon pink': '#ff6ec7', 'neon blue': '#1b03a3',
+    'dark mode': '#0a0a0a', 'dark theme': '#0a0a0a',
+  };
+
+  const lower = prompt.toLowerCase();
+  for (const [name, hex] of Object.entries(colorMap)) {
+    if (lower.includes(name)) {
+      found = true;
+      // Treat as accent color primarily; "dark mode/theme" sets background
+      if (name === 'dark mode' || name === 'dark theme') {
+        colors.background = hex;
+        colors.primary = '#ffffff';
+      } else if (name === 'black' && /\b(background|bg)\b/i.test(lower)) {
+        colors.background = hex;
+      } else if (name === 'white' && /\b(background|bg)\b/i.test(lower)) {
+        colors.background = hex;
+      } else {
+        if (!colors.accent) colors.accent = hex;
+        else if (!colors.primary) colors.primary = hex;
+      }
+    }
+  }
+
+  return found ? colors : null;
 }
 
 function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, siteType: SiteType): SiteDecision {
@@ -244,6 +299,18 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     ...decision.textContent,
   };
 
+  // Extract user-specified colors from the prompt text
+  const userColors = extractUserColors(prompt);
+  const aiColors = (decision.brand?.colors || {}) as Partial<SiteDecision['brand']['colors']>;
+
+  // User colors from prompt text take highest priority, then AI-generated colors, then defaults
+  const mergedColors = {
+    ...defaultColors[siteType],
+    ...(aiColors.isUserSupplied ? aiColors : {}),
+    ...(userColors || {}),
+    isUserSupplied: Boolean(userColors || aiColors.isUserSupplied),
+  };
+
   return {
     siteType,
     confidence: decision.confidence || 'medium',
@@ -253,11 +320,7 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     brand: {
       name: brandName,
       tagline: decision.brand?.tagline || extractTagline(prompt, brandName, siteType),
-      colors: {
-        ...defaultColors[siteType],
-        ...(decision.brand?.colors || {}),
-        isUserSupplied: Boolean(decision.brand?.colors?.isUserSupplied),
-      },
+      colors: mergedColors,
       fonts: {
         ...defaultFonts,
         ...(decision.brand?.fonts || {}),
