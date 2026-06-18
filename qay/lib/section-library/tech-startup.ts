@@ -107,7 +107,7 @@ export const sections: QmSection[] = [
       <span class="font-bold text-[var(--qm-text)]/50">Vercel</span>
       <span class="font-bold text-[var(--qm-text)]/50">Linear</span>
       <span class="font-bold text-[var(--qm-text)]/50">Notion</span>
-      <span class="font-bold text-[var(--qm-text)]/50">Stripe</span>
+      <span class="font-bold text-[var(--qm-text)]/50">Flutterwave</span>
       <span class="font-bold text-[var(--qm-text)]/50">Supabase</span>
     </div>
   </div>

@@ -81,7 +81,7 @@ export function getProductsTemplate(index: number, vars: TemplateVariables): str
       </div>
     </section>`,
 
-    // 2. Horizontal Scroll Stripe Layout
+    // 2. Horizontal Scroll Ribbon Layout
     `<section class="${style.bg} px-6 py-20 transition-colors duration-300">
       <div class="mx-auto max-w-7xl">
         <div class="mb-12 flex items-center justify-between">

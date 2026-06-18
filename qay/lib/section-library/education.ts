@@ -332,7 +332,7 @@ export const sections: QmSection[] = [
           <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&auto=format&q=85" alt="Student" class="h-10 w-10 rounded-full object-cover" data-qm="testimonial-1-image" />
           <div>
             <p class="text-sm font-semibold" data-qm="testimonial-1-name">Jessica Park</p>
-            <p class="text-xs text-[var(--qm-text-muted)]" data-qm="testimonial-1-role">Software Developer at Stripe</p>
+            <p class="text-xs text-[var(--qm-text-muted)]" data-qm="testimonial-1-role">Software Developer at QAY Labs</p>
           </div>
         </div>
       </div>

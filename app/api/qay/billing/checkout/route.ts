@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
-import { createPaddleCheckout, isPaddleConfigured } from '@/qay/lib/billing/paddle';
+import { createFlutterwaveCheckout, isFlutterwaveConfigured } from '@/qay/lib/billing/flutterwave';
 import { normalizeQayPlan, QAY_PLANS } from '@/qay/lib/billing/plan-limits';
 
 function getRequestOrigin(request: Request) {
@@ -44,21 +44,21 @@ export async function POST(request: Request) {
       });
     }
 
-    if (!isPaddleConfigured()) {
+    if (!isFlutterwaveConfigured()) {
       return NextResponse.json(
-        { error: 'Paddle billing is not configured yet.' },
+        { error: 'Flutterwave billing is not configured yet.' },
         { status: 503 }
       );
     }
 
-    const checkout = await createPaddleCheckout({
+    const checkout = await createFlutterwaveCheckout({
       plan,
       userId: user.id,
       customer: {
         email: user.email,
         name: user.user_metadata?.full_name || user.user_metadata?.display_name || user.email,
       },
-      redirectUrl: `${origin}/api/qay/billing/verify?provider=paddle&plan=${plan}`,
+      redirectUrl: `${origin}/api/qay/billing/verify?provider=flutterwave&plan=${plan}`,
     });
 
     return NextResponse.json({ data: checkout });

@@ -65,7 +65,7 @@ export function UpgradeModal({ plan }: UpgradeModalProps) {
       )}
       {billingStatus === 'test' && (
         <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
-          Billing test mode is on. Checkout was not sent to a live payment provider.
+          Billing test mode is on. Checkout was not sent to Flutterwave.
         </p>
       )}
       {error && (
@@ -80,7 +80,7 @@ export function UpgradeModal({ plan }: UpgradeModalProps) {
         disabled={isLoading}
         className="w-full bg-white text-black hover:bg-white/90"
       >
-        {isLoading ? 'Opening checkout...' : `Upgrade to ${planDetails.name}`}
+        {isLoading ? 'Opening Flutterwave...' : `Pay with Flutterwave - ${planDetails.name}`}
       </Button>
     </div>
   );
