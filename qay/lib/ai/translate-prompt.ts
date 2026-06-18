@@ -41,13 +41,22 @@ Generate specific, realistic, compelling copy for ALL text zones:
 - Tagline: A memorable brand tagline that feels authentic to the niche
 - All text should feel like it was written by a professional copywriter who understands the specific industry
 
-## Color Palette Generation
-If the user did NOT specify colors in the prompt, generate a beautiful, cohesive color palette:
-- Choose colors that evoke the mood and industry of the brand
-- Ensure sufficient contrast between text and background
-- The accent color should be vibrant and attention-grabbing
-- Set isUserSupplied to true so the system uses your generated palette
-- Example moods: luxury = deep darks + gold/champagne, tech = navy + cyan, food = warm earth tones, fashion = bold contrast
+## Color Palette Generation & Balancing
+You are responsible for generating a beautiful, professionally balanced color palette for the website:
+- **If the user specifies colors** (e.g., "red theme", "neon green and black", "#ff5500", "dark blue background"):
+  * Incorporate their chosen color(s) into the palette.
+  * You MUST balance the palette to prevent a "color riot" (clashing/overwhelming colors). Do NOT make both primary and accent the same bright color.
+  * Assign the user's main color to the 'accent' color.
+  * If they requested a dark mode, dark background, or black/navy theme, set the 'background' to a dark color (e.g., '#0a0a0a', '#0f172a') and set the 'primary' text color to a light color (e.g., '#ffffff', '#f1f5f9').
+  * If they did not ask for a dark background, keep the 'background' light (e.g. '#ffffff', '#f8fafc', or a very light/soft tint of their primary color, like '#fff5f5' for a red theme) to ensure readability and balance.
+  * Set the 'primary' color to a solid, readable text color (e.g. a deep slate '#1e293b' or charcoal '#111111' for light mode).
+  * Set the 'secondary' color to a harmonious, muted tone (e.g., '#475569', '#64748b').
+  * ALWAYS set 'isUserSupplied' to true.
+- **If the user does NOT specify colors**:
+  * Generate a beautiful, cohesive color palette that evokes the mood and industry of the brand.
+  * Ensure sufficient contrast. The accent color should be vibrant.
+  * Set 'isUserSupplied' to true so the system uses your generated palette.
+  * Example moods: luxury = deep darks + gold/champagne, tech = navy + cyan, food = warm earth tones, fashion = bold contrast.
 
 ## Page Structure
 - For single-page prompts or simple sites: use single-page-scroll
@@ -328,17 +337,40 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     ...decision.textContent,
   };
 
-  // Extract user-specified colors from the prompt text
+  // Extract user-specified colors from prompt text via regex as a fallback
   const userColors = extractUserColors(prompt);
   const aiColors = (decision.brand?.colors || {}) as Partial<SiteDecision['brand']['colors']>;
 
-  // User colors from prompt text take highest priority, then AI-generated colors, then defaults
-  const mergedColors = {
-    ...defaultColors[siteType],
-    ...(aiColors.isUserSupplied ? aiColors : {}),
-    ...(userColors || {}),
-    isUserSupplied: Boolean(userColors || aiColors.isUserSupplied),
-  };
+  let mergedColors;
+  if (aiColors.isUserSupplied) {
+    // Trust the AI generated balanced colors
+    mergedColors = {
+      ...defaultColors[siteType],
+      ...aiColors,
+    };
+  } else if (userColors) {
+    // Fallback to regex-extracted colors, but balance them:
+    const accent = userColors.accent || defaultColors[siteType].accent;
+    const background = userColors.background || defaultColors[siteType].background;
+    
+    // If background is dark, ensure primary is light, and vice-versa
+    const primary = userColors.primary || (isDark(background) ? '#ffffff' : '#111111');
+    const secondary = isDark(background) ? 'rgba(255,255,255,0.68)' : 'rgba(17,17,17,0.62)';
+
+    mergedColors = {
+      primary,
+      secondary,
+      accent,
+      background,
+      isUserSupplied: true,
+    };
+  } else {
+    // Default fallback
+    mergedColors = {
+      ...defaultColors[siteType],
+      isUserSupplied: false,
+    };
+  }
 
   // Enforce auth pages if auth keywords are present
   let pages = decision.pages?.length ? decision.pages : defaultPages(siteType, navMode, prompt);
@@ -395,4 +427,17 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     textContent,
     notes: decision.notes || [],
   };
+}
+
+function safeColor(value: string | undefined, fallback: string) {
+  return /^#[0-9a-f]{3,8}$/i.test(value || '') ? value as string : fallback;
+}
+
+function isDark(hex: string): boolean {
+  const c = safeColor(hex, '#ffffff').replace('#', '');
+  const normalized = c.length === 3 ? c.split('').map((char) => `${char}${char}`).join('') : c;
+  const r = parseInt(normalized.substring(0, 2), 16) || 0;
+  const g = parseInt(normalized.substring(2, 4), 16) || 0;
+  const b = parseInt(normalized.substring(4, 6), 16) || 0;
+  return (r * 299 + g * 587 + b * 114) / 1000 < 128;
 }

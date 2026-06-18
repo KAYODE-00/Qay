@@ -73,15 +73,16 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
   if (decision.navMode === 'single-page-scroll') {
     const page = decision.pages[0] || { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'footer'] };
     const body = page.sectionSlots.map(pickSection).join('\n\n');
-    const homepageHtml = injectContentAndImages(body);
+    let homepageHtml = injectContentAndImages(body);
     pageNames = [page.name];
 
     if (decision.pages.length > 1) {
-      const pageBlocks: string[] = [pageWrapper(page.name, page.slug, homepageHtml)];
-      for (let i = 1; i < decision.pages.length; i++) {
-        const p = decision.pages[i];
+      const pageBlocks: string[] = [];
+      const pagePromises = decision.pages.map(async (p, i) => {
         let content = '';
-        if (p.slug === 'login') {
+        if (i === 0) {
+          content = homepageHtml;
+        } else if (p.slug === 'login') {
           content = buildCustomLoginPage(decision.brand.name, decision.brand.tagline);
         } else if (p.slug === 'register') {
           content = buildCustomRegisterPage(decision.brand.name, decision.brand.tagline);
@@ -91,16 +92,30 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
           const sectionsHtml = p.sectionSlots.map(pickSection).join('\n\n');
           content = injectContentAndImages(sectionsHtml);
         }
-        pageBlocks.push(pageWrapper(p.name, p.slug, content));
-        pageNames.push(p.name);
+
+        if (prompt && prompt.length > 5 && p.slug !== 'login' && p.slug !== 'register' && p.slug !== 'dashboard') {
+          content = await personalizePageHtml(content, p.name, decision, prompt);
+        }
+        return { name: p.name, slug: p.slug, content };
+      });
+
+      const resolvedPages = await Promise.all(pagePromises);
+      for (const rp of resolvedPages) {
+        pageBlocks.push(pageWrapper(rp.name, rp.slug, rp.content));
+        if (rp.name !== page.name) {
+          pageNames.push(rp.name);
+        }
       }
       bodyHtml = pageBlocks.join('\n\n');
     } else {
+      if (prompt && prompt.length > 5) {
+        homepageHtml = await personalizePageHtml(homepageHtml, page.name, decision, prompt);
+      }
       bodyHtml = homepageHtml;
     }
   } else {
     const pageBlocks: string[] = [];
-    for (const page of decision.pages) {
+    const pagePromises = decision.pages.map(async (page) => {
       let content = '';
       if (page.slug === 'login') {
         content = buildCustomLoginPage(decision.brand.name, decision.brand.tagline);
@@ -112,13 +127,22 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
         const sectionsHtml = page.sectionSlots.map(pickSection).join('\n\n');
         content = injectContentAndImages(sectionsHtml);
       }
-      pageBlocks.push(pageWrapper(page.name, page.slug, content));
-      pageNames.push(page.name);
+
+      if (prompt && prompt.length > 5 && page.slug !== 'login' && page.slug !== 'register' && page.slug !== 'dashboard') {
+        content = await personalizePageHtml(content, page.name, decision, prompt);
+      }
+      return { name: page.name, slug: page.slug, content };
+    });
+
+    const resolvedPages = await Promise.all(pagePromises);
+    for (const rp of resolvedPages) {
+      pageBlocks.push(pageWrapper(rp.name, rp.slug, rp.content));
+      pageNames.push(rp.name);
     }
     bodyHtml = pageBlocks.join('\n\n');
   }
 
-  const personalizedBody = (prompt && prompt.length > 5) ? await personalizeAssembledHtml(bodyHtml, decision, prompt) : bodyHtml;
+  const personalizedBody = bodyHtml;
   
   // Materialize variables directly in the body HTML to fix Tailwind opacity compiling issues
   const materializedBody = materializeThemeVariables(personalizedBody, colors, fonts);
@@ -332,45 +356,42 @@ function materializeThemeVariables(html: string, colors: SiteDecision['brand']['
   ), html);
 }
 
-async function personalizeAssembledHtml(html: string, decision: SiteDecision, prompt: string): Promise<string> {
+async function personalizePageHtml(html: string, pageName: string, decision: SiteDecision, prompt: string): Promise<string> {
   try {
     const systemPrompt = `You are an expert copywriter and content personalization engine for the QAY website builder.
-You will receive the user's original website prompt, the site type, brand details, and a fully styled HTML template.
-Your ONLY job is to rewrite ALL visible text content to make it hyper-specific to the user's brand and industry.
+You will receive the user's original website prompt, the site type, brand details, page name ("${pageName}"), and a fully styled HTML page template.
+Your ONLY job is to rewrite ALL visible text content and image URLs on this page to make them hyper-specific to the user's brand, industry, and the page's purpose.
 
 ## What to Personalize
-- ALL headings (h1-h6): Make them compelling, specific, and on-brand
-- ALL paragraphs: Write real, detailed copy — no placeholder text
-- ALL button/link text: Use action-oriented, industry-specific CTAs
-- ALL list items, table cells, card titles, card descriptions
-- ALL prices: Use realistic prices for the industry
-- ALL product/service names: Use specific, believable names
-- ALL menu items (for restaurants): Use real dish names with descriptions
-- ALL team member names and roles: Use realistic names and titles
-- ALL testimonial quotes and attribution: Write believable, specific reviews
-- ALL image alt attributes: Make them descriptive and relevant
-- Copyright year and company references: Use the brand name
+- ALL headings (h1-h6): Make them compelling, specific, and on-brand.
+- ALL paragraphs: Write real, detailed copy — no placeholder text.
+- ALL button/link text: Use action-oriented, industry-specific CTAs.
+- ALL list items, table cells, card titles, card descriptions.
+- ALL prices: Use realistic prices for the industry/brand.
+- ALL product/service names: Use specific, believable names (e.g. for a phone store, use actual smartphone models, charger models, wireless accessories, etc.).
+- ALL testimonial quotes and attribution: Write believable, specific reviews.
+- ALL image alt attributes: Make them descriptive and relevant.
+- Copyright year and company references: Use the brand name.
 
-## Industry-Specific Copy Guidelines
-- **Restaurant**: Use appetizing food descriptions, real dish names, cooking techniques, ingredient details
-- **E-commerce**: Use product-focused copy, collection names, shopping CTAs ("Shop Now", "Add to Cart")
-- **SaaS/Tech**: Use feature-benefit language, metrics, integration mentions
-- **Law/Medical**: Use professional, trustworthy language with credentials
-- **Portfolio/Agency**: Use creative, confident language about capabilities
-- **Hotel**: Use hospitality language about experiences, amenities, bookings
-- **Fitness**: Use motivational, energetic language about programs and results
+## Image Personalization Guidelines
+- Rewrite the \`src\` attribute of any \`<img>\` tags to use highly relevant, professional, high-quality Unsplash image URLs that match the brand and page.
+- For a phone/mobile store: use images of modern smartphones, mobile screens, smart accessories, phone store interior, or people using phones.
+- Example high-quality Unsplash image IDs you can use or adapt (format: \`https://images.unsplash.com/photo-<id>?w=800&auto=format&q=85\`):
+  * Smartphones/accessories: photo-1511707171634-5f897ff02aa9, photo-1598327105666-5b89351aff97, photo-1565849906663-bd23445e2b20, photo-1573148195900-7845dcb9b127, photo-1512941937669-90a1b58e7e9c, photo-1580910051074-3eb694886505, photo-1517336714731-489689fd1ca8
+  * Tech store/retail: photo-1468495244123-6c6c332eeece, photo-1607082348824-0a96f2a4b9da, photo-1511512578047-dfb367046420, photo-1519389950473-47ba0277781c
+- Ensure all rewritten image src URLs are valid Unsplash image URLs.
 
 ## STRICT Rules
-- NEVER change ANY HTML tags, CSS classes, inline styles, IDs, or data-* attributes
-- NEVER alter any data-qay-*, data-qm, data-qay-commerce, or structural attributes
-- NEVER change image src URLs
-- Keep text length roughly similar to the template to preserve layout
+- NEVER change ANY HTML tags, CSS classes, inline styles, IDs, or data-* attributes.
+- NEVER alter any data-qay-*, data-qm, data-qay-commerce, or structural attributes.
+- Keep text length roughly similar to the template to preserve layout.
 - Return ONLY the final HTML. No markdown code fences, no explanations, no commentary.`;
 
     const userMessage = `User prompt: "${prompt}"
 Site type: ${decision.siteType}
 Brand name: ${decision.brand.name}
 Tagline: ${decision.brand.tagline}
+Page name: ${pageName}
 
 HTML template to personalize:
 """
@@ -391,7 +412,7 @@ ${html}
 
     return result.value || html;
   } catch (err) {
-    console.warn('[QAY AI] Assembled HTML copy personalization failed, using raw template:', err);
+    console.warn(`[QAY AI] Page "${pageName}" copy personalization failed, using raw template:`, err);
     return html;
   }
 }
