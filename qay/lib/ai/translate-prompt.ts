@@ -191,10 +191,22 @@ function detectNavMode(prompt: string, siteType: SiteType): SiteDecision['navMod
   return 'multi-page';
 }
 
-function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode']): SiteDecision['pages'] {
+function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode'], prompt?: string): SiteDecision['pages'] {
   const homeSlots = SECTION_ORDER[siteType] || SECTION_ORDER.agency;
+  
+  const hasAuth = prompt ? /\b(auth|login|register|signup|signin|sign-in|sign-up|protect|member|membership|dashboard)\b/i.test(prompt) : false;
+
+  const authPages = hasAuth ? [
+    { name: 'Login', slug: 'login', sectionSlots: ['navbar', 'login', 'footer'] },
+    { name: 'Register', slug: 'register', sectionSlots: ['navbar', 'register', 'footer'] },
+    { name: 'Dashboard', slug: 'dashboard', sectionSlots: ['navbar', 'dashboard', 'footer'] },
+  ] : [];
+
   if (navMode === 'single-page-scroll') {
-    return [{ name: 'Homepage', slug: '/', sectionSlots: homeSlots.map((slot) => slot === 'nav' ? 'navbar' : slot) }];
+    return [
+      { name: 'Homepage', slug: '/', sectionSlots: homeSlots.map((slot) => slot === 'nav' ? 'navbar' : slot) },
+      ...authPages
+    ];
   }
   if (siteType === 'ecommerce') {
     return [
@@ -205,6 +217,7 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode']): Sit
       { name: 'Checkout', slug: 'checkout', sectionSlots: ['navbar', 'checkout', 'footer'] },
       { name: 'About', slug: 'about', sectionSlots: ['navbar', 'brandStory', 'footer'] },
       { name: 'Contact', slug: 'contact', sectionSlots: ['navbar', 'contact', 'footer'] },
+      ...authPages
     ];
   }
   return [
@@ -212,6 +225,7 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode']): Sit
     { name: 'About', slug: 'about', sectionSlots: ['navbar', 'about', 'footer'] },
     { name: siteType === 'saas' || siteType === 'tech-startup' ? 'Features' : 'Services', slug: siteType === 'saas' || siteType === 'tech-startup' ? 'features' : 'services', sectionSlots: ['navbar', siteType === 'saas' || siteType === 'tech-startup' ? 'features' : 'services', 'footer'] },
     { name: 'Contact', slug: 'contact', sectionSlots: ['navbar', 'contact', 'footer'] },
+    ...authPages
   ];
 }
 
@@ -326,12 +340,47 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     isUserSupplied: Boolean(userColors || aiColors.isUserSupplied),
   };
 
+  // Enforce auth pages if auth keywords are present
+  let pages = decision.pages?.length ? decision.pages : defaultPages(siteType, navMode, prompt);
+  const hasAuth = /\b(auth|login|register|signup|signin|sign-in|sign-up|protect|member|membership|dashboard)\b/i.test(prompt);
+
+  if (hasAuth) {
+    if (!pages.some(p => p.slug === 'login')) {
+      pages.push({ name: 'Login', slug: 'login', sectionSlots: ['navbar', 'login', 'footer'] });
+    }
+    if (!pages.some(p => p.slug === 'register')) {
+      pages.push({ name: 'Register', slug: 'register', sectionSlots: ['navbar', 'register', 'footer'] });
+    }
+    if (!pages.some(p => p.slug === 'dashboard')) {
+      pages.push({ name: 'Dashboard', slug: 'dashboard', sectionSlots: ['navbar', 'dashboard', 'footer'] });
+    }
+  }
+
+  // Enforce navbar/footer present on all pages
+  pages = pages.map((page) => {
+    let slots = page.sectionSlots || [];
+    slots = slots.map((s) => {
+      if (s === 'nav') return 'navbar';
+      if (s === 'products') return 'productGrid';
+      if (s === 'collection') return 'collectionsLanding';
+      return s;
+    });
+
+    if (!slots.includes('navbar') && !slots.includes('nav')) {
+      slots.unshift('navbar');
+    }
+    if (!slots.includes('footer')) {
+      slots.push('footer');
+    }
+    return { ...page, sectionSlots: slots };
+  });
+
   return {
     siteType,
     confidence: decision.confidence || 'medium',
     navMode,
     sectionPicks: validatedPicks,
-    pages: decision.pages?.length ? decision.pages : defaultPages(siteType, navMode),
+    pages,
     brand: {
       name: brandName,
       tagline: decision.brand?.tagline || extractTagline(prompt, brandName, siteType),

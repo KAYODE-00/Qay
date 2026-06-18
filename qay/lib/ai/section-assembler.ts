@@ -290,6 +290,11 @@ async function personalizeSections(html: string, prompt: string, siteType: SiteT
     replaceTextZones(html, { ...deterministic, ...aiOverrides }),
     finalCssVariables
   );
+
+  const brandName = extractBusinessName(prompt) || (siteType === 'ecommerce' ? 'Baddo World' : 'QAY Studio');
+  
+  // Run full copywriting personalization on the materialized body
+  const personalized = await personalizeSectionsFullHtml(copied, prompt, siteType, brandName);
   
   const cssVars = Object.entries(finalCssVariables).map(([key, value]) => `  ${key}: ${value};`).join('\n');
   const fontLinks = theme.google_fonts.length
@@ -307,7 +312,70 @@ body {
   font-family: var(--qm-body-font);
 }
 </style>
-${copied}`;
+${personalized}`;
+}
+
+async function personalizeSectionsFullHtml(html: string, prompt: string, siteType: SiteType, brandName: string) {
+  try {
+    const systemPrompt = `You are an expert copywriter and content personalization engine for the QAY website builder.
+You will receive the user's original website prompt, the site type, brand name, and a fully styled HTML template.
+Your ONLY job is to rewrite ALL visible text content to make it hyper-specific to the user's brand and industry.
+
+## What to Personalize
+- ALL headings (h1-h6): Make them compelling, specific, and on-brand
+- ALL paragraphs: Write real, detailed copy — no placeholder text
+- ALL button/link text: Use action-oriented, industry-specific CTAs
+- ALL list items, table cells, card titles, card descriptions
+- ALL prices: Use realistic prices for the industry
+- ALL product/service names: Use specific, believable names
+- ALL menu items (for restaurants): Use real dish names with descriptions
+- ALL team member names and roles: Use realistic names and titles
+- ALL testimonial quotes and attribution: Write believable, specific reviews
+- ALL image alt attributes: Make them descriptive and relevant
+- Copyright year and company references: Use the brand name
+
+## Industry-Specific Copy Guidelines
+- **Restaurant**: Use appetizing food descriptions, real dish names, cooking techniques, ingredient details
+- **E-commerce**: Use product-focused copy, collection names, shopping CTAs ("Shop Now", "Add to Cart")
+- **SaaS/Tech**: Use feature-benefit language, metrics, integration mentions
+- **Law/Medical**: Use professional, trustworthy language with credentials
+- **Portfolio/Agency**: Use creative, confident language about capabilities
+- **Hotel**: Use hospitality language about experiences, amenities, bookings
+- **Fitness**: Use motivational, energetic language about programs and results
+
+## STRICT Rules
+- NEVER change ANY HTML tags, CSS classes, inline styles, IDs, or data-* attributes
+- NEVER alter any data-qay-*, data-qm, data-qay-commerce, or structural attributes
+- NEVER change image src URLs
+- Keep text length roughly similar to the template to preserve layout
+- Return ONLY the final HTML. No markdown code fences, no explanations, no commentary.`;
+
+    const userMessage = `User prompt: "${prompt}"
+Site type: ${siteType}
+Brand name: ${brandName}
+
+HTML template to personalize:
+"""
+${html}
+"""`;
+
+    const result = await callWithFallbackDetailed<string>(
+      userMessage,
+      systemPrompt,
+      (text) => {
+        const cleaned = text.trim().replace(/^```html\n?/i, '').replace(/\n?```$/i, '').trim();
+        if (!/<[a-z][\s\S]*>/i.test(cleaned)) {
+          throw new Error('Invalid HTML returned');
+        }
+        return cleaned;
+      }
+    );
+
+    return result.value || html;
+  } catch (err) {
+    console.warn('[QAY AI] Full HTML personalization failed, using raw:', err);
+    return html;
+  }
 }
 
 function pageWrapper(name: string, slug: string, html: string) {
@@ -326,7 +394,7 @@ function productCard(id: string, name: string, price: string, description: strin
   return `<article class="group overflow-hidden rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)]" data-qay-commerce="product-card" data-qay-product-id="${id}" data-qay-product-handle="${handle}" data-qay-hover="luxe-lift"><div class="overflow-hidden" data-qay-commerce="product-image" data-qay-hover="img-zoom"><img src="${image}" alt="${name}" class="aspect-[4/5] w-full object-cover" /></div><div class="p-5"><h3 class="text-xl font-black" data-qay-commerce="product-title">${name}</h3><p class="mt-2 text-sm leading-6 text-[var(--qm-text-muted)]" data-qay-commerce="product-description">${description}</p><div class="mt-5 flex items-center justify-between gap-3"><span class="font-black" data-qay-commerce="product-price">${price}</span><button type="button" class="rounded-full bg-[var(--qm-accent)] px-4 py-3 text-sm font-bold text-[var(--qm-accent-text)]" data-qay-commerce="add-to-cart" data-qay-product-id="${id}">Add to cart</button></div></div></article>`;
 }
 
-function ecommerceExtraPages(theme: QmTheme) {
+function ecommerceExtraPages(theme: QmTheme, prompt: string) {
   const pageClass = `min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] ${theme.is_dark ? 'dark:bg-[#050505] dark:text-white' : 'dark:bg-[#0d0d0d] dark:text-white'}`;
   const heroImage = 'https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=1400&auto=format&q=85';
   const hoodieImage = 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=900&auto=format&q=85';
@@ -344,7 +412,7 @@ function ecommerceExtraPages(theme: QmTheme) {
   const about = `${nav}<main class="${pageClass}"><section class="grid min-h-[680px] lg:grid-cols-2"><div class="flex flex-col justify-center px-6 py-20 md:px-16"><p class="text-xs font-bold uppercase tracking-[0.3em] text-[var(--qm-accent)]">Story</p><h1 class="mt-5 text-5xl font-black md:text-7xl" data-qm="about-title">Redefining streetwear culture from the streets to the world.</h1><p class="mt-6 text-lg leading-8 text-[var(--qm-text-muted)]" data-qm="about-copy">Baddo World blends Afro-fusion energy, bold cuts, and luxury street attitude for a generation that dresses with confidence.</p></div><img src="${heroImage}" alt="Streetwear brand editorial model" class="h-full min-h-[520px] w-full object-cover" /></section></main>${footer}`;
   const contact = `${nav}<main class="${pageClass}"><section class="px-5 py-16"><div class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.85fr_1.15fr]"><div><h1 class="text-5xl font-black md:text-7xl" data-qm="contact-title">Talk to Baddo World</h1><p class="mt-5 text-[var(--qm-text-muted)]">For orders, collaborations, wholesale, styling, and drop questions.</p></div><form class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6"><input name="name" placeholder="Name" class="mb-3 w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3" /><input name="email" placeholder="Email" class="mb-3 w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3" /><textarea name="message" placeholder="Message" class="h-36 w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3"></textarea><button type="submit" class="mt-4 rounded-xl bg-[var(--qm-accent)] px-6 py-4 font-bold text-[var(--qm-accent-text)]">Send message</button></form></div></section></main>${footer}`;
 
-  return [
+  const pages = [
     pageWrapper('Shop', 'shop', shop),
     pageWrapper('Product', 'product', product),
     pageWrapper('Cart', 'cart', cart),
@@ -352,10 +420,20 @@ function ecommerceExtraPages(theme: QmTheme) {
     pageWrapper('Collections', 'collections', collections),
     pageWrapper('About', 'about', about),
     pageWrapper('Contact', 'contact', contact),
-  ].join('\n\n');
+  ];
+
+  const hasAuth = /\b(auth|login|register|signup|signin|sign-in|sign-up|protect|member|membership|dashboard)\b/i.test(prompt);
+  if (hasAuth) {
+    const brandName = extractBusinessName(prompt) || 'Baddo World';
+    pages.push(pageWrapper('Login', 'login', buildCustomLoginPage(brandName, '')));
+    pages.push(pageWrapper('Register', 'register', buildCustomRegisterPage(brandName, '')));
+    pages.push(pageWrapper('Dashboard', 'dashboard', buildCustomDashboardPage(brandName, '')));
+  }
+
+  return pages.join('\n\n');
 }
 
-function genericExtraPages(siteType: SiteType, theme: QmTheme) {
+function genericExtraPages(siteType: SiteType, theme: QmTheme, prompt: string) {
   const pageClass = `min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] ${theme.is_dark ? 'dark:bg-[#050505] dark:text-white' : 'dark:bg-[#0d0d0d] dark:text-white'}`;
   const nav = `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/95 px-5 py-4 text-[var(--qm-text)] backdrop-blur"><div class="mx-auto flex max-w-7xl items-center justify-between gap-5"><a href="/" class="text-lg font-black" data-qm="brand-name">QAY Studio</a><div class="hidden items-center gap-6 text-sm font-bold md:flex"><a href="/about">About</a><a href="/services">Services</a><a href="/contact">Contact</a></div><button type="button" class="rounded-full border border-[var(--qm-border)] px-4 py-2 text-sm md:hidden" data-qay-click="toggle" data-qay-target="#generic-page-menu" data-qay-class="hidden">Menu</button></div><div id="generic-page-menu" class="hidden fixed inset-x-4 top-20 z-50 flex flex-col gap-3 rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-5 shadow-2xl md:hidden"><a href="/about">About</a><a href="/services">Services</a><a href="/contact">Contact</a></div></nav>`;
   const footer = `<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-bg)] px-5 py-12 text-[var(--qm-text)]"><div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between"><p class="font-black" data-qm="footer-brand">QAY Studio</p><div class="flex gap-5 text-sm text-[var(--qm-text-muted)]"><a href="/about">About</a><a href="/services">Services</a><a href="/contact">Contact</a></div></div></footer>`;
@@ -375,6 +453,14 @@ function genericExtraPages(siteType: SiteType, theme: QmTheme) {
     pages.splice(2, 0, pageWrapper('Pricing', 'pricing', pricing));
   }
 
+  const hasAuth = /\b(auth|login|register|signup|signin|sign-in|sign-up|protect|member|membership|dashboard)\b/i.test(prompt);
+  if (hasAuth) {
+    const brandName = extractBusinessName(prompt) || 'QAY Studio';
+    pages.push(pageWrapper('Login', 'login', buildCustomLoginPage(brandName, '')));
+    pages.push(pageWrapper('Register', 'register', buildCustomRegisterPage(brandName, '')));
+    pages.push(pageWrapper('Dashboard', 'dashboard', buildCustomDashboardPage(brandName, '')));
+  }
+
   return pages.join('\n\n');
 }
 
@@ -386,7 +472,25 @@ export async function assembleSiteFromSections(prompt: string, overrideSiteType?
   const sectionsUsed: AssemblyResult['sectionsUsed'] = [];
   const htmlParts: string[] = [];
 
-  for (const sectionType of sectionOrder) {
+  // Ensure navbar is at the beginning
+  const finalOrder = [...sectionOrder];
+  if (finalOrder[0] !== 'nav') {
+    const navIndex = finalOrder.indexOf('nav');
+    if (navIndex > -1) {
+      finalOrder.splice(navIndex, 1);
+    }
+    finalOrder.unshift('nav');
+  }
+  // Ensure footer is at the end
+  if (finalOrder[finalOrder.length - 1] !== 'footer') {
+    const footerIndex = finalOrder.indexOf('footer');
+    if (footerIndex > -1) {
+      finalOrder.splice(footerIndex, 1);
+    }
+    finalOrder.push('footer');
+  }
+
+  for (const sectionType of finalOrder) {
     const themed = sections.filter((section) => section.section_type === sectionType && section.theme_id === theme.theme_id && section.is_active !== false);
     const fallback = sections.filter((section) => section.section_type === sectionType && section.is_active !== false);
     const available = themed.length ? themed : fallback;
@@ -402,7 +506,7 @@ export async function assembleSiteFromSections(prompt: string, overrideSiteType?
     shouldGenerateMultiPage(prompt, siteType)
       ? [
         pageWrapper('Homepage', '/', bodyHtml),
-        siteType === 'ecommerce' ? ecommerceExtraPages(theme) : genericExtraPages(siteType, theme),
+        siteType === 'ecommerce' ? ecommerceExtraPages(theme, prompt) : genericExtraPages(siteType, theme, prompt),
       ].filter(Boolean).join('\n\n')
       : bodyHtml,
     prompt,
@@ -417,4 +521,202 @@ export async function assembleSiteFromSections(prompt: string, overrideSiteType?
     provider: 'section-library',
     siteType,
   };
+}
+
+function buildCustomLoginPage(brandName: string, tagline: string) {
+  return `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/80 px-6 py-4 text-[var(--qm-text)] backdrop-blur-xl">
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-5">
+    <a href="/" class="text-xl font-extrabold tracking-tight hover:opacity-85 transition" style="font-family:var(--qm-heading-font)" data-qm="brand-name">${brandName}</a>
+    <div class="flex items-center gap-4 text-xs font-semibold">
+      <a href="/register" class="hover:text-[var(--qm-accent)] transition">Register</a>
+    </div>
+  </div>
+</nav>
+<main class="min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] flex items-center justify-center py-20 px-5">
+  <div class="w-full max-w-md rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-8 shadow-2xl space-y-6">
+    <div class="text-center space-y-2">
+      <h1 class="text-3xl font-black uppercase tracking-tight" style="font-family:var(--qm-heading-font)" data-qm="login-title">Welcome Back</h1>
+      <p class="text-xs text-[var(--qm-text-muted)]" data-qm="login-subtitle">Enter your details to access your account dashboard</p>
+    </div>
+    <form class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider mb-2">Email Address</label>
+        <input type="email" required placeholder="name@example.com" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider mb-2">Password</label>
+        <input type="password" required placeholder="••••••••" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+      </div>
+      <div class="flex items-center justify-between text-xs">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" class="rounded border-[var(--qm-border)] text-[var(--qm-accent)] focus:ring-[var(--qm-accent)]" />
+          <span>Remember me</span>
+        </label>
+        <a href="#" class="text-[var(--qm-accent)] hover:underline font-semibold">Forgot password?</a>
+      </div>
+      <button type="button" class="w-full rounded-xl bg-[var(--qm-accent)] py-4 text-xs font-black uppercase tracking-wider text-[var(--qm-accent-text)] shadow-lg hover:opacity-90 active:scale-98 transition duration-200">Sign In</button>
+    </form>
+    <p class="text-center text-xs text-[var(--qm-text-muted)]">
+      Don't have an account? <a href="/register" class="text-[var(--qm-accent)] hover:underline font-semibold">Sign up</a>
+    </p>
+  </div>
+</main>
+<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-12 text-sm text-[var(--qm-text-muted)]">
+  <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <p class="font-black text-[var(--qm-text)]" style="font-family:var(--qm-heading-font)" data-qm="footer-brand">${brandName}</p>
+    <p class="text-[10px] uppercase tracking-wider">&copy; 2026 ${brandName}. ALL RIGHTS RESERVED.</p>
+  </div>
+</footer>`;
+}
+
+function buildCustomRegisterPage(brandName: string, tagline: string) {
+  return `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/80 px-6 py-4 text-[var(--qm-text)] backdrop-blur-xl">
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-5">
+    <a href="/" class="text-xl font-extrabold tracking-tight hover:opacity-85 transition" style="font-family:var(--qm-heading-font)" data-qm="brand-name">${brandName}</a>
+    <div class="flex items-center gap-4 text-xs font-semibold">
+      <a href="/login" class="hover:text-[var(--qm-accent)] transition">Login</a>
+    </div>
+  </div>
+</nav>
+<main class="min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] flex items-center justify-center py-20 px-5">
+  <div class="w-full max-w-md rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-8 shadow-2xl space-y-6">
+    <div class="text-center space-y-2">
+      <h1 class="text-3xl font-black uppercase tracking-tight" style="font-family:var(--qm-heading-font)" data-qm="register-title">Create Account</h1>
+      <p class="text-xs text-[var(--qm-text-muted)]" data-qm="register-subtitle">Sign up to get started and manage your member dashboard</p>
+    </div>
+    <form class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider mb-2">Full Name</label>
+        <input type="text" required placeholder="John Doe" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider mb-2">Email Address</label>
+        <input type="email" required placeholder="name@example.com" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider mb-2">Password</label>
+        <input type="password" required placeholder="••••••••" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+      </div>
+      <div class="flex items-center text-xs">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" required class="rounded border-[var(--qm-border)] text-[var(--qm-accent)]" />
+          <span>I agree to the <a href="#" class="text-[var(--qm-accent)] hover:underline">Terms & Privacy Policy</a></span>
+        </label>
+      </div>
+      <button type="button" class="w-full rounded-xl bg-[var(--qm-accent)] py-4 text-xs font-black uppercase tracking-wider text-[var(--qm-accent-text)] shadow-lg hover:opacity-90 active:scale-98 transition duration-200">Create Account</button>
+    </form>
+    <p class="text-center text-xs text-[var(--qm-text-muted)]">
+      Already have an account? <a href="/login" class="text-[var(--qm-accent)] hover:underline font-semibold">Sign in</a>
+    </p>
+  </div>
+</main>
+<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-12 text-sm text-[var(--qm-text-muted)]">
+  <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <p class="font-black text-[var(--qm-text)]" style="font-family:var(--qm-heading-font)" data-qm="footer-brand">${brandName}</p>
+    <p class="text-[10px] uppercase tracking-wider">&copy; 2026 ${brandName}. ALL RIGHTS RESERVED.</p>
+  </div>
+</footer>`;
+}
+
+function buildCustomDashboardPage(brandName: string, tagline: string) {
+  return `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/80 px-6 py-4 text-[var(--qm-text)] backdrop-blur-xl">
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-5">
+    <a href="/" class="text-xl font-extrabold tracking-tight hover:opacity-85 transition" style="font-family:var(--qm-heading-font)" data-qm="brand-name">${brandName}</a>
+    <div class="flex items-center gap-4 text-xs font-semibold">
+      <a href="/login" class="hover:text-[var(--qm-accent)] transition">Log Out</a>
+    </div>
+  </div>
+</nav>
+<main class="min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] py-10 px-5">
+  <div class="mx-auto max-w-7xl space-y-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[var(--qm-border)] pb-6">
+      <div class="space-y-1">
+        <h1 class="text-4xl font-black uppercase tracking-tight" style="font-family:var(--qm-heading-font)" data-qm="dashboard-title">Workspace Console</h1>
+        <p class="text-xs text-[var(--qm-text-muted)]" data-qm="dashboard-subtitle">Real-time control panel, membership state, and activity logs.</p>
+      </div>
+      <div class="flex gap-3">
+        <button class="rounded-xl border border-[var(--qm-border)] px-4 py-2 text-xs font-bold hover:bg-[var(--qm-surface)] transition">Settings</button>
+        <button class="rounded-xl bg-[var(--qm-accent)] px-4 py-2 text-xs font-bold text-[var(--qm-accent-text)] shadow hover:opacity-90 transition">New Action</button>
+      </div>
+    </div>
+    
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 space-y-2">
+        <p class="text-3xl font-black text-[var(--qm-accent)]" style="font-family:var(--qm-heading-font)" data-qm="stat-1-val">2,480</p>
+        <p class="text-[10px] font-bold uppercase tracking-wider text-[var(--qm-text-muted)]" data-qm="stat-1-lbl">Active Members</p>
+      </div>
+      <div class="rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 space-y-2">
+        <p class="text-3xl font-black text-[var(--qm-accent)]" style="font-family:var(--qm-heading-font)" data-qm="stat-2-val">$14,820</p>
+        <p class="text-[10px] font-bold uppercase tracking-wider text-[var(--qm-text-muted)]" data-qm="stat-2-lbl">Monthly Revenue</p>
+      </div>
+      <div class="rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 space-y-2">
+        <p class="text-3xl font-black text-[var(--qm-accent)]" style="font-family:var(--qm-heading-font)" data-qm="stat-3-val">99.98%</p>
+        <p class="text-[10px] font-bold uppercase tracking-wider text-[var(--qm-text-muted)]" data-qm="stat-3-lbl">System Health</p>
+      </div>
+      <div class="rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 space-y-2">
+        <p class="text-3xl font-black text-[var(--qm-accent)]" style="font-family:var(--qm-heading-font)" data-qm="stat-4-val">3 Active</p>
+        <p class="text-[10px] font-bold uppercase tracking-wider text-[var(--qm-text-muted)]" data-qm="stat-4-lbl">API Binders</p>
+      </div>
+    </div>
+    
+    <div class="grid gap-6 lg:grid-cols-3">
+      <div class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 lg:col-span-2 space-y-4">
+        <h3 class="font-bold text-lg" data-qm="logs-title">Activity Logs</h3>
+        <div class="divide-y divide-[var(--qm-border)]">
+          <div class="py-3 flex justify-between text-xs">
+            <span class="font-mono text-[var(--qm-text-muted)]">03:22:19</span>
+            <span data-qm="log-1">User authentication success</span>
+            <span class="text-emerald-500 font-bold">OK</span>
+          </div>
+          <div class="py-3 flex justify-between text-xs">
+            <span class="font-mono text-[var(--qm-text-muted)]">02:54:11</span>
+            <span data-qm="log-2">Payment provider sync success</span>
+            <span class="text-emerald-500 font-bold">OK</span>
+          </div>
+          <div class="py-3 flex justify-between text-xs">
+            <span class="font-mono text-[var(--qm-text-muted)]">02:08:44</span>
+            <span data-qm="log-3">Auto-deploy trigger</span>
+            <span class="text-[var(--qm-accent)] font-bold">PENDING</span>
+          </div>
+        </div>
+      </div>
+      <div class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 space-y-4">
+        <h3 class="font-bold text-lg" data-qm="profile-title">Account Profile</h3>
+        <div class="flex items-center gap-4">
+          <div class="size-12 rounded-full bg-[var(--qm-accent)] text-[var(--qm-accent-text)] flex items-center justify-center font-black">AD</div>
+          <div>
+            <p class="text-sm font-bold" data-qm="profile-name">Admin Member</p>
+            <p class="text-xs text-[var(--qm-text-muted)]" data-qm="profile-email">admin@qay.studio</p>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-[var(--qm-border)]">
+          <span class="rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-bold text-emerald-500 uppercase tracking-wider" data-qm="subscription-badge">Active Subscription</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-12 text-sm text-[var(--qm-text-muted)]">
+  <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <p class="font-black text-[var(--qm-text)]" style="font-family:var(--qm-heading-font)" data-qm="footer-brand">${brandName}</p>
+    <p class="text-[10px] uppercase tracking-wider">&copy; 2026 ${brandName}. ALL RIGHTS RESERVED.</p>
+  </div>
+</footer>`;
+}
+
+function safeColor(value: string | undefined, fallback: string) {
+  return /^#[0-9a-f]{3,8}$/i.test(value || '') ? value as string : fallback;
+}
+
+function isDark(hex: string): boolean {
+  const c = safeColor(hex, '#ffffff').replace('#', '');
+  const normalized = c.length === 3 ? c.split('').map((char) => `${char}${char}`).join('') : c;
+  const r = parseInt(normalized.substring(0, 2), 16) || 0;
+  const g = parseInt(normalized.substring(2, 4), 16) || 0;
+  const b = parseInt(normalized.substring(4, 6), 16) || 0;
+  return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+}
+
+function escapeCssString(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
