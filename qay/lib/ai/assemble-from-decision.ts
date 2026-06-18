@@ -67,13 +67,13 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
     return out;
   }
 
-  let rawHtml = '';
+  let bodyHtml = '';
   let pageNames: string[] = [];
 
   if (decision.navMode === 'single-page-scroll') {
     const page = decision.pages[0] || { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'footer'] };
     const body = page.sectionSlots.map(pickSection).join('\n\n');
-    rawHtml = `${themeCss}\n${injectContentAndImages(body)}`;
+    bodyHtml = injectContentAndImages(body);
     pageNames = [page.name];
   } else {
     const pageBlocks: string[] = [];
@@ -82,10 +82,11 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
       pageBlocks.push(`<div data-qay-page="${escapeAttribute(page.name)}" data-qay-slug="${escapeAttribute(page.slug)}">\n${injectContentAndImages(sectionsHtml)}\n</div>`);
       pageNames.push(page.name);
     }
-    rawHtml = `${themeCss}\n${pageBlocks.join('\n\n')}`;
+    bodyHtml = pageBlocks.join('\n\n');
   }
 
-  const html = (prompt && prompt.length > 5) ? await personalizeAssembledHtml(rawHtml, decision, prompt) : rawHtml;
+  const personalizedBody = (prompt && prompt.length > 5) ? await personalizeAssembledHtml(bodyHtml, decision, prompt) : bodyHtml;
+  const html = `${themeCss}\n${personalizedBody}`;
 
   return { html, pages: pageNames };
 }

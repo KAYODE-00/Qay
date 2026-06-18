@@ -2,9 +2,13 @@ import { callWithFallbackDetailed } from '@/qay/lib/ai/providers';
 import { getLibraryForType } from '@/qay/lib/section-library';
 import { SECTION_ORDER, SITE_TYPE_KEYWORDS } from '@/qay/lib/section-library/types';
 import type { AssemblyResult, QmSection, QmTheme, SectionType, SiteType } from '@/qay/lib/section-library/types';
+import { extractUserColors } from './translate-prompt';
 
 export function detectSiteType(prompt: string): SiteType {
   const normalized = prompt.toLowerCase();
+  if (/\b(store|shop|ecommerce|e-commerce)\b/i.test(normalized)) {
+    return 'ecommerce';
+  }
   let bestMatch: SiteType = 'agency';
   let bestScore = 0;
 
@@ -223,8 +227,8 @@ function deterministicCopy(prompt: string, siteType: SiteType): Record<string, s
   };
 }
 
-function materializeThemeVariables(html: string, theme: QmTheme) {
-  return Object.entries(theme.css_variables).reduce((current, [key, value]) => (
+function materializeThemeVariables(html: string, cssVariables: Record<string, string>) {
+  return Object.entries(cssVariables).reduce((current, [key, value]) => (
     current.replaceAll(`var(${key})`, value)
   ), html);
 }
@@ -271,11 +275,23 @@ async function aiCopyOverrides(html: string, prompt: string, siteType: SiteType)
 async function personalizeSections(html: string, prompt: string, siteType: SiteType, theme: QmTheme) {
   const deterministic = deterministicCopy(prompt, siteType);
   const aiOverrides = await aiCopyOverrides(html, prompt, siteType);
+
+  // Extract user-specified colors from the prompt
+  const userColors = extractUserColors(prompt);
+  const finalCssVariables = {
+    ...theme.css_variables,
+    ...(userColors?.primary ? { '--qm-primary': userColors.primary } : {}),
+    ...(userColors?.secondary ? { '--qm-secondary': userColors.secondary } : {}),
+    ...(userColors?.accent ? { '--qm-accent': userColors.accent } : {}),
+    ...(userColors?.background ? { '--qm-bg': userColors.background } : {}),
+  };
+
   const copied = materializeThemeVariables(
     replaceTextZones(html, { ...deterministic, ...aiOverrides }),
-    theme
+    finalCssVariables
   );
-  const cssVars = Object.entries(theme.css_variables).map(([key, value]) => `  ${key}: ${value};`).join('\n');
+  
+  const cssVars = Object.entries(finalCssVariables).map(([key, value]) => `  ${key}: ${value};`).join('\n');
   const fontLinks = theme.google_fonts.length
     ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?${theme.google_fonts.map((font) => `family=${font}`).join('&')}&display=swap" rel="stylesheet">`
     : '';

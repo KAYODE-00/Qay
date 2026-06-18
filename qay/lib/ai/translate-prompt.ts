@@ -86,6 +86,10 @@ const defaultFonts = {
 };
 
 export async function detectSiteTypeWithAi(prompt: string): Promise<SiteType> {
+  const p = prompt.toLowerCase();
+  if (/\b(store|shop|ecommerce|e-commerce)\b/i.test(p)) {
+    return 'ecommerce';
+  }
   const localType = detectSiteTypeFast(prompt);
   try {
     const response = await callWithFallback(
@@ -142,6 +146,9 @@ Respond with ONLY the JSON SiteDecision object.`;
 
 export function detectSiteTypeFast(prompt: string): SiteType {
   const p = prompt.toLowerCase();
+  if (/\b(store|shop|ecommerce|e-commerce)\b/i.test(p)) {
+    return 'ecommerce';
+  }
   const scores: Partial<Record<SiteType, number>> = {};
 
   for (const [type, keywords] of Object.entries(SITE_TYPE_KEYWORDS) as Array<[SiteType, string[]]>) {
@@ -208,7 +215,7 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode']): Sit
   ];
 }
 
-function extractUserColors(prompt: string): Partial<SiteDecision['brand']['colors']> | null {
+export function extractUserColors(prompt: string): Partial<SiteDecision['brand']['colors']> | null {
   const colors: Partial<SiteDecision['brand']['colors']> = {};
   let found = false;
 
@@ -257,6 +264,14 @@ function extractUserColors(prompt: string): Partial<SiteDecision['brand']['color
         if (!colors.accent) colors.accent = hex;
         else if (!colors.primary) colors.primary = hex;
       }
+    }
+  }
+
+  if (found) {
+    if (colors.accent && !colors.primary) {
+      colors.primary = colors.accent;
+    } else if (colors.primary && !colors.accent) {
+      colors.accent = colors.primary;
     }
   }
 
