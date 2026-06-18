@@ -1,5 +1,6 @@
 import { SECTION_ORDER } from './types';
 import type { QmSection, QmTheme, SectionType, SiteType } from './types';
+import { getTemplateHtml } from './templates';
 
 type Library = { themes: QmTheme[]; sections: QmSection[] };
 
@@ -269,6 +270,21 @@ function makeVariantSection(siteType: SiteType, theme: QmTheme, sectionType: Sec
     is_active: true,
   };
 
+  const templateHtml = getTemplateHtml(sectionType, index - 1, {
+    siteType,
+    idBase,
+    cta,
+    navLinks,
+    mobileLinks,
+    heroImage: image.hero,
+    heroAlt: image.alt,
+    galleryImage: image.gallery,
+  });
+
+  if (templateHtml) {
+    return { ...base, html: templateHtml };
+  }
+
   if (sectionType === 'nav') {
     const cartButton = siteType === 'ecommerce'
       ? `<button type="button" data-qay-commerce="cart-button" data-qay-cart-label="Cart" class="rounded-full bg-[var(--qm-accent)] px-4 py-2 text-sm font-bold text-[var(--qm-accent-text)]">Cart (0)</button>`
@@ -420,8 +436,8 @@ function makeVariantSection(siteType: SiteType, theme: QmTheme, sectionType: Sec
     ];
     htmlTemplate = templates[itemIndex];
   } else {
-    // Standard Fallback layout (about, features, testimonials, pricing, team, stats, faq, cta, timeline, services, schedule, etc. that do not match the above)
-    htmlTemplate = `<section class="bg-[var(--qm-bg)] px-5 py-20 text-[var(--qm-text)]"><div class="mx-auto max-w-7xl"><div class="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]"><div data-qay-animate="slide-up"><p class="text-xs font-bold uppercase tracking-[0.28em] text-[var(--qm-accent)]">${sectionType}</p><h2 class="mt-5 max-w-3xl text-4xl font-black leading-tight md:text-6xl" data-qm="${sectionType === 'about' ? 'about-title' : 'features-title'}">A section with clear hierarchy and useful content.</h2><p class="mt-5 max-w-xl text-lg leading-8 text-[var(--qm-text-muted)]" data-qm="${sectionType === 'about' ? 'about-copy' : 'section-copy'}">Purposeful copy, strong spacing, motion, and details that match the site type.</p></div><div class="grid gap-4 sm:grid-cols-2" data-qay-animate="stagger-children"><article class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6" data-qay-hover="lift"><p class="text-3xl font-black">01</p><h3 class="mt-8 text-xl font-bold">Specific promise</h3><p class="mt-3 text-sm leading-6 text-[var(--qm-text-muted)]">A concrete benefit visitors can understand quickly.</p></article><article class="rounded-3xl bg-[var(--qm-accent)] p-6 text-[var(--qm-accent-text)]"><p class="text-3xl font-black">02</p><h3 class="mt-8 text-xl font-bold">Premium rhythm</h3><p class="mt-3 text-sm leading-6 opacity-80">Contrast, spacing, and hierarchy built for a stronger page.</p></article><article class="overflow-hidden rounded-3xl sm:col-span-2" data-qay-hover="img-zoom"><img src="${image.gallery}" alt="${image.alt}" class="h-72 w-full object-cover" /></article></div></div></div></section>`;
+    // Standard Fallback layout for any remaining section types
+    htmlTemplate = `<section class="bg-[var(--qm-bg)] px-5 py-20 text-[var(--qm-text)]"><div class="mx-auto max-w-7xl"><div class="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]"><div data-qay-animate="slide-up"><p class="text-xs font-bold uppercase tracking-[0.28em] text-[var(--qm-accent)]">${sectionType}</p><h2 class="mt-5 max-w-3xl text-4xl font-black leading-tight md:text-6xl" data-qm="section-title">A section with clear hierarchy and useful content.</h2><p class="mt-5 max-w-xl text-lg leading-8 text-[var(--qm-text-muted)]" data-qm="section-copy">Purposeful copy, strong spacing, motion, and details that match the site type.</p></div><div class="grid gap-4 sm:grid-cols-2" data-qay-animate="stagger-children"><article class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6" data-qay-hover="lift"><p class="text-3xl font-black">01</p><h3 class="mt-8 text-xl font-bold">Specific promise</h3><p class="mt-3 text-sm leading-6 text-[var(--qm-text-muted)]">A concrete benefit visitors can understand quickly.</p></article><article class="rounded-3xl bg-[var(--qm-accent)] p-6 text-[var(--qm-accent-text)]"><p class="text-3xl font-black">02</p><h3 class="mt-8 text-xl font-bold">Premium rhythm</h3><p class="mt-3 text-sm leading-6 opacity-80">Contrast, spacing, and hierarchy built for a stronger page.</p></article><article class="overflow-hidden rounded-3xl sm:col-span-2" data-qay-hover="img-zoom"><img src="${image.gallery}" alt="${image.alt}" class="h-72 w-full object-cover" /></article></div></div></div></section>`;
   }
 
   return { ...base, html: htmlTemplate };
@@ -432,7 +448,7 @@ function ensureSectionVariants(siteType: SiteType, library: Library): Library {
   const sectionOrder = SECTION_ORDER[siteType] || SECTION_ORDER.agency;
 
   for (const theme of library.themes) {
-    for (const sectionType of sectionOrder) {
+    for (const sectionType of [...sectionOrder, 'auth' as SectionType]) {
       const existing = sections.filter((section) => (
         section.theme_id === theme.theme_id
         && section.section_type === sectionType

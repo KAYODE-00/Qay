@@ -81,11 +81,16 @@ Rules:
 - Use absolute image URLs only, preferably Unsplash URLs with width and quality params.
 - Do not include JavaScript, event handlers, onclick, external scripts, GSAP scripts, or application/qay-interactions scripts.
 - Interactions must use only these native QAY data attributes:
-  data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
+  data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal|zoom-out|hero-shrink"
   data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
   data-qay-click="toggle"
   data-qay-target="#element-id"
   data-qay-class="hidden"
+  data-qay-scroll="expand|shrink|parallax|fade-in"
+  data-qay-scroll-start="top bottom"
+  data-qay-scroll-end="bottom top"
+  data-qay-scroll-scrub="true"
+  data-qay-scale="0.85 to 1.15"
 - Optional motion tuning should be varied per element, not copied as one preset:
   data-qay-duration can be 0.35 to 1.4
   data-qay-hover-duration can be 0.15 to 0.5
@@ -98,6 +103,7 @@ Rules:
   <div id="mobile-menu" class="hidden fixed ... flex ...">...</div>
 - Do not output a desktop nav only. Small screens must have a visible Menu/Hamburger button and a hidden mobile menu/drawer.
 - For image zoom, put data-qay-hover="img-zoom" on an overflow-hidden wrapper that contains one img.
+- For premium scroll effects, use data-qay-scroll sparingly on hero images, editorial media, dashboards, and image stacks. Parallax should use subtle data-qay-y values. Expand/shrink should use data-qay-scale.
 - Use data-qay-* tastefully on hero content, cards, timeline rows, image wrappers, and buttons.
 - For UI state such as menus, modal panels, drawers, accordions, tabs-as-simple-panels, and filter panels, use data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden". The target must include the matching id, the hidden class when closed, and a display class such as flex, grid, or block.
 - Ecommerce/storefront hooks:
@@ -186,10 +192,11 @@ Avoid the ugly generic pattern: centered headline, three equal cards, gray backg
 Do not generate a safe generic SaaS/agency layout unless the prompt asks for SaaS/agency. A restaurant, clinic, school, church, hotel, portfolio, ecommerce store, course, directory, event, law firm, real estate site, marketplace, and community must each have a different visual language, vocabulary, page set, imagery, and CTAs.
 Full pages with nav must include a small-screen menu button using data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden"; the target must have that id, hidden, and a display class.
 Use QAY motion/state hooks where useful:
-data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
+data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal|zoom-out|hero-shrink"
 data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
 data-qay-click="toggle" data-qay-target="#id" data-qay-class="hidden"
 Optional tuning: data-qay-duration 0.35-1.4, data-qay-hover-duration 0.15-0.5, data-qay-y -80..80, data-qay-x -100..100, data-qay-ease power1.out|power2.out|power3.out|expo.out|back.out(1.2).
+Premium scroll effects: data-qay-scroll="expand|shrink|parallax|fade-in", data-qay-scroll-start, data-qay-scroll-end, data-qay-scroll-scrub="true", and data-qay-scale for grow/shrink scenes.
 For ecommerce, include product grid/cards/images/titles/descriptions/prices, add-to-cart, remove-from-cart where useful, cart button/count, hidden cart drawer, cart items, cart close/cancel, checkout button, product ids/handles, optional variant ids, trust/shipping content, and a checkout page when the store owns checkout UI. Use data-qay-commerce hooks exactly.
 For auth, membership, SaaS account, portal, course, or community flows, include useful auth pages/forms with data-qay-site-auth-form="signin|signup|forgot-password|reset-password", data-qay-site-auth-error, data-qay-site-auth-success, and relative links.
 For multi-page sites, return direct sibling wrappers with Homepage first: <div data-qay-page="Homepage" data-qay-slug="/">...</div>. Generate the natural page set, up to 5 pages, and keep nav hrefs aligned with slugs.
@@ -862,8 +869,9 @@ function buildQayHtmlCapabilityReference(prompt: string) {
     'Core QAY reference:',
     '- Tailwind classes become editable styles; semantic HTML becomes editable layers.',
     '- Use QAY state for menus/drawers/modals/accordions: data-qay-click="toggle" data-qay-target="#id" data-qay-class="hidden".',
-    '- Use QAY motion when useful: data-qay-animate, data-qay-hover, data-qay-duration, data-qay-y, data-qay-x, data-qay-ease.',
-    '- Supported animate values: fade-in, slide-up, slide-left, slide-right, scale-in, scroll-reveal, luxe-reveal, luxe-asym-reveal, line-grow, stagger-children, sidebar-slide, luxe-dock-reveal.',
+    '- Use QAY motion when useful: data-qay-animate, data-qay-hover, data-qay-scroll, data-qay-duration, data-qay-y, data-qay-x, data-qay-scale, data-qay-ease.',
+    '- Supported animate values: fade-in, slide-up, slide-left, slide-right, scale-in, scroll-reveal, luxe-reveal, luxe-asym-reveal, line-grow, stagger-children, sidebar-slide, luxe-dock-reveal, zoom-out, hero-shrink.',
+    '- Supported scroll values: expand, shrink, parallax, fade-in. Use them only for premium hero media, image stacks, dashboard mockups, and editorial sections.',
     '- Supported hover values: lift, scale, scale-btn, luxe-lift, img-zoom, border-gold, glow.',
     '- Every nav needs a mobile menu toggle and matching hidden menu target.',
     '- Multi-page import uses sibling data-qay-page wrappers with Homepage first.',

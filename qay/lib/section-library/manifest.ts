@@ -1,6 +1,6 @@
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { getLibraryForType } from '@/qay/lib/section-library';
-import { SECTION_ORDER, SITE_TYPE_KEYWORDS, type QmSection, type SiteType } from './types';
+import { SECTION_ORDER, SITE_TYPE_KEYWORDS, type QmSection, type SiteType, type SectionType } from './types';
 
 export interface SectionDesign {
   id?: string;
@@ -38,6 +38,10 @@ function normalizeSlot(sectionType: string) {
   if (sectionType === 'nav') return 'navbar';
   if (sectionType === 'products') return 'productGrid';
   if (sectionType === 'collection') return 'collectionsLanding';
+  if (sectionType === 'brandStory') return 'about';
+  if (sectionType === 'newsletter') return 'cta';
+  if (sectionType === 'productDetail') return 'productGrid';
+  if (sectionType === 'login' || sectionType === 'register' || sectionType === 'dashboard') return 'auth';
   return sectionType;
 }
 
@@ -45,6 +49,10 @@ function denormalizeSlot(slot: string) {
   if (slot === 'navbar') return 'nav';
   if (slot === 'productGrid') return 'products';
   if (slot === 'collectionsLanding') return 'collection';
+  if (slot === 'brandStory') return 'about';
+  if (slot === 'newsletter') return 'cta';
+  if (slot === 'productDetail') return 'products';
+  if (slot === 'login' || slot === 'register' || slot === 'dashboard') return 'auth';
   return slot;
 }
 
@@ -109,7 +117,7 @@ export async function loadLibrary(siteType: SiteType | string): Promise<SiteType
   };
   const order = SECTION_ORDER[resolvedType] || SECTION_ORDER.agency;
 
-  for (const sectionType of order) {
+  for (const sectionType of [...order, 'auth' as SectionType]) {
     const pool = sections
       .filter((section) => section.section_type === sectionType && section.is_active !== false)
       .slice(0, 50);

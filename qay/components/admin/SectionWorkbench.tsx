@@ -1,6 +1,22 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import {
+  Keyboard,
+  BookOpen,
+  FolderOpen,
+  Monitor,
+  Globe,
+  Save,
+  Loader2,
+  Sparkles,
+  Diamond,
+  LayoutGrid,
+  PenLine,
+  ShoppingCart,
+  ChevronDown,
+  Scroll,
+} from 'lucide-react';
 import type { AssemblyResult, SectionType, SiteType } from '@/qay/lib/section-library/types';
 
 type SectionWorkbenchProps = {
@@ -229,7 +245,7 @@ const SECTION_TEMPLATES: Record<string, { label: string; description: string; ht
 const REFERENCE_SECTIONS = [
   {
     title: 'Entrance Animations',
-    icon: '✦',
+    icon: 'sparkles',
     description: 'Add scroll-triggered entrance animations to any element.',
     attribute: 'data-qay-animate',
     options: [
@@ -258,7 +274,7 @@ const REFERENCE_SECTIONS = [
   },
   {
     title: 'Hover Effects',
-    icon: '◈',
+    icon: 'diamond',
     description: 'Add interactive hover micro-animations to cards, buttons, and images.',
     attribute: 'data-qay-hover',
     options: [
@@ -279,7 +295,7 @@ const REFERENCE_SECTIONS = [
   },
   {
     title: 'Click / Toggle Actions',
-    icon: '⊞',
+    icon: 'layout-grid',
     description: 'Toggle visibility of elements on click (mobile menus, dropdowns, accordions).',
     attribute: 'data-qay-click',
     options: [
@@ -302,7 +318,7 @@ const REFERENCE_SECTIONS = [
   },
   {
     title: 'Editable Text Zones',
-    icon: '✎',
+    icon: 'pen-line',
     description: 'Mark text elements for AI content injection and user editing.',
     attribute: 'data-qm',
     options: [
@@ -323,7 +339,7 @@ const REFERENCE_SECTIONS = [
   },
   {
     title: 'E-commerce Hooks',
-    icon: '🛒',
+    icon: 'shopping-cart',
     description: 'Commerce-specific attributes for product cards, carts, and checkout flows.',
     attribute: 'data-qay-commerce',
     options: [
@@ -357,6 +373,28 @@ const REFERENCE_SECTIONS = [
       { attr: 'data-qay-cart-label', desc: 'Label text for cart button' },
     ],
   },
+  {
+    title: 'Scroll-Triggered Animations',
+    icon: 'scroll',
+    description: 'Add animations that expand, shrink, parallax, or fade in while scrolling.',
+    attribute: 'data-qay-scroll',
+    options: [
+      { value: 'expand', description: 'Scales up slightly as element enters viewport' },
+      { value: 'shrink', description: 'Scales down slightly as element enters viewport' },
+      { value: 'parallax', description: 'Parallax background offset effect' },
+      { value: 'fade-in', description: 'Fades opacity from 0 to 100 while scrolling' },
+    ],
+    example: `<div data-qay-scroll="expand" data-qay-scroll-start="top bottom" data-qay-scroll-end="center center" data-qay-scale="0.85">
+  <img src="..." alt="Scrolling expand image" />
+</div>`,
+    modifiers: [
+      { attr: 'data-qay-scroll-start', desc: 'ScrollTrigger start position (e.g. "top bottom")' },
+      { attr: 'data-qay-scroll-end', desc: 'ScrollTrigger end position (e.g. "center center")' },
+      { attr: 'data-qay-scroll-scrub', desc: 'Link animation progress to scroll speed ("true", "false", or delay in seconds e.g. "1.5")' },
+      { attr: 'data-qay-scale', desc: 'Initial starting scale for expand (e.g. "0.85")' },
+      { attr: 'data-qay-y', desc: 'Parallax offset distance in pixels (e.g. "80")' },
+    ],
+  },
 ];
 
 /* ─── Component ─── */
@@ -385,6 +423,8 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
   const [openRefSection, setOpenRefSection] = useState<number | null>(0);
 
   const fullPreview = useMemo(() => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script></head><body>${html}</body></html>`, [html]);
+
+  const fullAssemblyPreview = useMemo(() => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script></head><body>${assembly.html}</body></html>`, [assembly.html]);
 
   useEffect(() => {
     let cancelled = false;
@@ -479,10 +519,19 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
 
   /* ─── Tab Definitions ─── */
 
-  const tabs: { id: ActiveTab; label: string; icon: string }[] = [
-    { id: 'editor', label: 'Code Editor', icon: '⌨' },
-    { id: 'reference', label: 'Reference Guide', icon: '📖' },
-    { id: 'catalog', label: 'AI Catalog', icon: '🗂' },
+  const REFERENCE_ICONS: Record<string, React.ReactNode> = {
+    'sparkles': <Sparkles className="size-4" />,
+    'diamond': <Diamond className="size-4" />,
+    'layout-grid': <LayoutGrid className="size-4" />,
+    'pen-line': <PenLine className="size-4" />,
+    'shopping-cart': <ShoppingCart className="size-4" />,
+    'scroll': <Scroll className="size-4" />,
+  };
+
+  const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'editor', label: 'Code Editor', icon: <Keyboard className="size-4" /> },
+    { id: 'reference', label: 'Reference Guide', icon: <BookOpen className="size-4" /> },
+    { id: 'catalog', label: 'AI Catalog', icon: <FolderOpen className="size-4" /> },
   ];
 
   return (
@@ -655,7 +704,7 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
                     disabled={state === 'saving'}
                     className="h-12 rounded-xl bg-foreground px-6 text-sm font-semibold text-background shadow-sm transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {state === 'saving' ? 'Saving...' : '💾  Save to Library'}
+                    {state === 'saving' ? (<><Loader2 className="mr-2 inline size-4 animate-spin" />Saving...</>) : (<><Save className="mr-2 inline size-4" />Save to Library</>)}
                   </button>
                   {message ? <p className={`text-sm ${state === 'error' ? 'text-red-500' : 'text-emerald-500'}`}>{message}</p> : null}
                 </div>
@@ -682,13 +731,13 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
                     className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-foreground/3"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="flex size-9 items-center justify-center rounded-xl bg-foreground/5 text-base">{ref.icon}</span>
+                      <span className="flex size-9 items-center justify-center rounded-xl bg-foreground/5 text-base">{REFERENCE_ICONS[ref.icon] || ref.icon}</span>
                       <div>
                         <p className="text-sm font-semibold">{ref.title}</p>
                         <p className="text-xs text-muted-foreground">{ref.description}</p>
                       </div>
                     </div>
-                    <span className={`text-xs text-muted-foreground transition-transform duration-200 ${openRefSection === refIndex ? 'rotate-180' : ''}`}>▼</span>
+                    <ChevronDown className={`size-4 text-muted-foreground transition-transform duration-200 ${openRefSection === refIndex ? 'rotate-180' : ''}`} />
                   </button>
 
                   {openRefSection === refIndex && (
@@ -754,7 +803,7 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
                   </p>
                 </div>
                 <span className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                  {isCatalogLoading ? '⏳ Loading' : `${catalog.length} designs`}
+                  {isCatalogLoading ? (<><Loader2 className="mr-1 inline size-3 animate-spin" />Loading</>) : `${catalog.length} designs`}
                 </span>
               </div>
 
@@ -856,8 +905,9 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
           {/* Custom Section Preview */}
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             <div className="flex items-center justify-between border-b border-border px-5 py-3">
-              <p className="text-sm font-semibold">
-                {activeTab === 'editor' ? '🖥 Section Preview' : '🖥 Generated Page Preview'}
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <Monitor className="size-4" />
+                {activeTab === 'editor' ? 'Section Preview' : 'Generated Page Preview'}
               </p>
               <div className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-full bg-red-400" />
@@ -867,7 +917,7 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
             </div>
             <iframe
               title="Section preview"
-              srcDoc={activeTab === 'editor' ? fullPreview : assembly.html}
+              srcDoc={activeTab === 'editor' ? fullPreview : fullAssemblyPreview}
               className="h-[560px] w-full bg-white"
             />
           </div>
@@ -876,7 +926,7 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
           {activeTab === 'editor' && (
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <div className="flex items-center justify-between border-b border-border px-5 py-3">
-                <p className="text-sm font-semibold">🌐 Full Page Preview</p>
+                <p className="flex items-center gap-2 text-sm font-semibold"><Globe className="size-4" />Full Page Preview</p>
                 <div className="flex items-center gap-1.5">
                   <span className="size-2.5 rounded-full bg-red-400" />
                   <span className="size-2.5 rounded-full bg-yellow-400" />
@@ -885,7 +935,7 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
               </div>
               <iframe
                 title="Generated page assembly preview"
-                srcDoc={assembly.html}
+                srcDoc={fullAssemblyPreview}
                 className="h-[560px] w-full bg-white"
               />
             </div>

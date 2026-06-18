@@ -743,7 +743,81 @@ function interactionFromAnimateAttribute(el: Element, layerId: string): LayerInt
     return createInteraction(layerId, 'load', { y: '100px', scale: '0.9', autoAlpha: '0' }, { y: '0px', scale: '1', autoAlpha: '100' }, duration, ease);
   }
 
+  if (type === 'zoom-out' || type === 'hero-shrink') {
+    return createInteraction(layerId, 'load', { scale: '1.15' }, { scale: '1' }, duration, ease);
+  }
+
   return createInteraction(layerId, 'load', { x: `${x}px`, y: `${y}px`, autoAlpha: '0' }, { x: '0px', y: '0px', autoAlpha: '100' }, duration, ease);
+}
+
+function interactionFromScrollAttribute(el: Element, layerId: string): LayerInteraction | null {
+  const type = el.getAttribute('data-qay-scroll');
+  if (!type) return null;
+
+  const scrollStart = el.getAttribute('data-qay-scroll-start') || 'top bottom';
+  const scrollEnd = el.getAttribute('data-qay-scroll-end') || 'bottom top';
+
+  const rawScrub = el.getAttribute('data-qay-scroll-scrub');
+  let scrub: boolean | number = 1;
+  if (rawScrub === 'false') {
+    scrub = false;
+  } else if (rawScrub === 'true') {
+    scrub = true;
+  } else if (rawScrub) {
+    const parsed = Number(rawScrub);
+    scrub = Number.isFinite(parsed) ? parsed : 1;
+  }
+
+  const duration = toFiniteNumber(el.getAttribute('data-qay-duration'), 1);
+  const ease = el.getAttribute('data-qay-ease') || 'none';
+  const y = el.getAttribute('data-qay-y') || '40';
+  const x = el.getAttribute('data-qay-x') || '0';
+  const scale = el.getAttribute('data-qay-scale') || '0.9';
+
+  let from: TweenProperties = {};
+  let to: TweenProperties = {};
+
+  if (type === 'expand') {
+    from = { scale, autoAlpha: '80' };
+    to = { scale: '1', autoAlpha: '100' };
+  } else if (type === 'shrink') {
+    from = { scale: '1.2' };
+    to = { scale: '1' };
+  } else if (type === 'parallax') {
+    const fromY = `-${Math.abs(Number(y))}px`;
+    const toY = `${Math.abs(Number(y))}px`;
+    from = { y: fromY };
+    to = { y: toY };
+  } else if (type === 'fade-in') {
+    from = { autoAlpha: '0' };
+    to = { autoAlpha: '100' };
+  } else {
+    from = { x: `${x}px`, y: `${y}px` };
+    to = { x: '0px', y: '0px' };
+  }
+
+  return {
+    id: generateId('int'),
+    trigger: 'while-scrolling',
+    timeline: {
+      breakpoints: ['mobile', 'tablet', 'desktop'],
+      repeat: 0,
+      yoyo: false,
+      scrollStart,
+      scrollEnd,
+      scrub,
+    },
+    tweens: [{
+      id: generateId('anm'),
+      layer_id: layerId,
+      position: 0,
+      duration,
+      ease,
+      from,
+      to,
+      apply_styles: applyStylesFromTween(to),
+    }],
+  };
 }
 
 function interactionFromHoverAttribute(el: Element, layerId: string): LayerInteraction | null {
@@ -985,6 +1059,7 @@ function elementToLayer(el: Element, context?: ImportContext): Layer | null {
   const importedInteractions = [
     interactionFromAnimateAttribute(el, layer.id),
     interactionFromHoverAttribute(el, layer.id),
+    interactionFromScrollAttribute(el, layer.id),
     ...interactionsFromScriptPayload(el, layer.id, context),
   ].filter((interaction): interaction is LayerInteraction => Boolean(interaction));
 

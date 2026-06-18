@@ -33,7 +33,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
 <link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(fonts.heading || 'Inter')}:wght@400;600;700;800;900&family=${encodeURIComponent(fonts.body || 'Inter')}:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 `;
 
-  function pickSection(sectionType: string): string {
+  function pickSection(sectionType: string, context = ''): string {
     const slot = normalizeDecisionSlot(sectionType);
     const pool = lib[slot] as SectionDesign[] | undefined;
     if (!pool?.length) return '';
@@ -45,8 +45,9 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
       if (exact) return exact.html;
     }
     // Random fallback — ensures different layouts when regenerating
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    return pool[randomIndex]?.html || pool[0].html;
+    const seed = `${prompt || ''}:${decision.siteType}:${decision.brand.name}:${slot}:${context}`;
+    const deterministicIndex = stableHash(seed) % pool.length;
+    return pool[deterministicIndex]?.html || pool[0].html;
   }
 
   function injectContentAndImages(html: string): string {
@@ -72,7 +73,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
 
   if (decision.navMode === 'single-page-scroll') {
     const page = decision.pages[0] || { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'footer'] };
-    const body = page.sectionSlots.map(pickSection).join('\n\n');
+    const body = page.sectionSlots.map((slot, index) => pickSection(slot, `${page.slug}:${index}`)).join('\n\n');
     let homepageHtml = injectContentAndImages(body);
     pageNames = [page.name];
 
@@ -88,12 +89,16 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
           content = buildCustomRegisterPage(decision.brand.name, decision.brand.tagline);
         } else if (p.slug === 'dashboard') {
           content = buildCustomDashboardPage(decision.brand.name, decision.brand.tagline);
+        } else if (decision.siteType === 'ecommerce' && p.slug === 'cart') {
+          content = buildCustomCartPage(decision.brand.name);
+        } else if (decision.siteType === 'ecommerce' && p.slug === 'checkout') {
+          content = buildCustomCheckoutPage(decision.brand.name);
         } else {
-          const sectionsHtml = p.sectionSlots.map(pickSection).join('\n\n');
+          const sectionsHtml = p.sectionSlots.map((slot, index) => pickSection(slot, `${p.slug}:${index}`)).join('\n\n');
           content = injectContentAndImages(sectionsHtml);
         }
 
-        if (prompt && prompt.length > 5 && p.slug !== 'login' && p.slug !== 'register' && p.slug !== 'dashboard') {
+        if (prompt && prompt.length > 5 && !isFunctionalPageSlug(p.slug)) {
           content = await personalizePageHtml(content, p.name, decision, prompt);
         }
         return { name: p.name, slug: p.slug, content };
@@ -123,12 +128,16 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
         content = buildCustomRegisterPage(decision.brand.name, decision.brand.tagline);
       } else if (page.slug === 'dashboard') {
         content = buildCustomDashboardPage(decision.brand.name, decision.brand.tagline);
+      } else if (decision.siteType === 'ecommerce' && page.slug === 'cart') {
+        content = buildCustomCartPage(decision.brand.name);
+      } else if (decision.siteType === 'ecommerce' && page.slug === 'checkout') {
+        content = buildCustomCheckoutPage(decision.brand.name);
       } else {
-        const sectionsHtml = page.sectionSlots.map(pickSection).join('\n\n');
+        const sectionsHtml = page.sectionSlots.map((slot, index) => pickSection(slot, `${page.slug}:${index}`)).join('\n\n');
         content = injectContentAndImages(sectionsHtml);
       }
 
-      if (prompt && prompt.length > 5 && page.slug !== 'login' && page.slug !== 'register' && page.slug !== 'dashboard') {
+      if (prompt && prompt.length > 5 && !isFunctionalPageSlug(page.slug)) {
         content = await personalizePageHtml(content, page.name, decision, prompt);
       }
       return { name: page.name, slug: page.slug, content };
@@ -153,6 +162,19 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
 
 function pageWrapper(name: string, slug: string, html: string) {
   return `<div data-qay-page="${escapeAttribute(name)}" data-qay-slug="${escapeAttribute(slug)}">\n${html.trim()}\n</div>`;
+}
+
+function stableHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash);
+}
+
+function isFunctionalPageSlug(slug: string) {
+  return ['login', 'register', 'dashboard', 'cart', 'checkout'].includes(slug.replace(/^\//, ''));
 }
 
 function buildCustomLoginPage(brandName: string, tagline: string) {
@@ -327,6 +349,163 @@ function buildCustomDashboardPage(brandName: string, tagline: string) {
       </div>
     </div>
   </div>
+</main>
+<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-12 text-sm text-[var(--qm-text-muted)]">
+  <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <p class="font-black text-[var(--qm-text)]" style="font-family:var(--qm-heading-font)" data-qm="footer-brand">${brandName}</p>
+    <p class="text-[10px] uppercase tracking-wider">&copy; 2026 ${brandName}. ALL RIGHTS RESERVED.</p>
+  </div>
+</footer>`;
+}
+
+function buildCustomCartPage(brandName: string) {
+  return `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/85 px-6 py-4 text-[var(--qm-text)] backdrop-blur-xl">
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-5">
+    <a href="/" class="text-xl font-extrabold tracking-tight hover:opacity-85 transition" style="font-family:var(--qm-heading-font)" data-qm="brand-name">${brandName}</a>
+    <div class="hidden items-center gap-6 text-xs font-bold uppercase tracking-wider md:flex">
+      <a href="/shop" class="hover:text-[var(--qm-accent)] transition">Shop</a>
+      <a href="/collections" class="hover:text-[var(--qm-accent)] transition">Collections</a>
+      <a href="/checkout" class="rounded-full bg-[var(--qm-accent)] px-4 py-2 text-[var(--qm-accent-text)] hover:opacity-90 transition">Checkout</a>
+    </div>
+    <button type="button" class="rounded-full border border-[var(--qm-border)] px-4 py-2 text-xs font-black uppercase tracking-wider" data-qay-commerce="cart-button" data-qay-cart-label="Cart">Cart (0)</button>
+  </div>
+</nav>
+<main class="bg-[var(--qm-bg)] px-5 py-14 text-[var(--qm-text)]">
+  <section class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1fr_420px]" data-qay-animate="fade-in" data-qay-duration="0.75" data-qay-y="28" data-qay-ease="power2.out">
+    <div class="rounded-[2rem] border border-[var(--qm-border)] bg-[var(--qm-surface)] p-5 shadow-2xl shadow-black/5 md:p-8">
+      <div class="mb-8 flex flex-col gap-3 border-b border-[var(--qm-border)] pb-6 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.3em] text-[var(--qm-accent)]">Cart review</p>
+          <h1 class="mt-3 text-4xl font-black uppercase tracking-tight md:text-6xl" style="font-family:var(--qm-heading-font)" data-qm="cart-title">Your selected pieces</h1>
+        </div>
+        <a href="/shop" class="w-fit rounded-full border border-[var(--qm-border)] px-5 py-3 text-xs font-black uppercase tracking-wider hover:border-[var(--qm-accent)] transition">Keep shopping</a>
+      </div>
+
+      <div class="space-y-4" data-qay-commerce="cart-items">
+        <article class="grid gap-4 rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-bg)] p-4 sm:grid-cols-[112px_1fr_auto]" data-qay-animate="slide-up" data-qay-duration="0.55" data-qay-y="20">
+          <div class="aspect-square overflow-hidden rounded-2xl bg-black/5" data-qay-hover="img-zoom">
+            <img src="https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=500&auto=format&q=85" alt="Premium streetwear hoodie in cart" class="h-full w-full object-cover" />
+          </div>
+          <div class="space-y-3">
+            <div>
+              <h2 class="text-lg font-black" data-qm="cart-product-title">Signature Drop Hoodie</h2>
+              <p class="text-sm text-[var(--qm-text-muted)]">Black / Large / heavyweight cotton fleece</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 text-xs font-bold">
+              <button type="button" class="rounded-full border border-[var(--qm-border)] px-3 py-2">-</button>
+              <span>1</span>
+              <button type="button" class="rounded-full border border-[var(--qm-border)] px-3 py-2">+</button>
+              <button type="button" class="rounded-full border border-red-500/30 px-4 py-2 text-red-500" data-qay-commerce="remove-from-cart" data-qay-product-id="sample-product-1">Remove</button>
+            </div>
+          </div>
+          <p class="text-right text-xl font-black text-[var(--qm-accent)]">$96</p>
+        </article>
+      </div>
+    </div>
+
+    <aside class="h-fit rounded-[2rem] border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 shadow-2xl shadow-black/5" data-qay-scroll="expand" data-qay-scroll-start="top 85%" data-qay-scroll-end="bottom 35%" data-qay-scroll-scrub="true" data-qay-scale="1.04">
+      <h2 class="text-2xl font-black uppercase tracking-tight" style="font-family:var(--qm-heading-font)">Order summary</h2>
+      <div class="mt-6 space-y-4 text-sm">
+        <div class="flex justify-between border-b border-[var(--qm-border)] pb-3"><span class="text-[var(--qm-text-muted)]">Subtotal</span><strong>$96.00</strong></div>
+        <div class="flex justify-between border-b border-[var(--qm-border)] pb-3"><span class="text-[var(--qm-text-muted)]">Estimated shipping</span><strong>$8.00</strong></div>
+        <div class="flex justify-between text-lg"><span>Total</span><strong>$104.00</strong></div>
+      </div>
+      <label class="mt-6 block text-xs font-black uppercase tracking-wider">Promo code</label>
+      <div class="mt-2 flex gap-2">
+        <input name="promo" placeholder="DROP10" class="min-w-0 flex-1 rounded-full border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[var(--qm-accent)]" />
+        <button type="button" class="rounded-full border border-[var(--qm-border)] px-4 py-3 text-xs font-black">Apply</button>
+      </div>
+      <a href="/checkout" class="mt-6 flex w-full items-center justify-center rounded-full bg-[var(--qm-accent)] px-5 py-4 text-sm font-black uppercase tracking-wider text-[var(--qm-accent-text)] shadow-lg hover:opacity-90 transition" data-qay-commerce="checkout-button">Checkout</a>
+      <p class="mt-4 text-xs leading-relaxed text-[var(--qm-text-muted)]">Secure checkout with taxes, shipping, and payment provider connection ready for the live store.</p>
+    </aside>
+  </section>
+</main>
+<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-12 text-sm text-[var(--qm-text-muted)]">
+  <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <p class="font-black text-[var(--qm-text)]" style="font-family:var(--qm-heading-font)" data-qm="footer-brand">${brandName}</p>
+    <p class="text-[10px] uppercase tracking-wider">&copy; 2026 ${brandName}. ALL RIGHTS RESERVED.</p>
+  </div>
+</footer>`;
+}
+
+function buildCustomCheckoutPage(brandName: string) {
+  return `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/85 px-6 py-4 text-[var(--qm-text)] backdrop-blur-xl">
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-5">
+    <a href="/" class="text-xl font-extrabold tracking-tight hover:opacity-85 transition" style="font-family:var(--qm-heading-font)" data-qm="brand-name">${brandName}</a>
+    <a href="/cart" class="rounded-full border border-[var(--qm-border)] px-4 py-2 text-xs font-black uppercase tracking-wider hover:border-[var(--qm-accent)] transition">Back to cart</a>
+  </div>
+</nav>
+<main class="bg-[var(--qm-bg)] px-5 py-14 text-[var(--qm-text)]">
+  <section class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1fr_440px]">
+    <form class="rounded-[2rem] border border-[var(--qm-border)] bg-[var(--qm-surface)] p-5 shadow-2xl shadow-black/5 md:p-8" data-qay-animate="slide-up" data-qay-duration="0.7" data-qay-y="32" data-qay-ease="power2.out">
+      <div class="border-b border-[var(--qm-border)] pb-6">
+        <p class="text-xs font-black uppercase tracking-[0.3em] text-[var(--qm-accent)]">Secure checkout</p>
+        <h1 class="mt-3 text-4xl font-black uppercase tracking-tight md:text-6xl" style="font-family:var(--qm-heading-font)" data-qm="checkout-title">Complete your order</h1>
+        <p class="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--qm-text-muted)]">Enter shipping details and connect your live payment provider when the store is ready for production.</p>
+      </div>
+
+      <div class="mt-8 grid gap-5 md:grid-cols-2">
+        <div>
+          <label class="mb-2 block text-xs font-black uppercase tracking-wider">First name</label>
+          <input name="firstName" type="text" placeholder="Ayo" class="w-full rounded-2xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[var(--qm-accent)]" />
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-black uppercase tracking-wider">Last name</label>
+          <input name="lastName" type="text" placeholder="Balogun" class="w-full rounded-2xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[var(--qm-accent)]" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="mb-2 block text-xs font-black uppercase tracking-wider">Email address</label>
+          <input name="email" type="email" placeholder="you@example.com" class="w-full rounded-2xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[var(--qm-accent)]" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="mb-2 block text-xs font-black uppercase tracking-wider">Street address</label>
+          <input name="address" type="text" placeholder="12 Market Street" class="w-full rounded-2xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[var(--qm-accent)]" />
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-black uppercase tracking-wider">City</label>
+          <input name="city" type="text" placeholder="Lagos" class="w-full rounded-2xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[var(--qm-accent)]" />
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-black uppercase tracking-wider">Country</label>
+          <input name="country" type="text" placeholder="Nigeria" class="w-full rounded-2xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[var(--qm-accent)]" />
+        </div>
+      </div>
+
+      <div class="mt-8 rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-bg)] p-5">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h2 class="font-black">Payment</h2>
+            <p class="mt-1 text-xs text-[var(--qm-text-muted)]">Stripe, Paystack, Paddle, or Medusa checkout can be connected here.</p>
+          </div>
+          <span class="rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-500">SSL ready</span>
+        </div>
+      </div>
+
+      <button type="button" class="mt-8 w-full rounded-full bg-[var(--qm-accent)] px-5 py-4 text-sm font-black uppercase tracking-wider text-[var(--qm-accent-text)] shadow-lg hover:opacity-90 transition" data-qay-commerce="checkout-button">Place order</button>
+    </form>
+
+    <aside class="h-fit rounded-[2rem] border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 shadow-2xl shadow-black/5" data-qay-animate="scale-in" data-qay-duration="0.65" data-qay-ease="back.out(1.2)" data-qay-scroll="parallax" data-qay-scroll-start="top 90%" data-qay-scroll-end="bottom 20%" data-qay-y="-34">
+      <h2 class="text-2xl font-black uppercase tracking-tight" style="font-family:var(--qm-heading-font)">Order summary</h2>
+      <div class="mt-6 space-y-4">
+        <article class="flex gap-4 rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-bg)] p-3">
+          <img src="https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=300&auto=format&q=85" alt="Checkout hoodie order item" class="size-20 rounded-2xl object-cover" />
+          <div class="min-w-0 flex-1">
+            <h3 class="text-sm font-black">Signature Drop Hoodie</h3>
+            <p class="mt-1 text-xs text-[var(--qm-text-muted)]">Black / Large</p>
+            <p class="mt-2 text-sm font-black text-[var(--qm-accent)]">$96.00</p>
+          </div>
+        </article>
+        <div class="space-y-3 border-t border-[var(--qm-border)] pt-5 text-sm">
+          <div class="flex justify-between"><span class="text-[var(--qm-text-muted)]">Subtotal</span><strong>$96.00</strong></div>
+          <div class="flex justify-between"><span class="text-[var(--qm-text-muted)]">Shipping</span><strong>$8.00</strong></div>
+          <div class="flex justify-between text-lg"><span>Total</span><strong>$104.00</strong></div>
+        </div>
+      </div>
+      <div class="mt-6 rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs leading-relaxed text-emerald-600">
+        Secure checkout placeholder is editable now and ready to connect to Medusa checkout when products and payment provider settings are live.
+      </div>
+    </aside>
+  </section>
 </main>
 <footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-12 text-sm text-[var(--qm-text-muted)]">
   <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">

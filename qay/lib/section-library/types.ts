@@ -39,7 +39,8 @@ export type SectionType =
   | 'collection'
   | 'timeline'
   | 'services'
-  | 'schedule';
+  | 'schedule'
+  | 'auth';
 
 export interface QmTheme {
   id: string;

@@ -227,6 +227,8 @@ data-qay-animate="line-grow"
 data-qay-animate="stagger-children"
 data-qay-animate="sidebar-slide"
 data-qay-animate="luxe-dock-reveal"
+data-qay-animate="zoom-out"
+data-qay-animate="hero-shrink"
 ```
 
 Use entrance animations on:
@@ -239,6 +241,8 @@ Use entrance animations on:
 - Timeline rows
 - Pricing cards
 - Auth panels
+
+Use `zoom-out` or `hero-shrink` on large hero images when the design should load with a premium camera-like settling effect.
 
 ### Hover Animations
 
@@ -292,6 +296,28 @@ Good defaults:
 - Side panels: duration `0.6` to `1.0`, x `-80` to `80`, ease `power2.out`.
 - Buttons/hover: hover duration `0.15` to `0.35`, subtle scale/lift only.
 - Luxury/editorial reveal: duration `0.9` to `1.4`, y `24` to `64`, ease `expo.out` or `back.out(1.2)`.
+
+### Scroll-Linked Effects
+
+Use these sparingly for premium hero media, editorial image stacks, dashboard mockups, and feature sections. They should enhance the composition, not fight the page scroll.
+
+```html
+data-qay-scroll="expand"
+data-qay-scroll="shrink"
+data-qay-scroll="parallax"
+data-qay-scroll="fade-in"
+data-qay-scroll-start="top bottom"
+data-qay-scroll-end="bottom top"
+data-qay-scroll-scrub="true"
+data-qay-scale="0.85 to 1.15"
+```
+
+Good patterns:
+
+- Hero image settles on load: `data-qay-animate="zoom-out"` with duration `1.4` to `2.0`.
+- Large image grows while scrolling into view: `data-qay-scroll="expand"` with `data-qay-scale="0.85"`.
+- Background image moves slower than the page: `data-qay-scroll="parallax"` with `data-qay-y="30"` to `80`.
+- Editorial card or dashboard mockup gently reduces while leaving view: `data-qay-scroll="shrink"`.
 
 ## QAY State and Toggle Hooks
 
@@ -550,7 +576,7 @@ Do not generate a safe generic SaaS/agency layout unless the prompt asks for Saa
 Use relevant Unsplash images with width/quality params and descriptive alt text unless the prompt asks for a text-only internal tool.
 
 Use QAY motion attributes where appropriate:
-data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal"
+data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal|luxe-reveal|luxe-asym-reveal|line-grow|stagger-children|sidebar-slide|luxe-dock-reveal|zoom-out|hero-shrink"
 data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
 
 Optional motion tuning. Choose varied values per element:
@@ -559,6 +585,13 @@ data-qay-hover-duration: 0.15 to 0.5
 data-qay-y: -80 to 80
 data-qay-x: -100 to 100
 data-qay-ease: power1.out, power2.out, power3.out, expo.out, or back.out(1.2)
+
+For premium scroll-linked effects, use only when it improves the layout:
+data-qay-scroll="expand|shrink|parallax|fade-in"
+data-qay-scroll-start="top bottom"
+data-qay-scroll-end="bottom top"
+data-qay-scroll-scrub="true"
+data-qay-scale="0.85 to 1.15"
 
 Use QAY state/toggle hooks for mobile menus, modals, drawers, dropdowns, accordions, and filters:
 data-qay-click="toggle"

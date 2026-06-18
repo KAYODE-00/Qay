@@ -219,12 +219,12 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode'], prom
   }
   if (siteType === 'ecommerce') {
     return [
-      { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'collectionsLanding', 'productGrid', 'brandStory', 'testimonials', 'newsletter', 'footer'] },
+      { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'collectionsLanding', 'productGrid', 'about', 'testimonials', 'cta', 'footer'] },
       { name: 'Shop', slug: 'shop', sectionSlots: ['navbar', 'productGrid', 'footer'] },
       { name: 'Product', slug: 'product', sectionSlots: ['navbar', 'productDetail', 'productGrid', 'footer'] },
       { name: 'Cart', slug: 'cart', sectionSlots: ['navbar', 'cart', 'footer'] },
       { name: 'Checkout', slug: 'checkout', sectionSlots: ['navbar', 'checkout', 'footer'] },
-      { name: 'About', slug: 'about', sectionSlots: ['navbar', 'brandStory', 'footer'] },
+      { name: 'About', slug: 'about', sectionSlots: ['navbar', 'about', 'footer'] },
       { name: 'Contact', slug: 'contact', sectionSlots: ['navbar', 'contact', 'footer'] },
       ...authPages
     ];
@@ -318,6 +318,7 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
   for (const s of SECTION_ORDER[siteType] || SECTION_ORDER.agency) {
     validSectionTypes.add(s);
   }
+  validSectionTypes.add('auth');
 
   const rawPicks = decision.sectionPicks || {};
   const validatedPicks: Record<string, number> = {};
@@ -388,15 +389,34 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     }
   }
 
-  // Enforce navbar/footer present on all pages
+  const ecommerceOnlyPageSlugs = new Set(['shop', 'product', 'cart', 'checkout', 'collections']);
+  const ecommerceOnlySlots = new Set(['productGrid', 'collectionsLanding', 'productDetail', 'cart', 'checkout']);
+
+  // Remove whole ecommerce pages from non-ecommerce prompts, then normalize each page.
+  pages = pages.filter((page) => {
+    const slug = String(page.slug || '').replace(/^\/+/, '').toLowerCase();
+    return siteType === 'ecommerce' || !ecommerceOnlyPageSlugs.has(slug);
+  });
+
+  // Enforce navbar/footer present on all pages and strip sections that do not belong to this site type.
   pages = pages.map((page) => {
     let slots = page.sectionSlots || [];
-    slots = slots.map((s) => {
-      if (s === 'nav') return 'navbar';
-      if (s === 'products') return 'productGrid';
-      if (s === 'collection') return 'collectionsLanding';
-      return s;
-    });
+    slots = slots
+      .map((s) => {
+        if (s === 'nav') return 'navbar';
+        if (s === 'products') return 'productGrid';
+        if (s === 'collection') return 'collectionsLanding';
+        if (s === 'brandStory') return 'about';
+        if (s === 'newsletter') return 'cta';
+        if (s === 'productDetail') return 'productGrid';
+        if (s === 'login' || s === 'register' || s === 'dashboard') return 'auth';
+        return s;
+      })
+      .filter((slot) => {
+        if (siteType !== 'ecommerce' && ecommerceOnlySlots.has(slot)) return false;
+        if (slot === 'auth') return hasAuth;
+        return validSectionTypes.has(slot) || slot === 'navbar' || slot === 'footer';
+      });
 
     if (!slots.includes('navbar') && !slots.includes('nav')) {
       slots.unshift('navbar');
