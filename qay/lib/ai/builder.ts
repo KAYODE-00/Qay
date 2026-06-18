@@ -134,6 +134,10 @@ Rules:
     data-qay-site-auth-form="signin|signup|forgot-password|reset-password"
     data-qay-site-auth-error
     data-qay-site-auth-success
+  Auth forms must use QAY auth hooks:
+    data-qay-site-auth-form="signin|signup|forgot-password|reset-password"
+    data-qay-site-auth-error
+    data-qay-site-auth-success
   Login page slug must be "login"; sign up slug must be "signup"; forgot password slug must be "forgot-password"; reset password slug must be "reset-password".
   Keep auth page links relative: /login, /signup, /forgot-password, /reset-password.
 - For multi-page sites, mirror QAY's import flow: Homepage first, then every extra page as a separate direct sibling wrapper with data-qay-page and data-qay-slug. Do not nest page wrappers inside another page.
@@ -142,7 +146,35 @@ Rules:
 - For internal nav links to generated pages, make the href match the slug, for example href="/services" for data-qay-slug="services".
 - Do not rely on custom CSS classes for layout or interaction behavior. Tailwind utilities must carry the design.
 - A small <style> tag is allowed only for font-family helper classes such as .serif; do not put animations or toggles in CSS.
-- Never output a single paragraph containing the prompt.`;
+- Never output a single paragraph containing the prompt.
+
+GOOD OUTPUT EXAMPLES (structure only, not visual templates):
+
+For a restaurant:
+- Hero: full-bleed food/venue image, restaurant name in large serif, "Book a table" CTA
+- Menu section: categories (Starters, Mains, Desserts) with dish names, descriptions, prices
+- About: chef story with kitchen image
+- Hours + Location: specific address, opening times by day
+
+For a fashion store:
+- Hero: editorial product photo taking 60% of viewport, brand name minimal
+- Products: asymmetric grid, some cards spanning 2 columns
+- Each product card: image, product name, price, Add to cart button
+- Cart drawer: slides from right with cart items list
+
+For a law firm:
+- Hero: firm name, tagline about expertise, "Book a consultation" CTA
+- Practice areas: grid with icons — Corporate Law, Litigation, Real Estate, Employment
+- Attorneys: photo + name + specialization for 3 attorneys
+- Track record: metric tiles — 500+ cases, 20 years, 98% success rate
+
+For a SaaS tool:
+- Hero: product name, one-line value prop, dashboard screenshot on right
+- Features: 6-card grid with specific feature names and outcomes
+- Pricing: 3 tiers with specific prices and feature lists
+- CTA: "Start free trial" with no credit card required
+
+Do not copy these examples. Use them to understand what "specific" means.`;
 
 const QAY_AI_HTML_COMPACT_SYSTEM_PROMPT = `You are QAY's AI website designer.
 Return only HTML. No markdown, no explanations, no repeated prompt text.
@@ -892,20 +924,16 @@ ${diversityBrief}
 QAY capability reference to use where relevant:
 ${capabilityReference}
 
-Required:
+Silent checklist:
 - This must look like an expensive agency-built site, not an AI demo.
 - Every section must have real, specific content for the requested site type.
-- No Lorem ipsum. No Feature 1. No generic filler copy.
+- No Lorem ipsum. No "Feature 1". No generic filler copy.
 - Hero: distinctive composition, not just centered text on a dark background.
-- Include strong imagery for public-facing visual sites.
-- Images must match the business/site type and the exact section they appear in; alt text must describe the actual subject.
-- All links and CTAs must be visually styled, never default browser blue links.
+- At least one strong image per public-facing page.
+- All links and CTAs visually styled — never default browser blue links.
 - Mobile navigation must work via data-qay-click toggle hooks.
-- Use QAY motion on hero, cards, and section intros where it improves the design.
-- Ecommerce/auth hooks must be included when the detected site type needs them.
-- Return only HTML.
-
-Return only HTML.`;
+- QAY motion attributes on hero, cards, and section intros (not on everything).
+- Return only HTML.`;
 }
 
 function escapeHtml(value: string) {
@@ -1124,30 +1152,127 @@ function buildThemeHint(prompt: string) {
   return 'Choose a palette that fits the detected site category; do not default to gray cards or generic blue.';
 }
 
-function buildHtmlDiversityBrief(prompt: string) {
-  const siteType = classifySitePrompt(prompt);
-  const brief = SITE_BRIEFS[siteType] || SITE_BRIEFS.business;
-  const keywords = extractPromptKeywords(prompt) || 'the requested niche';
-  const optionalDirectives = [
-    brief.palette ? `Palette direction: ${brief.palette}.` : '',
-    `Theme hint: ${buildThemeHint(prompt)}`,
-    brief.motion ? `Motion direction: ${brief.motion}.` : '',
-  ].filter(Boolean);
+function buildHtmlDiversityBrief(prompt: string): string {
+  const p = prompt.toLowerCase();
+
+  // Detect site category from prompt
+  const isRestaurant = /restaurant|cafe|coffee|food|dining|menu|chef|cuisine|bar|bistro|eatery/i.test(prompt);
+  const isFashion = /fashion|clothing|apparel|boutique|wear|style|outfit|brand|collection/i.test(prompt);
+  const isAgency = /agency|studio|design|creative|branding|marketing|consulting/i.test(prompt);
+  const isSaas = /saas|software|app|platform|dashboard|tool|productivity|workflow|automation/i.test(prompt);
+  const isPortfolio = /portfolio|designer|developer|photographer|artist|freelance|creative/i.test(prompt);
+  const isEvent = /event|wedding|conference|concert|festival|party|ceremony|venue/i.test(prompt);
+  const isHealth = /clinic|health|medical|wellness|fitness|gym|yoga|spa|therapy/i.test(prompt);
+  const isEducation = /school|course|learning|education|academy|training|university|tutor/i.test(prompt);
+  const isRealEstate = /real estate|property|listing|homes|realty|apartment|housing/i.test(prompt);
+  const isLaw = /law|legal|attorney|lawyer|firm|counsel/i.test(prompt);
+
+  // Dark/light theme hints
+  const wantsDark = /dark|black|obsidian|midnight|noir|moody|dramatic/i.test(prompt);
+  const wantsLight = /light|white|clean|minimal|airy|bright|fresh/i.test(prompt);
+  const wantsLuxury = /luxury|premium|high-end|exclusive|bespoke|couture|elite/i.test(prompt);
+
+  // Build specific directives based on category
+  let architecture = '';
+  let palette = '';
+  let sections = '';
+  let motion = '';
+  let copy = '';
+
+  if (isRestaurant) {
+    architecture = 'Full-bleed hero image of the signature dish or dining space. Sticky navigation with reservation CTA. Menu section with categories and dish cards. About/story section with chef photo. Opening hours and location prominently placed.';
+    palette = wantsDark
+      ? 'Deep charcoal #1a1209 background with warm amber #c9a040 accents, cream #f5f0e8 text.'
+      : 'Warm ivory #fdf6ec background with deep forest green #1d3d2f headings, terracotta #c2601f accents.';
+    sections = 'Hero → Featured dishes grid → Our story split → Menu categories → Reservations CTA → Location/hours → Footer';
+    motion = 'Slow luxe-reveal on hero title (1.2s). Stagger-children on dish cards (0.15s apart). Scroll-reveal on story section.';
+    copy = 'Use food-specific vocabulary: signature dishes, farm-to-table, craft cocktails, ambiance, reservation, tasting menu, Chef name. Avoid generic phrases.';
+  } else if (isFashion) {
+    architecture = 'Editorial split-screen hero with oversized product image and minimal text. Horizontal collection rail with hover zoom on products. About/values section with brand story. Cart drawer that slides from right.';
+    palette = wantsLuxury
+      ? 'Near-black #0d0d0d with bone white #f8f4ec and restrained gold #c9a84c accent.'
+      : 'Off-white #fafaf8 with charcoal #1a1a1a typography and one confident accent color.';
+    sections = 'Nav with cart count → Editorial hero → Collection grid → Brand story split → Testimonials rail → Newsletter → Footer';
+    motion = 'Scale-in on hero image (0.9s). Img-zoom on every product card. Slide-up on collection heading. Luxe-lift on product cards.';
+    copy = 'Fashion vocabulary: drop, collection, edit, silhouette, craft, limited edition, ethically made. Product names should sound like real fashion items.';
+  } else if (isAgency) {
+    architecture = 'Asymmetric hero with large work preview on right, studio name and tagline left. Work/case-study grid with varied card sizes. Team section with photos. Process timeline with numbered steps.';
+    palette = wantsDark
+      ? '#0f0f0f background, #f0ede6 text, subtle #ffffff/8 card surfaces, one vivid accent for CTAs.'
+      : '#f8f8f6 background, #111 text, white cards with precise border, black CTA buttons.';
+    sections = 'Hero → Selected work (bento) → Services → Process → Team → Clients/trust → Contact → Footer';
+    motion = 'Slide-up hero text (0.8s, expo.out). Stagger-children on work grid. Scroll-reveal on process steps. Scale-btn hover on CTAs.';
+    copy = 'Agency vocabulary: craft, strategy, brand identity, digital, launch, clients, case studies. Name real service types: UI design, brand strategy, web development.';
+  } else if (isSaas) {
+    architecture = 'Dashboard-preview hero — show a real UI screenshot or mockup on the right. Feature sections with icon + heading + description layout. Pricing section with 3 tiers. Integration logos strip.';
+    palette = wantsDark
+      ? 'Dark #0a0a0f with blue-violet #6366f1 primary, white text, subtle #ffffff/5 card borders.'
+      : 'Clean white with slate #1e293b text, indigo #4f46e5 primary, light gray card surfaces.';
+    sections = 'Hero with product preview → Social proof numbers → Features grid → How it works → Pricing → FAQ → CTA → Footer';
+    motion = 'Fade-in on hero (0.6s). Scale-in on dashboard preview. Scroll-reveal on feature cards with 0.08s stagger.';
+    copy = 'SaaS vocabulary: automate, workflows, integrations, team, analytics, dashboard, API. Name specific pain points and outcomes. No "transform your workflow" filler.';
+  } else if (isPortfolio) {
+    architecture = 'Full-name hero with role/discipline. Bento project grid with varied card sizes. About section with process description. Skills/tools list. Contact with social links.';
+    palette = wantsDark
+      ? '#0a0a0a background, #e8e6e1 text, subtle accent color for hover states and tags.'
+      : 'White background, black text, one saturated accent color for active states.';
+    sections = 'Hero → Featured projects (bento) → About/process → Skills → Experience/timeline → Contact → Footer';
+    motion = 'Luxe-reveal on name (1.0s, expo.out). Scroll-reveal with stagger-children on project grid. Img-zoom on project images. Lift hover on cards.';
+    copy = 'Portfolio vocabulary: crafted, designed, built, shipped, case study, year, role, outcome. Use real-sounding project names and client industries.';
+  } else if (isEvent) {
+    architecture = 'Dramatic full-screen hero with event name, date, and venue. Countdown-style date display. Schedule/timeline section. Speakers or performers grid. Tickets/RSVP CTA.';
+    palette = wantsDark
+      ? 'Deep navy #080c14 or charcoal with electric accent — gold #f59e0b or electric blue #38bdf8.'
+      : 'Bold contrast: deep color background for hero, white content sections, strong accent.';
+    sections = 'Hero with date → Event details → Schedule/agenda → Speakers → Venue → Tickets/RSVP → Footer';
+    motion = 'Luxe-asym-reveal on event title (1.4s). Line-grow on schedule dividers. Stagger-children on speakers. Scroll-reveal on venue section.';
+    copy = 'Event vocabulary: date, venue, schedule, speakers, RSVP, tickets, registration, session, keynote. Make dates/location feel real and specific.';
+  } else if (isHealth) {
+    architecture = 'Warm split-screen hero with practitioner photo or clinic image. Services grid with icons. About/approach section emphasizing trust and care. Booking CTA. Testimonials.';
+    palette = wantsLuxury
+      ? 'Sage green #3d6b4f with warm white #fafaf8, gold accents for premium wellness.'
+      : 'Calm teal #0d7377 or soft green with white surfaces and warm gray text.';
+    sections = 'Hero → Services → About/approach → Team → Testimonials → Booking CTA → Location → Footer';
+    motion = 'Fade-in on hero (0.7s). Scroll-reveal on service cards with lift. Scale-in on stats/numbers.';
+    copy = 'Healthcare vocabulary: care, treatment, wellness, consultation, booking, patients, evidence-based, holistic. Avoid generic "transform your health" language.';
+  } else if (isEducation) {
+    architecture = 'Energetic hero with student/learning imagery. Course grid with category filters placeholder. Instructor profiles. Testimonials from students. Enrollment CTA.';
+    palette = wantsDark
+      ? 'Deep purple #1e1b4b with violet #7c3aed accent, white text.'
+      : 'Royal blue #1d4ed8 with white surfaces, yellow #fbbf24 accent for highlights.';
+    sections = 'Hero → Course grid → How it works → Instructors → Student results → Pricing → FAQ → Enroll → Footer';
+    motion = 'Slide-up hero (0.8s). Stagger-children on course cards. Scroll-reveal on process steps.';
+    copy = 'Education vocabulary: course, module, certification, enroll, instructor, curriculum, outcomes, students. Be specific about what is taught.';
+  } else if (isLaw) {
+    architecture = 'Authority-driven hero with law firm name and clear practice areas. Services/practice areas grid. Attorney profiles. Case results or trust metrics. Contact form.';
+    palette = wantsDark
+      ? 'Deep navy #0c1326 with gold #b8922a accents, white text for authority.'
+      : 'Conservative white with dark navy #0f172a typography, gold accents, precise borders.';
+    sections = 'Hero → Practice areas → Attorney profiles → Results/track record → Testimonials → Contact → Footer';
+    motion = 'Slide-up hero (0.7s). Scroll-reveal on practice cards. Line-grow on dividers. Subtle lift on attorney cards.';
+    copy = 'Legal vocabulary: counsel, litigation, practice areas, attorney, case, settlement, consultation, jurisdiction. Sound authoritative and specific.';
+  } else {
+    // Generic but better than before
+    architecture = 'Strong editorial hero with clear value proposition on left and relevant image on right. Feature/service section with varied card sizes. Proof section (testimonials or stats). Contact/CTA.';
+    palette = wantsDark
+      ? '#0d0d0d background with #f0ede6 text and one accent color from the brand description.'
+      : '#fafaf8 background with #111111 text and one confident accent.';
+    sections = 'Hero → Core features/services → Social proof → About → Contact → Footer';
+    motion = 'Slide-up on hero title (0.8s). Stagger-children on feature cards. Scroll-reveal on proof section.';
+    copy = 'Use specific vocabulary that matches the requested business type. Avoid filler phrases.';
+  }
 
   return [
-    `Detected site type: ${brief.type}.`,
-    `Prompt anchors to reflect in copy and imagery: ${keywords}.`,
-    `Architecture: ${brief.architecture}.`,
-    ...optionalDirectives,
-    `Required section logic: ${brief.sections}.`,
-    `Imagery direction: ${brief.imagery}.`,
-    `Image subject targets: ${brief.imageSubjects}.`,
-    'Image rule: every img src, alt text, nearby heading, and section purpose must agree. Do not reuse one unrelated image across multiple sections. If the prompt names a product, service, place, audience, or industry, the images must visibly reflect it.',
-    `Copy direction: ${brief.copy}.`,
-    `CTA language: ${brief.ctas}.`,
-    `Natural page set: ${brief.pages}.`,
-    'Do not use a generic SaaS/agency card stack unless that is the detected site type.',
-    'Make the homepage first viewport specific enough that the business category is obvious before reading the footer.',
+    `DESIGN DIRECTION FOR THIS GENERATION:`,
+    `Architecture: ${architecture}`,
+    `Color palette: ${palette}`,
+    `Page sections: ${sections}`,
+    `Motion: ${motion}`,
+    `Copy: ${copy}`,
+    ``,
+    `MANDATORY: Do not reuse the structure, palette, or layout from any previous generation.`,
+    `The site must look visually distinct from a generic template.`,
+    `Every section must contain real, specific content that belongs to this exact site type.`,
   ].join('\n');
 }
 
