@@ -63,6 +63,32 @@ function formatRelativeDate(value: string | null) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function SitePreviewFrame({
+  site,
+  view,
+}: {
+  site: QaySite;
+  view: 'grid' | 'list';
+}) {
+  return (
+    <div
+      className={view === 'grid'
+        ? 'relative flex aspect-video overflow-hidden rounded-md border border-border bg-muted'
+        : 'relative flex h-20 w-32 shrink-0 overflow-hidden rounded-md border border-border bg-muted'}
+    >
+      <iframe
+        title={`${site.name} preview`}
+        src={`/dashboard/sites/${site.id}/preview-frame`}
+        loading="lazy"
+        tabIndex={-1}
+        sandbox="allow-same-origin allow-scripts allow-forms"
+        className="pointer-events-none h-full w-full bg-background"
+      />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/30 to-transparent" />
+    </div>
+  );
+}
+
 export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] }: DashboardProps) {
   const [sites, setSites] = useState(initialSites);
   const [view, setView] = useState<'grid' | 'list'>('grid');
@@ -520,21 +546,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
                   </button>
                 </div>
               )}
-              <div
-                className={view === 'grid'
-                  ? 'flex aspect-video items-center justify-center rounded-md border border-border bg-muted'
-                  : 'flex h-20 w-32 shrink-0 items-center justify-center rounded-md border border-border bg-muted'}
-              >
-                {site.thumbnail_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={site.thumbnail_url} alt=""
-                    className="h-full w-full rounded-md object-cover"
-                  />
-                ) : (
-                  <span className="text-sm font-medium text-muted-foreground">{site.name.slice(0, 2).toUpperCase()}</span>
-                )}
-              </div>
+              <SitePreviewFrame site={site} view={view} />
 
               <div className={view === 'grid' ? 'mt-4' : 'min-w-0 flex-1'}>
                 <div className="flex items-start justify-between gap-3">
