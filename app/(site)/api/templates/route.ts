@@ -1,7 +1,6 @@
 import { noCache } from '@/lib/api-response';
 import { listTemplatesWithCategories } from '@/lib/services/templateService';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
-import { hasQayAdminAccess } from '@/qay/lib/admin-access';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -13,16 +12,7 @@ export const revalidate = 0;
  */
 export async function GET() {
   try {
-    const user = await getQayAuthUser();
-    const isAdmin = await hasQayAdminAccess(user);
-
-    if (!isAdmin) {
-      return noCache({
-        templates: [],
-        categories: [],
-        count: 0,
-      });
-    }
+    await getQayAuthUser();
 
     const { templates, categories } = await listTemplatesWithCategories();
 

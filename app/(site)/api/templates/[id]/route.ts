@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { noCache } from '@/lib/api-response';
 import { getTemplate } from '@/lib/services/templateService';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
-import { hasQayAdminAccess } from '@/qay/lib/admin-access';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -19,12 +18,7 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const user = await getQayAuthUser();
-    const isAdmin = await hasQayAdminAccess(user);
-
-    if (!isAdmin) {
-      return noCache({ error: 'Template not found' }, 404);
-    }
+    await getQayAuthUser();
 
     const template = await getTemplate(id);
 

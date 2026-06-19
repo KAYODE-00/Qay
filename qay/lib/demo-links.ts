@@ -15,6 +15,8 @@ export type QayDemoLink = {
   created_at: string | null;
 };
 
+const PERMANENT_DEMO_LINK_EXPIRES_AT = '9999-12-31T23:59:59.000Z';
+
 export function getDemoLinkUrl(request: Request, token: string) {
   const url = new URL(request.url);
   return `${url.protocol}//${url.host}/demo/${token}`;
@@ -54,14 +56,12 @@ export async function createQayDemoLink(siteId: string, user: User) {
   }
 
   if ((count ?? 0) >= plan.demoLinkLimit) {
-    const hours = plan.demoLinkTtlHours;
     throw Object.assign(
-      new Error(`Your ${plan.name} plan can have ${plan.demoLinkLimit} active demo links. Demo links expire after ${hours < 48 ? `${hours} hours` : `${Math.round(hours / 24)} days`}.`),
+      new Error(`Your ${plan.name} plan can have ${plan.demoLinkLimit} active permanent demo links. Revoke an old link or upgrade to create another.`),
       { code: 'DEMO_LINK_LIMIT_REACHED' }
     );
   }
 
-  const expiresAt = new Date(now.getTime() + plan.demoLinkTtlHours * 60 * 60 * 1000).toISOString();
   const token = randomBytes(24).toString('hex');
 
   const { data, error } = await supabase
@@ -70,7 +70,7 @@ export async function createQayDemoLink(siteId: string, user: User) {
       site_id: siteId,
       owner_id: user.id,
       token,
-      expires_at: expiresAt,
+      expires_at: PERMANENT_DEMO_LINK_EXPIRES_AT,
     })
     .select()
     .single();

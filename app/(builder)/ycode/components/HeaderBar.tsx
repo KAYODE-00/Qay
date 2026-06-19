@@ -40,7 +40,8 @@ import type { QaySite } from '@/qay/types';
 import AiBuilderPanel from '@/qay/components/AiBuilderPanel';
 import UserTemplateDialog from '@/qay/components/UserTemplateDialog';
 import ImportHtmlDialog from './ImportHtmlDialog';
-import { htmlToPageImports } from '@/lib/html-layer-converter';
+import ExportHtmlDialog from './ExportHtmlDialog';
+import { htmlToPageImports, layerToExportHtml } from '@/lib/html-layer-converter';
 import { toast } from 'sonner';
 
 interface HeaderBarProps {
@@ -116,7 +117,7 @@ export default function HeaderBar({
   const pageDropdownRef = useRef<HTMLDivElement>(null);
   const currentQaySiteId = readQayEditorSiteIdFromBrowser();
   const { currentPageCollectionItemId, currentPageId: storeCurrentPageId, isPreviewMode, setPreviewMode, openFileManager, setKeyboardShortcutsOpen, setActiveSidebarTab, lastDesignUrl, setLastDesignUrl, previewReturnUrl, previewReturnTab, setPreviewReturn } = useEditorStore();
-  const { folders, pages: storePages } = usePagesStore();
+  const { folders, pages: storePages, draftsByPageId } = usePagesStore();
   const { items, fields, collections, selectedCollectionId: storeSelectedCollectionId, setSelectedCollectionId } = useCollectionsStore();
   const { locales, selectedLocaleId, setSelectedLocaleId, translations } = useLocalisationStore();
   const { navigateToLayers, navigateToCollection, navigateToCollections, updateQueryParams, routeType } = useEditorUrl();
@@ -225,13 +226,34 @@ export default function HeaderBar({
 
       await navigator.clipboard?.writeText(url);
       toast.success('Demo link copied', {
-        description: 'Demo and preview visits are not counted in analytics.',
+        description: 'Permanent demo and preview visits are not counted in analytics.',
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to create demo link');
     } finally {
       setIsCreatingDemoLink(false);
     }
+  };
+
+  const exportCurrentPageHtml = () => {
+    if (!currentPageId) {
+      toast.error('Open a page before exporting HTML.');
+      return;
+    }
+
+    const draft = draftsByPageId[currentPageId];
+    const layers = draft?.layers || [];
+    const bodyLayer = layers.find((layer) => layer.id === 'body' || layer.name === 'body');
+    const exportLayers = bodyLayer?.children?.length ? bodyLayer.children : layers;
+
+    if (exportLayers.length === 0) {
+      toast.error('This page has no layers to export yet.');
+      return;
+    }
+
+    const html = exportLayers.map((layer) => layerToExportHtml(layer)).join('\n\n');
+    setExportHtml(html);
+    setIsExportHtmlOpen(true);
   };
 
   // Clear optimistic state once the URL reflects the clicked route
@@ -283,6 +305,8 @@ export default function HeaderBar({
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isImportPageOpen, setIsImportPageOpen] = useState(false);
   const [isCreatingDemoLink, setIsCreatingDemoLink] = useState(false);
+  const [isExportHtmlOpen, setIsExportHtmlOpen] = useState(false);
+  const [exportHtml, setExportHtml] = useState('');
 
   // Get current host after mount
   useEffect(() => {
@@ -787,6 +811,10 @@ export default function HeaderBar({
           onClick={() => setIsImportPageOpen(true)}
         />
         <RailButton
+          title="Export HTML" icon="file-text"
+          onClick={exportCurrentPageHtml}
+        />
+        <RailButton
           title="Make template" icon="component"
           onClick={() => setIsTemplateDialogOpen(true)}
         />
@@ -863,6 +891,11 @@ export default function HeaderBar({
       onOpenChange={setIsImportPageOpen}
       onImport={importHtmlAsPage}
       mode="page"
+    />
+    <ExportHtmlDialog
+      open={isExportHtmlOpen}
+      onOpenChange={setIsExportHtmlOpen}
+      html={exportHtml}
     />
     </>
   );

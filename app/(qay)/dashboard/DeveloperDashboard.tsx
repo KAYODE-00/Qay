@@ -353,7 +353,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
       }
 
       await navigator.clipboard?.writeText(url);
-      setDemoStatus('Demo link copied. Preview and demo visits are not counted in analytics.');
+      setDemoStatus('Permanent demo link copied. Preview and demo visits are not counted in analytics.');
     } catch (err) {
       setDemoStatus(err instanceof Error ? err.message : 'Unable to create demo link');
     }
