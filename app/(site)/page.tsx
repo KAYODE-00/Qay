@@ -17,6 +17,8 @@ import { generatePreviewCss } from '@/qay/lib/preview-css';
 import { recordQayPageView } from '@/qay/lib/analytics';
 import { getQaySiteAuthSettings, getQaySiteVisitor } from '@/qay/lib/site-auth';
 import { QayLandingImage } from '@/qay/components/QayLandingImage';
+import { listTemplatesWithCategories, type Template } from '@/lib/services/templateService';
+import { withQayTemplateDemoUrls } from '@/qay/lib/template-demo-url';
 import type { Metadata } from 'next';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -105,6 +107,28 @@ async function fetchCachedErrorPage(errorCode: 401, qaySiteId?: string | null) {
   )();
 }
 
+type LandingTemplate = Template & {
+  categoryName: string;
+};
+
+async function fetchLandingTemplates(): Promise<LandingTemplate[]> {
+  try {
+    const { templates, categories } = await listTemplatesWithCategories();
+    const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
+
+    return withQayTemplateDemoUrls(templates)
+      .filter((template) => Boolean(template.preview && template.livePreviewUrl))
+      .slice(0, 6)
+      .map((template) => ({
+        ...template,
+        categoryName: template.categoryId ? categoryNameById.get(template.categoryId) || 'Template' : 'Template',
+      }));
+  } catch (error) {
+    console.warn('[landing] Failed to load template catalog:', error);
+    return [];
+  }
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -134,6 +158,8 @@ export default async function Home({
 
   // If no published homepage exists, show default landing page
   if (!data || !data.pageLayers) {
+    const landingTemplates = await fetchLandingTemplates();
+
     return (
       <main className="min-h-screen bg-background text-foreground">
         <style>{`
@@ -344,48 +370,36 @@ export default async function Home({
                 Browse permanent QAY demo links for starter designs, then turn the right one into a project with plan-based publishing and client preview controls.
               </p>
             </div>
-            <div className="no-scrollbar mt-12 flex gap-5 overflow-x-auto pb-4">
-              {[
-                {
-                  title: 'Streetwear shop',
-                  tag: 'Ecommerce',
-                  copy: 'Editorial product cards, cart-ready sections, bold CTAs, and drop-focused storytelling.',
-                  image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1400&auto=format&q=85',
-                },
-                {
-                  title: 'Creative studio',
-                  tag: 'Agency',
-                  copy: 'Asymmetric hero, selected work, client proof, sharp process blocks, and conversion contact flow.',
-                  image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1400&auto=format&q=85',
-                },
-                {
-                  title: 'Clinic and wellness',
-                  tag: 'Medical',
-                  copy: 'Trust-led service cards, booking CTA, practitioner story, reviews, hours, and location content.',
-                  image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1400&auto=format&q=85',
-                },
-              ].map((template, index) => (
-                <article
-                  key={template.title}
-                  className="qay-scroll-rise min-w-[82vw] overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40 sm:min-w-[430px] lg:min-w-[390px]"
-                  style={{ animationDelay: `${index * 120}ms` }}
-                >
-                  <div className="qay-scroll-scale h-72 overflow-hidden bg-white/5">
-                    <img
-                      src={template.image} alt={`${template.title} template preview`}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <h3 className="text-xl font-semibold">{template.title}</h3>
-                      <span className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/60">{template.tag}</span>
+            {landingTemplates.length > 0 ? (
+              <div className="no-scrollbar mt-12 flex gap-5 overflow-x-auto pb-4">
+                {landingTemplates.map((template, index) => (
+                  <Link
+                    key={template.id}
+                    href={template.livePreviewUrl || '/dashboard/templates'}
+                    className="qay-scroll-rise min-w-[82vw] overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40 sm:min-w-[430px] lg:min-w-[390px]"
+                    style={{ animationDelay: `${index * 120}ms` }}
+                  >
+                    <div className="qay-scroll-scale h-72 overflow-hidden bg-white/5">
+                      <img
+                        src={template.preview} alt={`${template.name} template preview`}
+                        className="h-full w-full object-cover"
+                      />
                     </div>
-                    <p className="mt-4 text-sm leading-6 text-white/58">{template.copy}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
+                    <div className="p-5">
+                      <div className="flex items-center justify-between gap-4">
+                        <h3 className="text-xl font-semibold">{template.name}</h3>
+                        <span className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/60">{template.categoryName}</span>
+                      </div>
+                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-white/58">{template.description}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="qay-scroll-rise mt-12 rounded-xl border border-white/10 bg-white/[0.04] p-8 text-white/65">
+                Template demos are loading from the QAY catalog. Sign in to browse the full template library.
+              </div>
+            )}
             <div className="qay-scroll-slide mt-8 flex min-w-max gap-4 text-[clamp(2.8rem,9vw,8rem)] font-semibold leading-none text-white/10">
               <span>Modern templates</span>
               <span>Permanent demos</span>
