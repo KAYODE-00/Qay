@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { noCache } from '@/lib/api-response';
 import { getTemplate } from '@/lib/services/templateService';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
+import { withQayTemplateDemoUrl } from '@/qay/lib/template-demo-url';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -26,7 +27,7 @@ export async function GET(
       return noCache({ error: 'Template not found' }, 404);
     }
 
-    return noCache({ template });
+    return noCache({ template: withQayTemplateDemoUrl(template) });
   } catch (error) {
     console.error(`[GET /api/templates/${id}] Error:`, error);
 

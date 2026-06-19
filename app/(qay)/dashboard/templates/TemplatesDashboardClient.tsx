@@ -51,6 +51,29 @@ type Props = {
   profile: QayAccountProfile;
 };
 
+const SITE_TYPE_FILTERS = [
+  { id: 'ecommerce', name: 'Ecommerce', keywords: ['ecommerce', 'shop', 'store', 'commerce', 'product', 'fashion', 'boutique'] },
+  { id: 'restaurant', name: 'Restaurant', keywords: ['restaurant', 'cafe', 'food', 'menu', 'dining', 'bar'] },
+  { id: 'hotel', name: 'Hotel', keywords: ['hotel', 'resort', 'booking', 'hospitality', 'suite'] },
+  { id: 'real-estate', name: 'Real estate', keywords: ['real estate', 'property', 'listing', 'realty', 'home', 'apartment'] },
+  { id: 'medical', name: 'Medical', keywords: ['medical', 'clinic', 'health', 'wellness', 'doctor', 'therapy'] },
+  { id: 'law', name: 'Law', keywords: ['law', 'legal', 'attorney', 'lawyer', 'firm'] },
+  { id: 'portfolio', name: 'Portfolio', keywords: ['portfolio', 'designer', 'photographer', 'artist', 'creative'] },
+  { id: 'agency', name: 'Agency', keywords: ['agency', 'studio', 'consulting', 'marketing', 'branding'] },
+  { id: 'saas', name: 'SaaS', keywords: ['saas', 'software', 'startup', 'app', 'platform'] },
+  { id: 'education', name: 'Education', keywords: ['education', 'school', 'course', 'academy', 'learning'] },
+  { id: 'event', name: 'Event', keywords: ['event', 'conference', 'wedding', 'festival', 'concert'] },
+  { id: 'blog', name: 'Blog', keywords: ['blog', 'magazine', 'newsletter', 'editorial'] },
+];
+
+function templateMatchesSiteType(template: Template, categoryName: string, siteTypeId: string) {
+  const filter = SITE_TYPE_FILTERS.find((item) => item.id === siteTypeId);
+  if (!filter) return false;
+
+  const haystack = `${template.name} ${template.description} ${categoryName}`.toLowerCase();
+  return filter.keywords.some((keyword) => haystack.includes(keyword));
+}
+
 function DashboardNavItem({
   href,
   label,
@@ -139,16 +162,50 @@ export function TemplatesDashboardClient({ profile }: Props) {
 
   const filteredTemplates = useMemo(() => {
     if (selectedCategory === 'all') return templates;
+    if (selectedCategory.startsWith('site:')) {
+      const siteTypeId = selectedCategory.replace('site:', '');
+      const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
+      return templates.filter((template) => templateMatchesSiteType(
+        template,
+        template.categoryId ? categoryNameById.get(template.categoryId) || '' : '',
+        siteTypeId
+      ));
+    }
     return templates.filter((template) => template.categoryId === selectedCategory);
-  }, [selectedCategory, templates]);
+  }, [categories, selectedCategory, templates]);
 
   const categoryTabs = useMemo(() => {
-    const preferred = ['Blog', 'Portfolio', 'Business', 'SaaS', 'Landing'];
+    const preferred = [
+      'Ecommerce',
+      'Shop',
+      'Store',
+      'Restaurant',
+      'Hotel',
+      'Real Estate',
+      'Law',
+      'Legal',
+      'Medical',
+      'Health',
+      'Portfolio',
+      'Agency',
+      'Business',
+      'SaaS',
+      'Startup',
+      'Education',
+      'Event',
+      'Blog',
+      'Landing',
+    ];
     const known = categories.filter((category) =>
       preferred.some((name) => category.name.toLowerCase().includes(name.toLowerCase()))
     );
     const rest = categories.filter((category) => !known.some((item) => item.id === category.id));
-    return [{ id: 'all', name: 'All' }, ...known, ...rest];
+    const categoryNameSet = new Set(categories.map((category) => category.name.toLowerCase()));
+    const siteTypeTabs = SITE_TYPE_FILTERS
+      .filter((filter) => !categoryNameSet.has(filter.name.toLowerCase()))
+      .map((filter) => ({ id: `site:${filter.id}`, name: filter.name }));
+
+    return [{ id: 'all', name: 'All' }, ...siteTypeTabs, ...known, ...rest];
   }, [categories]);
 
   async function applyTemplate(template: Template, siteId: string, redirectTo = `/dashboard/sites/${siteId}/editor`) {
@@ -480,7 +537,7 @@ export function TemplatesDashboardClient({ profile }: Props) {
           </div>
         </div>
 
-        <div className="mt-7 flex gap-2 overflow-x-auto pb-2">
+            <div className="no-scrollbar mt-7 flex gap-2 overflow-x-auto pb-2">
           {categoryTabs.map((category) => (
             <button
               key={category.id}

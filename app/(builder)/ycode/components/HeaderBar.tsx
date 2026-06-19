@@ -226,7 +226,7 @@ export default function HeaderBar({
 
       await navigator.clipboard?.writeText(url);
       toast.success('Demo link copied', {
-        description: 'Permanent demo and preview visits are not counted in analytics.',
+        description: 'Demo and preview visits are not counted in analytics.',
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to create demo link');

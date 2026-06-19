@@ -179,6 +179,7 @@ const entranceAnimations = [
   'luxe-dock-reveal',
 ] as const;
 const hoverAnimations = ['lift', 'scale', 'scale-btn', 'luxe-lift', 'img-zoom', 'border-gold', 'glow'] as const;
+const scrollAnimations = ['expand', 'shrink', 'parallax', 'fade-in', 'slide', 'rotate', 'blur'] as const;
 const easePresets = ['power1.out', 'power2.out', 'power3.out', 'expo.out', 'back.out(1.2)'] as const;
 
 function motionForIndex(index: number) {
@@ -186,6 +187,7 @@ function motionForIndex(index: number) {
   return {
     entrance: entranceAnimations[safeIndex % entranceAnimations.length],
     hover: hoverAnimations[safeIndex % hoverAnimations.length],
+    scroll: scrollAnimations[safeIndex % scrollAnimations.length],
     duration: (0.55 + (safeIndex % 6) * 0.12).toFixed(2),
     hoverDuration: (0.18 + (safeIndex % 4) * 0.06).toFixed(2),
     y: String([20, 32, 44, -24, 56, 16][safeIndex % 6]),
@@ -196,7 +198,7 @@ function motionForIndex(index: number) {
 
 function withSectionMotion(section: QmSection, index: number): QmSection {
   const motion = motionForIndex(index);
-  let html = section.html;
+  let html = section.html.replace(/\b(scrollbar-hide|scrollbar-none)\b/g, 'no-scrollbar');
 
   if (!html.includes('data-qay-animate=')) {
     html = html.replace(
@@ -212,6 +214,24 @@ function withSectionMotion(section: QmSection, index: number): QmSection {
     );
   }
 
+  if (!html.includes('data-qay-scroll=') && section.section_type !== 'nav' && section.section_type !== 'footer') {
+    const scrollAttrs = [
+      `data-qay-scroll="${motion.scroll}"`,
+      'data-qay-scroll-start="top bottom"',
+      'data-qay-scroll-end="bottom top"',
+      'data-qay-scroll-scrub="true"',
+      motion.scroll === 'expand' || motion.scroll === 'shrink' ? 'data-qay-scale="0.92"' : '',
+      motion.scroll === 'parallax' ? `data-qay-y="${motion.y}"` : '',
+      motion.scroll === 'slide' ? `data-qay-x="${motion.x}"` : '',
+      motion.scroll === 'rotate' ? 'data-qay-rotate="4"' : '',
+    ].filter(Boolean).join(' ');
+
+    html = html.replace(
+      /^<(section|nav|footer)(\s)/i,
+      `<$1 ${scrollAttrs}$2`
+    );
+  }
+
   return {
     ...section,
     html,
@@ -220,10 +240,14 @@ function withSectionMotion(section: QmSection, index: number): QmSection {
       'animated',
       motion.entrance,
       motion.hover,
+      motion.scroll,
+      'while-scroll',
+      'onscroll',
+      'scroll-trigger',
       'transition',
       'motion',
     ])),
-    preview_description: `${section.preview_description || `${section.section_type} section`} Motion: ${motion.entrance}${section.section_type !== 'nav' && section.section_type !== 'footer' ? ` + ${motion.hover}` : ''}.`,
+    preview_description: `${section.preview_description || `${section.section_type} section`} Motion: ${motion.entrance}${section.section_type !== 'nav' && section.section_type !== 'footer' ? ` + ${motion.hover} + ${motion.scroll} while-scroll` : ''}.`,
   };
 }
 

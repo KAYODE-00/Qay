@@ -154,6 +154,23 @@ export default async function Home({
             18%, 70% { opacity: 1; }
             100% { transform: translateX(35%); opacity: 0; }
           }
+          @keyframes qayViewRise {
+            from { opacity: 0; transform: translateY(72px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          @keyframes qayViewScale {
+            from { transform: scale(0.86); border-radius: 32px; }
+            to { transform: scale(1); border-radius: 12px; }
+          }
+          @keyframes qayViewSlide {
+            from { transform: translateX(-10%); }
+            to { transform: translateX(10%); }
+          }
+          @keyframes qayViewFade {
+            0% { opacity: 0.35; }
+            45%, 70% { opacity: 1; }
+            100% { opacity: 0.55; }
+          }
           .qay-animate-rise { animation: qayRise 700ms cubic-bezier(0.19, 1, 0.22, 1) both; }
           .qay-animate-fade { animation: qayFade 900ms ease both; }
           .qay-animate-float { animation: qayFloat 6s ease-in-out infinite; }
@@ -168,11 +185,35 @@ export default async function Home({
             animation: qaySweep 5.8s ease-in-out infinite;
             pointer-events: none;
           }
+          .qay-scroll-rise {
+            animation: qayViewRise both;
+            animation-timeline: view();
+            animation-range: entry 8% cover 42%;
+          }
+          .qay-scroll-scale {
+            animation: qayViewScale both;
+            animation-timeline: view();
+            animation-range: entry 0% cover 48%;
+          }
+          .qay-scroll-slide {
+            animation: qayViewSlide both linear;
+            animation-timeline: view();
+            animation-range: entry 0% exit 100%;
+          }
+          .qay-scroll-fade {
+            animation: qayViewFade both linear;
+            animation-timeline: view();
+            animation-range: entry 0% exit 100%;
+          }
           @media (prefers-reduced-motion: reduce) {
             .qay-animate-rise,
             .qay-animate-fade,
             .qay-animate-float,
-            .qay-hero-sweep::after {
+            .qay-hero-sweep::after,
+            .qay-scroll-rise,
+            .qay-scroll-scale,
+            .qay-scroll-slide,
+            .qay-scroll-fade {
               animation: none;
             }
           }
@@ -187,6 +228,7 @@ export default async function Home({
               </Link>
               <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
                 <a href="#features" className="transition hover:text-foreground">Features</a>
+                <a href="#templates" className="transition hover:text-foreground">Templates</a>
                 <a href="#workflow" className="transition hover:text-foreground">Workflow</a>
                 <Link href="/compare" className="transition hover:text-foreground">Compare</Link>
                 <Link href="/pricing" className="transition hover:text-foreground">Pricing</Link>
@@ -286,6 +328,77 @@ export default async function Home({
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section id="templates" className="overflow-hidden border-y border-border bg-[#070707] text-white">
+          <div className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16">
+            <div className="qay-scroll-rise grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-end">
+              <div>
+                <p className="text-sm uppercase tracking-[0.24em] text-white/45">Template demos</p>
+                <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">
+                  Show clients polished directions before the first revision.
+                </h2>
+              </div>
+              <p className="max-w-2xl text-base leading-7 text-white/60 lg:justify-self-end">
+                Browse permanent QAY demo links for starter designs, then turn the right one into a project with plan-based publishing and client preview controls.
+              </p>
+            </div>
+            <div className="no-scrollbar mt-12 flex gap-5 overflow-x-auto pb-4">
+              {[
+                {
+                  title: 'Streetwear shop',
+                  tag: 'Ecommerce',
+                  copy: 'Editorial product cards, cart-ready sections, bold CTAs, and drop-focused storytelling.',
+                  image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1400&auto=format&q=85',
+                },
+                {
+                  title: 'Creative studio',
+                  tag: 'Agency',
+                  copy: 'Asymmetric hero, selected work, client proof, sharp process blocks, and conversion contact flow.',
+                  image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1400&auto=format&q=85',
+                },
+                {
+                  title: 'Clinic and wellness',
+                  tag: 'Medical',
+                  copy: 'Trust-led service cards, booking CTA, practitioner story, reviews, hours, and location content.',
+                  image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1400&auto=format&q=85',
+                },
+              ].map((template, index) => (
+                <article
+                  key={template.title}
+                  className="qay-scroll-rise min-w-[82vw] overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40 sm:min-w-[430px] lg:min-w-[390px]"
+                  style={{ animationDelay: `${index * 120}ms` }}
+                >
+                  <div className="qay-scroll-scale h-72 overflow-hidden bg-white/5">
+                    <img
+                      src={template.image} alt={`${template.title} template preview`}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="text-xl font-semibold">{template.title}</h3>
+                      <span className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/60">{template.tag}</span>
+                    </div>
+                    <p className="mt-4 text-sm leading-6 text-white/58">{template.copy}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="qay-scroll-slide mt-8 flex min-w-max gap-4 text-[clamp(2.8rem,9vw,8rem)] font-semibold leading-none text-white/10">
+              <span>Modern templates</span>
+              <span>Permanent demos</span>
+              <span>QAY branded previews</span>
+            </div>
+            <div className="qay-scroll-fade mt-10 flex flex-wrap gap-3">
+              <Link href="/dashboard/templates" className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90">
+                Browse templates
+              </Link>
+              <Link href="/signup" className="rounded-md border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+                Start from a template
+              </Link>
+            </div>
           </div>
         </section>
 

@@ -306,10 +306,17 @@ data-qay-scroll="expand"
 data-qay-scroll="shrink"
 data-qay-scroll="parallax"
 data-qay-scroll="fade-in"
+data-qay-scroll="fade"
+data-qay-scroll="slide"
+data-qay-scroll="rotate"
+data-qay-scroll="blur"
+data-qay-scroll="scrub"
+data-qay-scroll="pin"
 data-qay-scroll-start="top bottom"
 data-qay-scroll-end="bottom top"
 data-qay-scroll-scrub="true"
 data-qay-scale="0.85 to 1.15"
+data-qay-rotate="-12 to 12"
 ```
 
 Good patterns:
@@ -318,6 +325,11 @@ Good patterns:
 - Large image grows while scrolling into view: `data-qay-scroll="expand"` with `data-qay-scale="0.85"`.
 - Background image moves slower than the page: `data-qay-scroll="parallax"` with `data-qay-y="30"` to `80`.
 - Editorial card or dashboard mockup gently reduces while leaving view: `data-qay-scroll="shrink"`.
+- Horizontal editorial text or image strip moves while scrolling: `data-qay-scroll="slide"` with `data-qay-x="-80"` to `80`.
+- Premium media can sharpen into focus: `data-qay-scroll="blur"`.
+- Pinned hero or product story moments can use `data-qay-scroll="pin"` sparingly.
+
+When `data-qay-scroll-scrub="true"` is used, the effect follows the scroll position and reverses when the visitor scrolls back.
 
 ## QAY State and Toggle Hooks
 
@@ -587,11 +599,12 @@ data-qay-x: -100 to 100
 data-qay-ease: power1.out, power2.out, power3.out, expo.out, or back.out(1.2)
 
 For premium scroll-linked effects, use only when it improves the layout:
-data-qay-scroll="expand|shrink|parallax|fade-in"
+data-qay-scroll="expand|shrink|parallax|fade-in|fade|slide|rotate|blur|scrub|pin"
 data-qay-scroll-start="top bottom"
 data-qay-scroll-end="bottom top"
 data-qay-scroll-scrub="true"
 data-qay-scale="0.85 to 1.15"
+data-qay-rotate="-12 to 12"
 
 Use QAY state/toggle hooks for mobile menus, modals, drawers, dropdowns, accordions, and filters:
 data-qay-click="toggle"

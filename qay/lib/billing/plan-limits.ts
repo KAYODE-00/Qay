@@ -31,7 +31,7 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     features: [
       'Unlimited draft sites',
       'Publish 2 sites',
-      '5 permanent demo links',
+      '5 demo links',
       'QAY editor',
       'Basic CMS editing',
       'QAY badge included',
@@ -51,7 +51,7 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     features: [
       'Unlimited draft sites',
       'Publish up to 10 sites',
-      '50 permanent client demo links',
+      '50 client demo links',
       'Custom domains',
       'Remove QAY badge',
       'AI site builder',
@@ -76,7 +76,7 @@ export const QAY_PLANS: Record<QayPlanKey, QayPlan> = {
     features: [
       'Everything in Starter',
       'Publish up to 20 sites',
-      '200 permanent client demo links',
+      '200 client demo links',
       'Advanced AI generation',
       'Advanced commerce runtime',
       'Cart, checkout, and product hooks',

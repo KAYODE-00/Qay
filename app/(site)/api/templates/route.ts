@@ -1,6 +1,7 @@
 import { noCache } from '@/lib/api-response';
 import { listTemplatesWithCategories } from '@/lib/services/templateService';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
+import { withQayTemplateDemoUrls } from '@/qay/lib/template-demo-url';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -17,7 +18,7 @@ export async function GET() {
     const { templates, categories } = await listTemplatesWithCategories();
 
     return noCache({
-      templates,
+      templates: withQayTemplateDemoUrls(templates),
       categories,
       count: templates.length,
     });

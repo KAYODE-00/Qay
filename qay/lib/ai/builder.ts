@@ -86,11 +86,12 @@ Rules:
   data-qay-click="toggle"
   data-qay-target="#element-id"
   data-qay-class="hidden"
-  data-qay-scroll="expand|shrink|parallax|fade-in"
+  data-qay-scroll="expand|shrink|parallax|fade-in|fade|slide|rotate|blur|scrub|pin"
   data-qay-scroll-start="top bottom"
   data-qay-scroll-end="bottom top"
   data-qay-scroll-scrub="true"
   data-qay-scale="0.85 to 1.15"
+  data-qay-rotate="-12 to 12"
 - Optional motion tuning should be varied per element, not copied as one preset:
   data-qay-duration can be 0.35 to 1.4
   data-qay-hover-duration can be 0.15 to 0.5
@@ -103,7 +104,7 @@ Rules:
   <div id="mobile-menu" class="hidden fixed ... flex ...">...</div>
 - Do not output a desktop nav only. Small screens must have a visible Menu/Hamburger button and a hidden mobile menu/drawer.
 - For image zoom, put data-qay-hover="img-zoom" on an overflow-hidden wrapper that contains one img.
-- For premium scroll effects, use data-qay-scroll sparingly on hero images, editorial media, dashboards, and image stacks. Parallax should use subtle data-qay-y values. Expand/shrink should use data-qay-scale.
+- For premium while-scroll effects, use data-qay-scroll sparingly on hero images, editorial media, dashboards, large type rails, and image stacks. Parallax should use subtle data-qay-y values. Expand/shrink should use data-qay-scale. Slide should use data-qay-x. Rotate and blur should be subtle.
 - Use data-qay-* tastefully on hero content, cards, timeline rows, image wrappers, and buttons.
 - For UI state such as menus, modal panels, drawers, accordions, tabs-as-simple-panels, and filter panels, use data-qay-click="toggle", data-qay-target="#unique-id", and data-qay-class="hidden". The target must include the matching id, the hidden class when closed, and a display class such as flex, grid, or block.
 - Ecommerce/storefront hooks:
@@ -196,7 +197,7 @@ data-qay-animate="fade-in|slide-up|slide-left|slide-right|scale-in|scroll-reveal
 data-qay-hover="lift|scale|scale-btn|luxe-lift|img-zoom|border-gold|glow"
 data-qay-click="toggle" data-qay-target="#id" data-qay-class="hidden"
 Optional tuning: data-qay-duration 0.35-1.4, data-qay-hover-duration 0.15-0.5, data-qay-y -80..80, data-qay-x -100..100, data-qay-ease power1.out|power2.out|power3.out|expo.out|back.out(1.2).
-Premium scroll effects: data-qay-scroll="expand|shrink|parallax|fade-in", data-qay-scroll-start, data-qay-scroll-end, data-qay-scroll-scrub="true", and data-qay-scale for grow/shrink scenes.
+Premium while-scroll effects: data-qay-scroll="expand|shrink|parallax|fade-in|fade|slide|rotate|blur|scrub|pin", data-qay-scroll-start, data-qay-scroll-end, data-qay-scroll-scrub="true", data-qay-scale for grow/shrink scenes, data-qay-x for slide, and data-qay-rotate for rotate.
 For ecommerce, include product grid/cards/images/titles/descriptions/prices, add-to-cart, remove-from-cart where useful, cart button/count, hidden cart drawer, cart items, cart close/cancel, checkout button, product ids/handles, optional variant ids, trust/shipping content, and a checkout page when the store owns checkout UI. Use data-qay-commerce hooks exactly.
 For auth, membership, SaaS account, portal, course, or community flows, include useful auth pages/forms with data-qay-site-auth-form="signin|signup|forgot-password|reset-password", data-qay-site-auth-error, data-qay-site-auth-success, and relative links.
 For multi-page sites, return direct sibling wrappers with Homepage first: <div data-qay-page="Homepage" data-qay-slug="/">...</div>. Generate the natural page set, up to 5 pages, and keep nav hrefs aligned with slugs.
