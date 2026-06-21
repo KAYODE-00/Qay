@@ -209,13 +209,12 @@ export default async function Home({
               <Link href="/compare" className="transition hover:text-foreground">Compare</Link>
               <Link href="/pricing" className="transition hover:text-foreground">Pricing</Link>
               <Link href="/feedback" className="transition hover:text-foreground">Feedback</Link>
-              <Link href="/help" className="transition hover:text-foreground">Help</Link>
             </nav>
             <div className="flex items-center gap-2">
-              <Link href="/login" className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground">
+              <Link href="/login" className="hidden rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground sm:inline-flex">
                 Sign in
               </Link>
-              <Link href="/signup" className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/90">
+              <Link href="/signup" className="hidden rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/90 sm:inline-flex">
                 Start free
               </Link>
               <MobileNav>
@@ -225,7 +224,6 @@ export default async function Home({
                 <MobileNavLink href="/compare">Compare</MobileNavLink>
                 <MobileNavLink href="/pricing">Pricing</MobileNavLink>
                 <MobileNavLink href="/feedback">Feedback</MobileNavLink>
-                <MobileNavLink href="/help">Help</MobileNavLink>
                 <MobileNavLink href="/login" variant="outline">Sign in</MobileNavLink>
                 <MobileNavLink href="/signup" variant="primary">Start free</MobileNavLink>
               </MobileNav>
@@ -455,7 +453,6 @@ export default async function Home({
                 <Link href="/compare" className="transition hover:text-foreground">Compare</Link>
                 <Link href="/pricing" className="transition hover:text-foreground">Pricing</Link>
                 <Link href="/feedback" className="transition hover:text-foreground">Feedback</Link>
-                <Link href="/help" className="transition hover:text-foreground">Help</Link>
               </div>
             </div>
             <div className="grid gap-3 border-t border-border pt-6 md:grid-cols-3">

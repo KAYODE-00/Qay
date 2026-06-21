@@ -71,7 +71,7 @@ export default function PricingPage() {
                   </Link>
                 ) : unavailable ? (
                   <Link
-                    href="/help"
+                    href="/feedback"
                     className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md border border-border text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
                   >
                     Request access

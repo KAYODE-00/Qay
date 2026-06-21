@@ -23,6 +23,12 @@ export const SMTP_PRESETS = {
     port: '587',
     note: 'Get credentials from MailerSend dashboard',
   },
+  resend: {
+    label: 'Resend SMTP',
+    host: 'smtp.resend.com',
+    port: '587',
+    note: 'Username is "resend"; password is your Resend API key',
+  },
   postmark: {
     label: 'Postmark SMTP',
     host: 'smtp.postmarkapp.com',

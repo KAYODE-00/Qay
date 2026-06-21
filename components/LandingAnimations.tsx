@@ -17,6 +17,8 @@ export function MobileNav({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!panelRef.current || !overlayRef.current) return;
+    gsap.killTweensOf([panelRef.current, overlayRef.current]);
+
     if (open) {
       document.body.style.overflow = 'hidden';
       gsap.to(overlayRef.current, { opacity: 1, duration: 0.3, ease: 'power2.out' });
@@ -37,6 +39,13 @@ export function MobileNav({ children }: { children: React.ReactNode }) {
       gsap.to(overlayRef.current, { opacity: 0, duration: 0.25, ease: 'power2.in' });
       gsap.to(panelRef.current, { x: '100%', duration: 0.3, ease: 'power3.in' });
     }
+
+    return () => {
+      document.body.style.overflow = '';
+      if (panelRef.current || overlayRef.current) {
+        gsap.killTweensOf([panelRef.current, overlayRef.current]);
+      }
+    };
   }, [open]);
 
   // Close on escape
@@ -56,6 +65,8 @@ export function MobileNav({ children }: { children: React.ReactNode }) {
         onClick={() => setOpen(!open)}
         className="relative z-50 flex size-10 flex-col items-center justify-center gap-1.5 rounded-lg border border-border bg-card transition hover:bg-accent md:hidden"
         aria-label={open ? 'Close menu' : 'Open menu'}
+        aria-expanded={open}
+        aria-controls="landing-mobile-menu"
         id="mobile-menu-toggle"
       >
         <span
@@ -90,7 +101,8 @@ export function MobileNav({ children }: { children: React.ReactNode }) {
       {/* Slide-in panel */}
       <div
         ref={panelRef}
-        className="fixed inset-y-0 right-0 z-50 flex w-[min(320px,85vw)] flex-col bg-card/95 backdrop-blur-xl shadow-2xl md:hidden"
+        id="landing-mobile-menu"
+        className="fixed inset-y-0 right-0 z-50 flex w-[min(340px,88vw)] flex-col bg-card/95 backdrop-blur-xl shadow-2xl md:hidden"
         style={{ transform: 'translateX(100%)' }}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -118,7 +130,7 @@ export function MobileNav({ children }: { children: React.ReactNode }) {
             </svg>
           </button>
         </div>
-        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-4" onClick={() => setOpen(false)}>
+        <nav className="no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-4" onClick={() => setOpen(false)}>
           {children}
         </nav>
       </div>
