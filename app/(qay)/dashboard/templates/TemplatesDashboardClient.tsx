@@ -49,6 +49,7 @@ type UserTemplateCounts = {
 type Props = {
   initialSites: QaySite[];
   profile: QayAccountProfile;
+  context?: 'dashboard' | 'editor';
 };
 
 const SITE_TYPE_FILTERS = [
@@ -72,6 +73,10 @@ function templateMatchesSiteType(template: Template, categoryName: string, siteT
 
   const haystack = `${template.name} ${template.description} ${categoryName}`.toLowerCase();
   return filter.keywords.some((keyword) => haystack.includes(keyword));
+}
+
+function getTemplateSourceLabel(template: Pick<Template, 'id' | 'name'>) {
+  return `${template.id} ${template.name}`.toLowerCase().includes('qay') ? 'Made by QAY' : 'Made from Ycode';
 }
 
 function DashboardNavItem({
@@ -102,7 +107,7 @@ function DashboardNavItem({
   );
 }
 
-export function TemplatesDashboardClient({ profile }: Props) {
+export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Props) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [userTemplates, setUserTemplates] = useState<UserTemplate[]>([]);
   const [communityTemplates, setCommunityTemplates] = useState<UserTemplate[]>([]);
@@ -441,11 +446,21 @@ export function TemplatesDashboardClient({ profile }: Props) {
     }
   }
 
+  const isEditorContext = context === 'editor';
+  const homeHref = isEditorContext ? '/qay/editor' : '/dashboard';
+  const templatesHref = isEditorContext ? '/qay/editor/settings/templates' : '/dashboard/templates';
+  const settingsHref = isEditorContext ? '/qay/editor/settings' : '/dashboard/settings';
+  const headerKicker = isEditorContext ? 'QAY Editor' : 'QAY Studio';
+  const backLabel = isEditorContext ? 'Editor' : 'Dashboard';
+  const introCopy = isEditorContext
+    ? 'Ycode source templates are converted into QAY projects when used. Saved QAY templates stay available here too.'
+    : 'Clone a template or import pasted HTML into a new QAY project.';
+
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white">
       <aside className="fixed inset-y-0 left-0 z-40 flex w-20 flex-col items-center border-r border-white/10 bg-black/40 px-3 py-4 shadow-sm backdrop-blur">
         <a
-          href="/dashboard" aria-label="Dashboard"
+          href={homeHref} aria-label={backLabel}
           className="mb-6 flex size-11 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
         >
           <div className="scale-75">
@@ -453,16 +468,16 @@ export function TemplatesDashboardClient({ profile }: Props) {
           </div>
         </a>
         <nav className="flex flex-1 flex-col items-center gap-2">
-          <DashboardNavItem href="/dashboard" label="Sites">
+          <DashboardNavItem href={homeHref} label={backLabel}>
             <Home className="size-5" />
           </DashboardNavItem>
           <DashboardNavItem
-            href="/dashboard/templates" label="Templates"
+            href={templatesHref} label="Templates"
             active
           >
             <LayoutTemplate className="size-5" />
           </DashboardNavItem>
-          <DashboardNavItem href="/dashboard/settings" label="Settings">
+          <DashboardNavItem href={settingsHref} label="Settings">
             <Settings className="size-5" />
           </DashboardNavItem>
         </nav>
@@ -473,31 +488,31 @@ export function TemplatesDashboardClient({ profile }: Props) {
       <header className="border-b border-white/10 bg-black/40">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div>
-            <p className="text-xs uppercase tracking-wide text-white/45">QAY Studio</p>
+            <p className="text-xs uppercase tracking-wide text-white/45">{headerKicker}</p>
             <h1 className="text-lg font-semibold tracking-normal">Templates</h1>
           </div>
           <div className="flex items-center gap-3">
             <a
-              href="/dashboard"
+              href={homeHref}
               className="hidden h-10 items-center rounded-md border border-white/10 px-4 text-sm text-white/75 transition hover:bg-white/5 hover:text-white sm:inline-flex"
             >
-              Dashboard
+              {backLabel}
             </a>
           </div>
         </div>
       </header>
 
       <section className="px-4 py-10 sm:px-6 lg:px-8">
-        <a href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/55 hover:text-white">
+        <a href={homeHref} className="inline-flex items-center gap-2 text-sm text-white/55 hover:text-white">
           <ArrowLeft className="size-4" />
-          Dashboard
+          {backLabel}
         </a>
 
         <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-3xl font-semibold tracking-normal">Templates</h1>
             <p className="mt-2 max-w-2xl text-sm text-white/55">
-              Clone a template or import pasted HTML into a new QAY project.
+              {introCopy}
             </p>
           </div>
 
@@ -706,6 +721,9 @@ export function TemplatesDashboardClient({ profile }: Props) {
                         <div className="min-w-0">
                           <h2 className="truncate text-base font-medium">{template.name}</h2>
                           <p className="mt-1 line-clamp-2 text-sm text-white/50">{template.description}</p>
+                          <a href="/" className="mt-3 inline-flex rounded-full border border-white/10 px-3 py-1 text-[11px] font-medium text-white/45 transition hover:border-white/20 hover:text-white">
+                            {getTemplateSourceLabel(template)} · QAY
+                          </a>
                         </div>
                         {template.livePreviewUrl && (
                           <a

@@ -1,5 +1,28 @@
-import { redirect } from 'next/navigation';
+import { requireDeveloper } from '@/qay/lib/auth-guard';
+import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import type { QaySite } from '@/qay/types';
+import { TemplatesDashboardClient } from '@/app/(qay)/dashboard/templates/TemplatesDashboardClient';
+import { getQayAccountProfile } from '@/qay/lib/account';
 
-export default function QayEditorSettingsTemplatesPage() {
-  redirect('/dashboard/templates');
+export default async function QayEditorSettingsTemplatesPage() {
+  const user = await requireDeveloper();
+  const supabase = getQayAdmin() as any;
+
+  const { data, error } = await supabase
+    .from('qay_sites')
+    .select('*')
+    .eq('owner_id', user.id)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (
+    <TemplatesDashboardClient
+      initialSites={(data ?? []) as QaySite[]}
+      profile={await getQayAccountProfile(user)}
+      context="editor"
+    />
+  );
 }
