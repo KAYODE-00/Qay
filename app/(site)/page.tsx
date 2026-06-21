@@ -19,6 +19,7 @@ import { getQaySiteAuthSettings, getQaySiteVisitor } from '@/qay/lib/site-auth';
 import { QayLandingImage } from '@/qay/components/QayLandingImage';
 import { listTemplatesWithCategories, type Template } from '@/lib/services/templateService';
 import { withQayTemplateDemoUrls } from '@/qay/lib/template-demo-url';
+import { MobileNav, MobileNavLink, LandingScrollAnimations } from '@/components/LandingAnimations';
 import type { Metadata } from 'next';
 
 // Static by default for performance, dynamic only when pagination is requested
@@ -171,35 +172,13 @@ export default async function Home({
             from { opacity: 0; }
             to { opacity: 1; }
           }
-          @keyframes qayFloat {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            50% { transform: translateY(-12px) rotate(-1deg); }
-          }
           @keyframes qaySweep {
             0% { transform: translateX(-35%); opacity: 0; }
             18%, 70% { opacity: 1; }
             100% { transform: translateX(35%); opacity: 0; }
           }
-          @keyframes qayViewRise {
-            from { opacity: 0; transform: translateY(72px) scale(0.96); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-          }
-          @keyframes qayViewScale {
-            from { transform: scale(0.86); border-radius: 32px; }
-            to { transform: scale(1); border-radius: 12px; }
-          }
-          @keyframes qayViewSlide {
-            from { transform: translateX(-10%); }
-            to { transform: translateX(10%); }
-          }
-          @keyframes qayViewFade {
-            0% { opacity: 0.35; }
-            45%, 70% { opacity: 1; }
-            100% { opacity: 0.55; }
-          }
           .qay-animate-rise { animation: qayRise 700ms cubic-bezier(0.19, 1, 0.22, 1) both; }
           .qay-animate-fade { animation: qayFade 900ms ease both; }
-          .qay-animate-float { animation: qayFloat 6s ease-in-out infinite; }
           .qay-animate-delay-1 { animation-delay: 100ms; }
           .qay-animate-delay-2 { animation-delay: 220ms; }
           .qay-animate-delay-3 { animation-delay: 340ms; }
@@ -211,66 +190,53 @@ export default async function Home({
             animation: qaySweep 5.8s ease-in-out infinite;
             pointer-events: none;
           }
-          .qay-scroll-rise {
-            animation: qayViewRise both;
-            animation-timeline: view();
-            animation-range: entry 8% cover 42%;
-          }
-          .qay-scroll-scale {
-            animation: qayViewScale both;
-            animation-timeline: view();
-            animation-range: entry 0% cover 48%;
-          }
-          .qay-scroll-slide {
-            animation: qayViewSlide both linear;
-            animation-timeline: view();
-            animation-range: entry 0% exit 100%;
-          }
-          .qay-scroll-fade {
-            animation: qayViewFade both linear;
-            animation-timeline: view();
-            animation-range: entry 0% exit 100%;
-          }
-          @media (prefers-reduced-motion: reduce) {
-            .qay-animate-rise,
-            .qay-animate-fade,
-            .qay-animate-float,
-            .qay-hero-sweep::after,
-            .qay-scroll-rise,
-            .qay-scroll-scale,
-            .qay-scroll-slide,
-            .qay-scroll-fade {
-              animation: none;
-            }
-          }
         `}</style>
+
+        <LandingScrollAnimations />
+
+        <header
+          data-gsap-header
+          className="fixed top-0 left-0 right-0 z-50 w-full border-b border-transparent transition-all duration-300"
+        >
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-4 sm:px-10 lg:px-16">
+            <Link href="/" aria-label="QAY home">
+              <QayLogo theme="dark" imageClassName="h-11 w-auto" />
+            </Link>
+            <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
+              <a href="#features" className="transition hover:text-foreground">Features</a>
+              <a href="#templates" className="transition hover:text-foreground">Templates</a>
+              <a href="#workflow" className="transition hover:text-foreground">Workflow</a>
+              <Link href="/compare" className="transition hover:text-foreground">Compare</Link>
+              <Link href="/pricing" className="transition hover:text-foreground">Pricing</Link>
+              <Link href="/feedback" className="transition hover:text-foreground">Feedback</Link>
+              <Link href="/help" className="transition hover:text-foreground">Help</Link>
+            </nav>
+            <div className="flex items-center gap-2">
+              <Link href="/login" className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground">
+                Sign in
+              </Link>
+              <Link href="/signup" className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/90">
+                Start free
+              </Link>
+              <MobileNav>
+                <MobileNavLink href="#features">Features</MobileNavLink>
+                <MobileNavLink href="#templates">Templates</MobileNavLink>
+                <MobileNavLink href="#workflow">Workflow</MobileNavLink>
+                <MobileNavLink href="/compare">Compare</MobileNavLink>
+                <MobileNavLink href="/pricing">Pricing</MobileNavLink>
+                <MobileNavLink href="/feedback">Feedback</MobileNavLink>
+                <MobileNavLink href="/help">Help</MobileNavLink>
+                <MobileNavLink href="/login" variant="outline">Sign in</MobileNavLink>
+                <MobileNavLink href="/signup" variant="primary">Start free</MobileNavLink>
+              </MobileNav>
+            </div>
+          </div>
+        </header>
+
         <section className="relative overflow-hidden border-b border-border">
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(0,0,0,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.045)_1px,transparent_1px)] bg-[size:38px_38px]" />
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(120deg,rgba(0,0,0,0.06),transparent_34%,rgba(0,0,0,0.025)_68%,transparent)]" />
-          <div className="mx-auto flex min-h-[92vh] w-full max-w-7xl flex-col px-6 py-6 sm:px-10 lg:px-16">
-            <header className="qay-animate-fade flex items-center justify-between gap-6">
-              <Link href="/" aria-label="QAY home">
-                <QayLogo theme="dark" imageClassName="h-11 w-auto" />
-              </Link>
-              <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-                <a href="#features" className="transition hover:text-foreground">Features</a>
-                <a href="#templates" className="transition hover:text-foreground">Templates</a>
-                <a href="#workflow" className="transition hover:text-foreground">Workflow</a>
-                <Link href="/compare" className="transition hover:text-foreground">Compare</Link>
-                <Link href="/pricing" className="transition hover:text-foreground">Pricing</Link>
-                <Link href="/feedback" className="transition hover:text-foreground">Feedback</Link>
-                <Link href="/help" className="transition hover:text-foreground">Help</Link>
-              </nav>
-              <div className="flex items-center gap-2">
-                <Link href="/login" className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground">
-                  Sign in
-                </Link>
-                <Link href="/signup" className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:bg-foreground/90">
-                  Start free
-                </Link>
-              </div>
-            </header>
-
+          <div className="mx-auto flex min-h-[92vh] w-full max-w-7xl flex-col px-6 pb-6 pt-24 sm:px-10 lg:px-16">
             <div className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.03fr_0.97fr]">
               <div className="max-w-3xl">
                 <p className="qay-animate-rise mb-5 text-sm uppercase tracking-[0.26em] text-muted-foreground">Launch-ready sites, client handoff, ecommerce</p>
@@ -302,10 +268,10 @@ export default async function Home({
                 </div>
               </div>
 
-              <div className="qay-animate-rise qay-animate-delay-2 relative">
+              <div className="qay-animate-rise qay-animate-delay-2 relative" data-gsap-onload-shrink>
                 <div className="qay-hero-sweep relative overflow-hidden rounded-lg border border-border bg-card shadow-sm">
                   <div className="relative h-56 overflow-hidden bg-muted sm:h-72">
-                    <QayLandingImage className="qay-animate-float mx-auto h-full w-full object-contain p-8 opacity-95 sm:p-10" />
+                    <QayLandingImage className="mx-auto h-full w-full object-contain p-8 opacity-95 sm:p-10" />
                   </div>
                   <div className="border-t border-border p-4 sm:p-5">
                     <div className="flex items-center justify-between">
@@ -317,7 +283,10 @@ export default async function Home({
                     </div>
                     <div className="mt-5 grid gap-3 sm:grid-cols-3">
                       {['Design', 'CMS', 'Analytics'].map((item) => (
-                        <div key={item} className="rounded-md border border-border bg-background p-3">
+                        <div
+                          key={item} className="rounded-md border border-border bg-background p-3"
+                          data-gsap-hover-lift
+                        >
                           <div className="h-12 rounded bg-muted" />
                           <div className="mt-3 text-xs text-muted-foreground">{item}</div>
                         </div>
@@ -325,7 +294,7 @@ export default async function Home({
                     </div>
                   </div>
                 </div>
-                <div className="absolute -bottom-5 -left-4 hidden w-56 rounded-lg border border-border bg-card p-4 shadow-sm md:block">
+                <div className="absolute -bottom-5 -left-4 hidden w-56 rounded-lg border border-border bg-card p-4 shadow-sm md:block" data-gsap-parallax="-0.15">
                   <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Client mode</div>
                   <div className="mt-3 text-sm text-foreground/80">Approve text, images, and CMS edits without exposing builder controls.</div>
                 </div>
@@ -334,12 +303,12 @@ export default async function Home({
           </div>
         </section>
 
-        <section id="features" className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16">
-          <div className="max-w-2xl">
+        <section id="features" className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16 scroll-mt-20">
+          <div className="max-w-2xl" data-gsap-reveal>
             <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">What is inside</p>
             <h2 className="mt-4 text-4xl font-semibold leading-tight text-foreground sm:text-5xl">Everything needed to ship client sites from one workspace.</h2>
           </div>
-          <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-gsap-stagger>
             {[
               ['AI design assistant', 'Start with polished page drafts, improve selected sections, and keep creative momentum inside each site.'],
               ['Ready-to-use sections', 'Use strong layouts for shops, agencies, portfolios, SaaS, restaurants, hotels, clinics, real estate, and more.'],
@@ -349,7 +318,10 @@ export default async function Home({
               ['Publishing controls', 'Preview, publish, connect domains, manage slugs, and keep every site organized.'],
               ['Business workspace', 'Keep design, handoff, billing, feedback, ecommerce, and publishing together for real client work.'],
             ].map(([title, body]) => (
-              <article key={title} className="rounded-lg border border-border bg-card p-5">
+              <article
+                key={title} className="rounded-lg border border-border bg-card p-5"
+                data-gsap-hover-lift
+              >
                 <h3 className="text-lg font-medium text-foreground">{title}</h3>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
               </article>
@@ -357,9 +329,9 @@ export default async function Home({
           </div>
         </section>
 
-        <section id="templates" className="overflow-hidden border-y border-border bg-[#070707] text-white">
+        <section id="templates" className="overflow-hidden border-y border-border bg-[#070707] text-white scroll-mt-20">
           <div className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16">
-            <div className="qay-scroll-rise grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-end">
+            <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-end" data-gsap-reveal>
               <div>
                 <p className="text-sm uppercase tracking-[0.24em] text-white/45">Template demos</p>
                 <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">
@@ -371,15 +343,15 @@ export default async function Home({
               </p>
             </div>
             {landingTemplates.length > 0 ? (
-              <div className="no-scrollbar mt-12 flex gap-5 overflow-x-auto pb-4">
-                {landingTemplates.map((template, index) => (
+              <div className="no-scrollbar mt-12 flex gap-5 overflow-x-auto pb-4" data-gsap-stagger>
+                {landingTemplates.map((template) => (
                   <Link
                     key={template.id}
                     href={template.livePreviewUrl || '/dashboard/templates'}
-                    className="qay-scroll-rise min-w-[82vw] overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40 sm:min-w-[430px] lg:min-w-[390px]"
-                    style={{ animationDelay: `${index * 120}ms` }}
+                    className="min-w-[82vw] overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40 sm:min-w-[430px] lg:min-w-[390px]"
+                    data-gsap-hover-lift
                   >
-                    <div className="qay-scroll-scale h-72 overflow-hidden bg-white/5">
+                    <div className="h-72 overflow-hidden bg-white/5" data-gsap-scale>
                       <img
                         src={template.preview} alt={`${template.name} template preview`}
                         className="h-full w-full object-cover"
@@ -396,16 +368,16 @@ export default async function Home({
                 ))}
               </div>
             ) : (
-              <div className="qay-scroll-rise mt-12 rounded-xl border border-white/10 bg-white/[0.04] p-8 text-white/65">
+              <div className="mt-12 rounded-xl border border-white/10 bg-white/[0.04] p-8 text-white/65" data-gsap-reveal>
                 Template demos are loading from the QAY catalog. Sign in to browse the full template library.
               </div>
             )}
-            <div className="qay-scroll-slide mt-8 flex min-w-max gap-4 text-[clamp(2.8rem,9vw,8rem)] font-semibold leading-none text-white/10">
+            <div className="mt-8 flex min-w-max gap-4 text-[clamp(2.8rem,9vw,8rem)] font-semibold leading-none text-white/10" data-gsap-ticker>
               <span>Modern templates</span>
               <span>Permanent demos</span>
               <span>QAY branded previews</span>
             </div>
-            <div className="qay-scroll-fade mt-10 flex flex-wrap gap-3">
+            <div className="mt-10 flex flex-wrap gap-3" data-gsap-reveal>
               <Link href="/templates" className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90">
                 Browse templates
               </Link>
@@ -416,20 +388,23 @@ export default async function Home({
           </div>
         </section>
 
-        <section id="workflow" className="border-y border-border bg-muted/30">
+        <section id="workflow" className="border-y border-border bg-muted/30 scroll-mt-20">
           <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 sm:px-10 lg:grid-cols-[0.85fr_1.15fr] lg:px-16">
-            <div>
+            <div data-gsap-reveal>
               <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Workflow</p>
               <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">From idea to published URL without the usual mess.</h2>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2" data-gsap-stagger>
               {[
                 ['01', 'Create from AI, a proven section set, a template, or a blank canvas.'],
                 ['02', 'Edit with the builder while site data stays isolated by project.'],
                 ['03', 'Invite clients for review, approvals, and content updates.'],
                 ['04', 'Publish, connect a domain, and watch analytics from dashboard.'],
               ].map(([step, text]) => (
-                <div key={step} className="rounded-lg border border-border bg-card p-5">
+                <div
+                  key={step} className="rounded-lg border border-border bg-card p-5"
+                  data-gsap-hover-lift
+                >
                   <div className="text-sm tracking-[0.22em] text-muted-foreground">{step}</div>
                   <p className="mt-5 text-sm leading-6 text-muted-foreground">{text}</p>
                 </div>
@@ -439,7 +414,7 @@ export default async function Home({
         </section>
 
         <section className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16">
-          <div className="mb-8 grid gap-4 md:grid-cols-3">
+          <div className="mb-8 grid gap-4 md:grid-cols-3" data-gsap-stagger>
             {[
               ['QAY vs Framer', 'Choose QAY when client operations, ecommerce, auth, feedback, and editable handoff matter as much as visual polish.', '/compare/framer'],
               ['QAY vs Wix', 'Choose QAY when you want a cleaner professional workspace for custom client projects, not a crowded all-in-one template lane.', '/compare/wix'],
@@ -447,14 +422,15 @@ export default async function Home({
             ].map(([title, body, href]) => (
               <Link
                 key={title} href={href}
-                className="rounded-lg border border-border bg-card p-5 transition hover:bg-accent"
+                className="rounded-lg border border-border bg-card p-5"
+                data-gsap-hover-lift
               >
                 <h3 className="text-lg font-medium text-foreground">{title}</h3>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">{body}</p>
               </Link>
             ))}
           </div>
-          <div className="rounded-lg border border-border bg-card text-card-foreground">
+          <div className="rounded-lg border border-border bg-card text-card-foreground" data-gsap-scrub-scale>
             <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1fr_0.8fr] lg:p-10">
               <div>
                 <p className="text-sm uppercase tracking-[0.22em] text-muted-foreground">Ready when you are</p>
@@ -504,7 +480,6 @@ export default async function Home({
       isPublished={true} mode="signin"
            />;
   }
-
   // Check password protection for homepage.
   // First evaluate without cookies() so non-protected pages can stay cacheable.
   const folders = await fetchCachedFoldersForAuth();
