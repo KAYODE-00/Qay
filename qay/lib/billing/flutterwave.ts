@@ -72,7 +72,7 @@ function getFlutterwavePaymentPlanId(plan: QayPlanKey) {
 
 function assertFlutterwaveConfig() {
   if (!getFlutterwaveSecretKey()) {
-    throw new Error('Flutterwave secret key is not configured');
+    throw new Error('Billing secret key is not configured');
   }
 }
 
@@ -89,7 +89,7 @@ async function flutterwaveFetch<T>(path: string, init: RequestInit = {}): Promis
 
   const payload = await response.json().catch(() => null);
   if (!response.ok || payload?.status === 'error') {
-    throw new Error(payload?.message || 'Flutterwave request failed');
+    throw new Error(payload?.message || 'Billing request failed');
   }
 
   return payload as T;
@@ -130,7 +130,7 @@ export async function createFlutterwaveCheckout(input: FlutterwaveCheckoutInput)
 
   const link = payload.data?.link;
   if (!link) {
-    throw new Error('Flutterwave did not return a checkout link');
+    throw new Error('Billing provider did not return a checkout link');
   }
 
   return {
@@ -171,7 +171,7 @@ export async function verifyFlutterwaveTransaction(transactionId: string) {
   assertFlutterwaveConfig();
   const payload = await flutterwaveFetch<FlutterwaveVerifyResponse>(`/transactions/${encodeURIComponent(transactionId)}/verify`);
   if (payload.status !== 'success' || !payload.data) {
-    throw new Error(payload.message || 'Flutterwave transaction could not be verified');
+    throw new Error(payload.message || 'Billing transaction could not be verified');
   }
   return payload.data;
 }

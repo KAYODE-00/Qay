@@ -114,7 +114,7 @@ export async function listCategories(): Promise<TemplateCategory[]> {
  * Get template details from the template service
  */
 export async function getTemplate(id: string): Promise<TemplateDetails | null> {
-  const response = await fetch(`${YCODE_EXTERNAL_API_URL}/api/templates/${id}`, {
+  const response = await fetch(`${YCODE_EXTERNAL_API_URL}/api/templates/${encodeURIComponent(id)}`, {
     cache: 'no-store',
   });
 

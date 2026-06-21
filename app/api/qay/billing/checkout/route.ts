@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     if (!isFlutterwaveConfigured()) {
       return NextResponse.json(
-        { error: 'Flutterwave billing is not configured yet.' },
+        { error: 'Billing is not configured yet.' },
         { status: 503 }
       );
     }

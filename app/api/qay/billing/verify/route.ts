@@ -54,6 +54,6 @@ export async function GET(request: Request) {
 
 export async function POST() {
   return NextResponse.json({
-    error: 'Flutterwave billing is verified by redirect and webhook events.',
+    error: 'Billing is verified by redirect and webhook events.',
   }, { status: 405 });
 }

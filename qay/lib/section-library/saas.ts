@@ -375,11 +375,11 @@ export const sections: QmSection[] = [
           <p class="text-[11px] text-[var(--qm-text-muted)] mt-1">Real-time status updates and execution log alerts.</p>
         </div>
       </article>
-      <!-- Flutterwave -->
+      <!-- Payments -->
       <article class="p-6 rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] flex flex-col justify-between h-44" data-qay-hover="scale">
         <div class="size-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold text-xs">ST</div>
         <div>
-          <h3 class="font-bold text-sm">Flutterwave</h3>
+          <h3 class="font-bold text-sm">Payments</h3>
           <p class="text-[11px] text-[var(--qm-text-muted)] mt-1">Bind customer billing moments directly to client pipelines.</p>
         </div>
       </article>

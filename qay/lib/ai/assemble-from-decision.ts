@@ -475,7 +475,7 @@ function buildCustomCheckoutPage(brandName: string) {
         <div class="flex items-center justify-between gap-4">
           <div>
             <h2 class="font-black">Payment</h2>
-            <p class="mt-1 text-xs text-[var(--qm-text-muted)]">Flutterwave checkout can be connected here for live store payments.</p>
+            <p class="mt-1 text-xs text-[var(--qm-text-muted)]">Live checkout can be connected here for store payments.</p>
           </div>
           <span class="rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-500">SSL ready</span>
         </div>

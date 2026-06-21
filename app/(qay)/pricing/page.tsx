@@ -27,10 +27,10 @@ export default function PricingPage() {
             Pricing that stays on your side
           </h1>
           <p className="mt-5 text-base leading-8 text-muted-foreground">
-            Start at zero, grow when the workflow pays you back, and upgrade securely through Flutterwave when you are ready.
+            Start at zero, grow when the workflow pays you back, and upgrade securely when you are ready.
           </p>
           <p className="mt-4 inline-flex rounded-full border border-border bg-card px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Payments powered by Flutterwave
+            Secure billing
           </p>
         </div>
         <div className="mt-12 grid max-w-6xl gap-4 md:grid-cols-3">
