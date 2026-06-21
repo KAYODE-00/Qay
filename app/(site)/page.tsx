@@ -406,7 +406,7 @@ export default async function Home({
               <span>QAY branded previews</span>
             </div>
             <div className="qay-scroll-fade mt-10 flex flex-wrap gap-3">
-              <Link href="/dashboard/templates" className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90">
+              <Link href="/templates" className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90">
                 Browse templates
               </Link>
               <Link href="/signup" className="rounded-md border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">

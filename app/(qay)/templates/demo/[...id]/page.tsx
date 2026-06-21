@@ -19,6 +19,11 @@ type ResolvedTemplateDemo = (Template | TemplateDetails) & {
   categoryName?: string;
 };
 
+function getTemplateSource(template: ResolvedTemplateDemo | null) {
+  const text = `${template?.id || ''} ${template?.categoryName || ''} ${template?.name || ''}`.toLowerCase();
+  return text.includes('qay') ? 'QAY' : 'Ycode';
+}
+
 function getTemplateId(parts: string[] | undefined) {
   const rawId = (parts || []).join('/').trim();
   if (!rawId) return '';
@@ -87,6 +92,7 @@ export default async function QayTemplateDemoPage({ params }: Props) {
   const { id } = await params;
   const templateId = getTemplateId(id);
   const template = await resolveTemplateDemo(templateId);
+  const source = getTemplateSource(template);
 
   if (!template?.livePreviewUrl) {
     return (
@@ -100,7 +106,7 @@ export default async function QayTemplateDemoPage({ params }: Props) {
             Browse the template library to choose another live demo or apply a template to your project.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <a href="/dashboard/templates" className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90">
+            <a href="/templates" className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90">
               Browse templates
             </a>
             <a href="/" className="rounded-md border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
@@ -115,7 +121,7 @@ export default async function QayTemplateDemoPage({ params }: Props) {
   return (
     <main className="flex min-h-screen flex-col bg-[#050505] text-white">
       <header className="z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[#050505]/92 px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur md:px-6">
-        <a href="/dashboard/templates" className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/[0.08]">
+        <a href="/templates" className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/[0.08]">
           <ArrowLeft className="size-4" aria-hidden="true" />
           Templates
         </a>
@@ -126,7 +132,7 @@ export default async function QayTemplateDemoPage({ params }: Props) {
           </div>
           <h1 className="mt-1 truncate text-sm font-semibold text-white md:text-base">{template.name}</h1>
         </div>
-        <a href="/dashboard/templates" className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90">
+        <a href="/signup?next=/dashboard/templates" className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90">
           Use
           <ExternalLink className="size-4" aria-hidden="true" />
         </a>
@@ -143,6 +149,12 @@ export default async function QayTemplateDemoPage({ params }: Props) {
           <LayoutTemplate className="mr-2 size-3.5" aria-hidden="true" />
           Permanent template demo
         </div>
+        <a
+          href="/"
+          className="absolute bottom-4 right-4 rounded-full border border-black/10 bg-white/92 px-4 py-2 text-xs font-semibold text-black shadow-2xl shadow-black/20 backdrop-blur transition hover:bg-white"
+        >
+          Made from {source} template · QAY
+        </a>
       </section>
     </main>
   );
