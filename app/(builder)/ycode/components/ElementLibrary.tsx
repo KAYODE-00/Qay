@@ -47,6 +47,7 @@ import { triggerThumbnailGeneration, useComponentsStore } from '@/stores/useComp
 import { useEditorActions } from '@/hooks/use-editor-url';
 import type { UseLiveLayerUpdatesReturn } from '@/hooks/use-live-layer-updates';
 import { useResizablePanel } from '@/hooks/use-resizable-panel';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 
 /**
  * Element Button with drag support
@@ -312,6 +313,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
   const [qaySiteTypes, setQaySiteTypes] = useState<string[]>(['ecommerce']);
   const [qaySections, setQaySections] = useState<QayCatalogSection[]>([]);
   const [qaySectionsStatus, setQaySectionsStatus] = useState('');
+  const [submittingComponentIds, setSubmittingComponentIds] = useState<Set<string>>(new Set());
   const tabRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
 
   const circularComponentIds = useMemo(() => {
@@ -1488,6 +1490,49 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
     setDeleteDialogOpen(true);
   };
 
+  const handleSubmitComponent = async (component: Component, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const siteId = readQayEditorSiteIdFromBrowser();
+    if (!siteId) {
+      toast.error('Open a QAY site before submitting reusable parts.');
+      return;
+    }
+
+    setSubmittingComponentIds((current) => new Set(current).add(component.id));
+    try {
+      const category = component.qay_site_category || 'Sections';
+      const response = await fetch(`/api/qay/components/public-submissions?site=${encodeURIComponent(siteId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          componentId: component.id,
+          name: component.name,
+          category,
+          partType: category.toLowerCase().includes('nav')
+            ? 'navbar'
+            : category.toLowerCase().includes('footer')
+              ? 'footer'
+              : 'section',
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Could not submit reusable part.');
+      }
+
+      toast.success('Reusable part submitted for public use.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not submit reusable part.');
+    } finally {
+      setSubmittingComponentIds((current) => {
+        const next = new Set(current);
+        next.delete(component.id);
+        return next;
+      });
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!componentToDelete) return;
 
@@ -1874,6 +1919,12 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={(e) => handleEditComponent(component, e)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => handleSubmitComponent(component, e)}
+                                  disabled={submittingComponentIds.has(component.id)}
+                                >
+                                  {submittingComponentIds.has(component.id) ? 'Submitting...' : 'Submit for public use'}
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => handleDeleteClick(component, e)}>Delete</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
