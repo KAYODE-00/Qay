@@ -77,6 +77,7 @@ export default async function QayAdminPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Link href="/feedback/admin" className="rounded-md border border-border px-4 py-2 text-sm hover:bg-accent">Feedback</Link>
+            <Link href="/admin/templates" className="rounded-md border border-border px-4 py-2 text-sm hover:bg-accent">Template mirrors</Link>
             <Link href="/admin/sections" className="rounded-md bg-foreground px-4 py-2 text-sm text-background hover:bg-foreground/90">Test sections</Link>
           </div>
         </header>
