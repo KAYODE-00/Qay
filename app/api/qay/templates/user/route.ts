@@ -37,7 +37,6 @@ export async function POST(request: Request) {
     const description = typeof body?.description === 'string' ? body.description.trim() : '';
     const category = typeof body?.category === 'string' ? body.category.trim() : 'General';
     const pricingMode = body?.pricingMode === 'paid' ? 'paid' : 'free';
-    const thumbnailUrl = typeof body?.thumbnailUrl === 'string' ? body.thumbnailUrl.trim() : '';
     const intendedPrice = typeof body?.intendedPrice === 'number'
       ? body.intendedPrice
       : typeof body?.intendedPrice === 'string'
@@ -60,7 +59,6 @@ export async function POST(request: Request) {
       category,
       pricingMode,
       intendedPrice: Number.isFinite(intendedPrice) ? intendedPrice : null,
-      thumbnailUrl,
     });
 
     return NextResponse.json({ data }, { status: 201 });

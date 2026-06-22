@@ -40,7 +40,7 @@ type SubmitTemplateInput = {
   category: string;
   pricingMode: QayUserTemplatePricingMode;
   intendedPrice: number | null;
-  thumbnailUrl: string;
+  thumbnailUrl?: string;
   previewUrl?: string;
 };
 
@@ -322,7 +322,7 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
 
   const site = await knex('qay_sites')
     .where({ id: input.siteId, owner_id: input.ownerId })
-    .first('id', 'slug', 'custom_domain', 'domain_verified', 'live_url', 'publish_status');
+    .first('id', 'slug', 'custom_domain', 'domain_verified', 'live_url', 'publish_status', 'thumbnail_url');
 
   if (!site) {
     throw new Error('Site not found');
@@ -350,7 +350,7 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
       intended_price: intendedPrice,
       paid_available: false,
       preview_url: input.previewUrl ? normalizeTemplateUrl(input.previewUrl) : (getQaySiteBaseUrl(site) || site.live_url || `/${site.slug}`),
-      thumbnail_url: normalizeTemplateUrl(input.thumbnailUrl),
+      thumbnail_url: normalizeTemplateUrl(input.thumbnailUrl || '') || site.thumbnail_url || null,
       review_score: reviewScore,
       review_notes: reviewNotes,
       template_payload: payload,
@@ -360,6 +360,17 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
     .returning(['id', 'name', 'status', 'review_score', 'review_notes']);
 
   return created;
+}
+
+export async function listPublicUserTemplates() {
+  const knex = await getKnexClient();
+  await ensureUserTemplatesTable(knex);
+
+  return knex('qay_user_templates')
+    .where('status', 'approved')
+    .select('id', 'name', 'description', 'category', 'preview_url', 'thumbnail_url', 'updated_at')
+    .orderBy('updated_at', 'desc')
+    .limit(72);
 }
 
 export async function listUserTemplates(userId: string) {

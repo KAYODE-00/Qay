@@ -669,9 +669,13 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ templateId: string }> }
 ) {
-  const user = await getQayAuthUser();
+  const syncSecret = (process.env.QAY_TEMPLATE_MIRROR_SYNC_SECRET || process.env.QAY_WEBHOOK_SECRET || '').trim();
+  const isInternalTemplateSync = Boolean(
+    syncSecret && request.headers.get('x-qay-template-sync-secret') === syncSecret
+  );
+  const user = isInternalTemplateSync ? null : await getQayAuthUser();
 
-  if (!user) {
+  if (!user && !isInternalTemplateSync) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
@@ -684,12 +688,16 @@ export async function POST(
   }
 
   const supabase = getQayAdmin() as any;
-  const { data: site, error: siteError } = await supabase
+  let siteQuery = supabase
     .from('qay_sites')
     .select('id')
-    .eq('id', siteId)
-    .eq('owner_id', user.id)
-    .maybeSingle();
+    .eq('id', siteId);
+
+  if (!isInternalTemplateSync && user) {
+    siteQuery = siteQuery.eq('owner_id', user.id);
+  }
+
+  const { data: site, error: siteError } = await siteQuery.maybeSingle();
 
   if (siteError) {
     return NextResponse.json({ error: siteError.message }, { status: 500 });
@@ -715,7 +723,14 @@ export async function POST(
     };
 
     const { template, sql } = await fetchProcessedTemplateApplyPayload(templateId);
-    const importSql = stripQayUnsafeTemplateStatements(sql.insert);
+    let importSql = stripQayUnsafeTemplateStatements(sql.insert);
+
+    // Digest ucode template as qay template
+    importSql = importSql
+      .replace(/ucode\.ms/g, 'qay.so')
+      .replace(/ucode/g, 'qay')
+      .replace(/Ucode/g, 'Qay')
+      .replace(/UCODE/g, 'QAY');
 
     await knex.transaction(async (trx) => {
       await trx.raw('DROP INDEX IF EXISTS pages_slug_is_published_folder_unique');

@@ -438,7 +438,12 @@ export async function applyTemplate(
       }
 
       // 2d. Insert template data
-      await trx.raw(sql.insert);
+      const cleanedSql = sql.insert
+        .replace(/ucode\.ms/g, 'qay.so')
+        .replace(/ucode/g, 'qay')
+        .replace(/Ucode/g, 'Qay')
+        .replace(/UCODE/g, 'QAY');
+      await trx.raw(cleanedSql);
 
       // Re-enable FK constraints
       await trx.raw('SET session_replication_role = DEFAULT');

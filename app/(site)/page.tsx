@@ -337,7 +337,7 @@ export default async function Home({
                 </h2>
               </div>
               <p className="max-w-2xl text-base leading-7 text-white/60 lg:justify-self-end">
-                Browse permanent QAY demo links for starter designs, then turn the right one into a project with plan-based publishing and client preview controls.
+                Browse live starter designs, then turn the right one into a project with publishing, client previews, and workspace controls.
               </p>
             </div>
             {landingTemplates.length > 0 ? (

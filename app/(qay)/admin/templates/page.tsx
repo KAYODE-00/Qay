@@ -36,7 +36,7 @@ export default async function AdminTemplateMirrorsPage() {
             <p className="mt-6 text-sm uppercase tracking-[0.24em] text-muted-foreground">Admin only</p>
             <h1 className="mt-3 text-4xl font-semibold tracking-normal sm:text-5xl">Template mirror sync</h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Convert source templates into permanent QAY demo sites. Sync one template at a time before exposing it as a public demo.
+              Prepare source templates as QAY-hosted live previews. Once a preview is ready, visitors open the QAY version directly.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">

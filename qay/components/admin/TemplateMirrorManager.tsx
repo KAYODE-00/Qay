@@ -99,7 +99,7 @@ export function TemplateMirrorManager({ templates, categories, mirrors }: Props)
         ...current,
         [key]: {
           status: 'ready',
-          message: 'QAY demo is ready.',
+          message: 'QAY live preview is ready.',
           previewUrl: payload.previewUrl,
         },
       }));
@@ -120,7 +120,7 @@ export function TemplateMirrorManager({ templates, categories, mirrors }: Props)
         <div>
           <h2 className="text-lg font-semibold tracking-normal">Template mirrors</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sync external templates into QAY-owned demo sites so previews do not depend on the original provider.
+            Sync external templates into QAY-hosted live previews so visitors open the QAY version directly.
           </p>
         </div>
         <input
@@ -197,7 +197,7 @@ export function TemplateMirrorManager({ templates, categories, mirrors }: Props)
                     {status === 'ready' ? 'Resync' : 'Sync'}
                   </button>
                   <a
-                    href={previewUrl || `/templates/demo/${encodeURIComponent(template.id)}`}
+                    href={previewUrl || `/templates/live/${encodeURIComponent(template.id)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium text-foreground transition hover:bg-accent"

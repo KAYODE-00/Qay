@@ -11,7 +11,7 @@ export default function CompareFramerPage() {
     <ComparisonPage
       competitor="Framer"
       headline="QAY vs Framer"
-      intro="Framer is excellent for design-led marketing pages. QAY is stronger when the job also needs AI-assisted page creation, client handoff, isolated projects, ecommerce preparation, feedback, admin workflows, and backend-aware site operations."
+      intro="Framer is excellent for design-led marketing pages. QAY is stronger when the job also needs AI-assisted page creation, client handoff, isolated projects, ecommerce preparation, feedback, admin workflows, and team-ready site operations."
       bestFor={[
         'Starting with QAY-aware section assembly and turning generated pages into editable sites.',
         'Shipping multiple client sites with isolated users, settings, domains, and analytics.',

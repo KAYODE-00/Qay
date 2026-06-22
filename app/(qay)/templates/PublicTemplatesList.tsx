@@ -140,7 +140,7 @@ export function PublicTemplatesList({
                     href={template.livePreviewUrl || '/templates'}
                     className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90"
                   >
-                    View demo
+                    Live preview
                     <ArrowRight className="size-4" aria-hidden="true" />
                   </Link>
                   <Link

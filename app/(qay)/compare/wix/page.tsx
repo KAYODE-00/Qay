@@ -21,12 +21,12 @@ export default function CompareWixPage() {
       competitorBestFor={[
         'Non-technical business owners who want an all-in-one hosted product.',
         'Users who prefer a large built-in app marketplace and template library.',
-        'Small sites that can stay inside Wix default workflows without deeper handoff or backend needs.',
+        'Small sites that can stay inside Wix default workflows without deeper handoff or custom operations.',
       ]}
       rows={[
         { label: 'Builder style', qay: 'AI-assisted section assembly plus visual editing, with QAY-specific hooks for auth, commerce, analytics, feedback, and publishing.', competitor: 'Template and app-marketplace driven with a very broad hosted ecosystem.' },
         { label: 'Client handoff', qay: 'Client mode is intentionally scoped so clients can update approved content and see their site users.', competitor: 'Client collaboration is available, but the experience is tied to Wix account/workspace patterns.' },
-        { label: 'Ecommerce', qay: 'Medusa-powered direction for custom commerce backends and QAY storefront binding.', competitor: 'Built-in ecommerce is mature, but more coupled to the platform.' },
+        { label: 'Ecommerce', qay: 'Flexible commerce setup for custom storefronts, product syncing, and checkout-ready selling.', competitor: 'Built-in ecommerce is mature, but more coupled to the platform.' },
         { label: 'Site control', qay: 'Good fit when you want generated layouts, business workflows, and client handoff to stay editable and organized.', competitor: 'Good fit when you want a packaged site platform with less custom workflow emphasis.' },
       ]}
     />

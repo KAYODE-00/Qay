@@ -4,7 +4,7 @@ export type TemplateWithPreview = {
 };
 
 export function getQayTemplateDemoPath(templateId: string) {
-  return `/templates/demo/${encodeURIComponent(templateId)}`;
+  return `/templates/live/${encodeURIComponent(templateId)}`;
 }
 
 export function withQayTemplateDemoUrl<T extends TemplateWithPreview>(template: T): T {

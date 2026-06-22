@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { listTemplatesWithCategories, type Template } from '@/lib/services/templateService';
 import { withQayTemplateDemoUrls } from '@/qay/lib/template-demo-url';
 import { QayLogo } from '@/qay/components/QayLogo';
+import { listPublicUserTemplates } from '@/qay/lib/user-templates';
 import { PublicTemplatesList } from './PublicTemplatesList';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +11,7 @@ export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: 'Templates - QAY',
-  description: 'Browse public QAY template demos and start a new website from a polished design.',
+  description: 'Browse live QAY template previews and start a new website from a polished design.',
 };
 
 type PublicTemplate = Template & {
@@ -22,11 +23,11 @@ async function getPublicTemplates(): Promise<PublicTemplate[]> {
   const { templates, categories } = await listTemplatesWithCategories();
   const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
 
-  return withQayTemplateDemoUrls(templates)
+  const externalTemplates: PublicTemplate[] = withQayTemplateDemoUrls(templates)
     .filter((template) => Boolean(template.preview && template.livePreviewUrl))
     .map((template) => {
       const categoryName = template.categoryId ? categoryNameById.get(template.categoryId) || 'Template' : 'Template';
-      const source = `${template.id} ${categoryName} ${template.name}`.toLowerCase().includes('qay') ? 'QAY' : 'Ycode';
+      const source: 'QAY' | 'Ycode' = `${template.id} ${categoryName} ${template.name}`.toLowerCase().includes('qay') ? 'QAY' : 'Ycode';
 
       return {
         ...template,
@@ -34,6 +35,23 @@ async function getPublicTemplates(): Promise<PublicTemplate[]> {
         source,
       };
     });
+
+  const userTemplates = await listPublicUserTemplates().catch(() => []);
+  const qayTemplates: PublicTemplate[] = userTemplates
+    .filter((template) => Boolean(template.thumbnail_url || template.preview_url))
+    .map((template) => ({
+      id: `user-${template.id}`,
+      name: template.name,
+      description: template.description,
+      preview: template.thumbnail_url || template.preview_url || '',
+      stats: undefined,
+      categoryId: null,
+      livePreviewUrl: template.preview_url || null,
+      categoryName: template.category || 'Template',
+      source: 'QAY',
+    }));
+
+  return [...qayTemplates, ...externalTemplates];
 }
 
 export default async function PublicTemplatesPage() {
@@ -62,14 +80,14 @@ export default async function PublicTemplatesPage() {
         <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
           <div>
             <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-white/40">
-              Public template demos
+              Live template previews
             </p>
             <h1 className="mt-5 max-w-3xl text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl lg:text-7xl">
               Browse live templates before you build.
             </h1>
           </div>
           <p className="max-w-2xl text-base leading-7 text-white/60 lg:justify-self-end">
-            These template demo URLs are permanent and public. When you are ready to use one, sign in and QAY will copy the design into your own workspace.
+            Explore polished starter designs, preview them live, then copy the right one into your own workspace when you are ready.
           </p>
         </div>
 
