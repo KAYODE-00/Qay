@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { listTemplatesWithCategories, type Template } from '@/lib/services/templateService';
-import { withQayTemplateDemoUrls } from '@/qay/lib/template-demo-url';
+import type { Template } from '@/lib/services/templateService';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { listPublicUserTemplates } from '@/qay/lib/user-templates';
 import { PublicTemplatesList } from './PublicTemplatesList';
@@ -20,22 +19,6 @@ type PublicTemplate = Template & {
 };
 
 async function getPublicTemplates(): Promise<PublicTemplate[]> {
-  const { templates, categories } = await listTemplatesWithCategories();
-  const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
-
-  const externalTemplates: PublicTemplate[] = withQayTemplateDemoUrls(templates)
-    .filter((template) => Boolean(template.preview && template.livePreviewUrl))
-    .map((template) => {
-      const categoryName = template.categoryId ? categoryNameById.get(template.categoryId) || 'Template' : 'Template';
-      const source = `${template.id} ${categoryName} ${template.name}`.toLowerCase().includes('qay') ? 'QAY' : 'Ycode';
-
-      return {
-        ...template,
-        categoryName,
-        source,
-      };
-    });
-
   const userTemplates = await listPublicUserTemplates().catch(() => []);
   const qayTemplates: PublicTemplate[] = userTemplates
     .filter((template) => Boolean(template.thumbnail_url || template.preview_url))
@@ -51,7 +34,7 @@ async function getPublicTemplates(): Promise<PublicTemplate[]> {
       source: template.source_label || 'QAY',
     }));
 
-  return [...qayTemplates, ...externalTemplates];
+  return qayTemplates;
 }
 
 export default async function PublicTemplatesPage() {

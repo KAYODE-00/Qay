@@ -83,13 +83,16 @@ function RailButton({ title, icon, active, onClick }: RailButtonProps) {
       aria-label={title}
       title={title}
       onClick={onClick}
-      className={`flex size-10 items-center justify-center rounded-lg border transition ${
+      className={`group/railbutton flex h-10 w-full items-center gap-3 overflow-hidden rounded-lg border px-3 text-left transition ${
         active
           ? 'border-primary/30 bg-primary/15 text-primary shadow-sm'
           : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent hover:text-accent-foreground'
       }`}
     >
-      <Icon name={icon} className="size-4" />
+      <Icon name={icon} className="size-4 shrink-0" />
+      <span className="whitespace-nowrap text-xs font-medium opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100 group-hover/railbutton:opacity-100">
+        {title}
+      </span>
     </button>
   );
 }
@@ -780,8 +783,8 @@ export default function HeaderBar({
       </div>
     </header>
 
-    <aside className="fixed left-0 top-14 bottom-0 z-40 flex w-16 flex-col items-center border-r border-border bg-background/95 px-2 py-3 shadow-sm backdrop-blur">
-      <div className="flex flex-1 flex-col items-center gap-2">
+    <aside className="group/sidebar fixed bottom-0 left-0 top-14 z-50 flex w-16 flex-col items-stretch border-r border-border bg-background/95 px-2 py-3 shadow-sm backdrop-blur transition-[width] duration-200 hover:w-56">
+      <div className="flex flex-1 flex-col items-stretch gap-2">
         <RailButton
           title="Design" icon="cursor-default"
           active={activeNavButton === 'design'} onClick={goToDesign}
@@ -800,7 +803,7 @@ export default function HeaderBar({
           onClick={() => setIsAiBuilderOpen((current) => !current)}
         />
 
-        <div className="my-2 h-px w-8 bg-border" />
+        <div className="my-2 h-px w-full bg-border" />
 
         <RailButton
           title="File manager" icon="folder"
@@ -843,7 +846,7 @@ export default function HeaderBar({
         />
       </div>
 
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-stretch gap-2">
         <RailButton
           title="Upgrade" icon="zap"
           onClick={() => router.push('/pricing')}
@@ -858,9 +861,12 @@ export default function HeaderBar({
               type="button"
               aria-label="Theme"
               title="Theme"
-              className="flex size-10 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition hover:border-border hover:bg-accent hover:text-accent-foreground"
+              className="flex h-10 w-full items-center gap-3 overflow-hidden rounded-lg border border-transparent px-3 text-left text-muted-foreground transition hover:border-border hover:bg-accent hover:text-accent-foreground"
             >
-              <Icon name="paintbrush" className="size-4" />
+              <Icon name="paintbrush" className="size-4 shrink-0" />
+              <span className="whitespace-nowrap text-xs font-medium opacity-0 transition-opacity duration-150 group-hover/sidebar:opacity-100">
+                Theme
+              </span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="end">

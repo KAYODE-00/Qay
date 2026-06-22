@@ -36,6 +36,7 @@ type UserTemplate = {
   paid_available: boolean;
   preview_url?: string | null;
   thumbnail_url?: string | null;
+  source_label?: string | null;
   review_score?: number | null;
   review_notes?: string | null;
 };
@@ -95,16 +96,14 @@ function DashboardNavItem({
       href={href}
       aria-label={label}
       title={label}
-      className={`group/navitem flex h-11 w-full items-center gap-3 overflow-hidden rounded-xl border px-3 transition ${
+      className={`flex size-11 items-center justify-center rounded-xl border transition ${
         active
           ? 'border-white/15 bg-white text-black shadow-sm'
           : 'border-transparent text-white/55 hover:border-white/10 hover:bg-white/5 hover:text-white'
       }`}
     >
-      <span className="flex size-5 shrink-0 items-center justify-center">{children}</span>
-      <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-150 group-hover/navitem:opacity-100">
-        {label}
-      </span>
+      {children}
+      <span className="sr-only">{label}</span>
     </a>
   );
 }
@@ -139,24 +138,17 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
       try {
         setIsLoading(true);
         setError(null);
-        const [templateResponse, userTemplateResponse] = await Promise.all([
-          fetch('/api/templates'),
-          fetch('/api/qay/templates/user', { cache: 'no-store' }),
-        ]);
-        const payload = await templateResponse.json();
-
-        if (!templateResponse.ok) {
-          throw new Error(payload.error || 'Failed to load templates');
-        }
-
-        setTemplates(payload.templates ?? []);
-        setCategories(payload.categories ?? []);
+        const userTemplateResponse = await fetch('/api/qay/templates/user', { cache: 'no-store' });
 
         if (userTemplateResponse.ok) {
           const userTemplatePayload = await userTemplateResponse.json();
-          setUserTemplates(userTemplatePayload.data?.templates ?? []);
-          setCommunityTemplates(userTemplatePayload.data?.communityTemplates ?? []);
+          const ownTemplates = userTemplatePayload.data?.templates ?? [];
+          const sharedTemplates = userTemplatePayload.data?.communityTemplates ?? [];
+          setUserTemplates(ownTemplates);
+          setCommunityTemplates(sharedTemplates);
           setUserTemplateCounts(userTemplatePayload.data?.counts ?? { total: 0, pending: 0, approved: 0 });
+          const categoryNames = Array.from(new Set([...ownTemplates, ...sharedTemplates].map((template: UserTemplate) => template.category).filter(Boolean)));
+          setCategories(categoryNames.map((name) => ({ id: name, name })));
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load templates');
@@ -516,24 +508,21 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
   const headerKicker = isEditorContext ? 'QAY Editor' : 'QAY Studio';
   const backLabel = isEditorContext ? 'Editor' : 'Dashboard';
   const introCopy = isEditorContext
-    ? 'Ycode source templates are converted into QAY projects when used. Saved QAY templates stay available here too.'
-    : 'Clone a template or import pasted HTML into a new QAY project.';
+    ? 'Saved QAY templates stay available here, ready to reuse in this editor.'
+    : 'Clone a submitted template or import pasted HTML into a new QAY project.';
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white">
-      <aside className="group fixed inset-y-0 left-0 z-50 flex w-20 flex-col items-start border-r border-white/10 bg-black/80 px-3 py-4 shadow-sm backdrop-blur transition-[width] duration-200 hover:w-56">
+      <aside className="fixed inset-y-0 left-0 z-40 flex w-20 flex-col items-center border-r border-white/10 bg-black/40 px-3 py-4 shadow-sm backdrop-blur">
         <a
           href={homeHref} aria-label={backLabel}
-          className="mb-6 flex h-11 w-full items-center gap-3 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] px-3"
+          className="mb-6 flex size-11 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
         >
-          <div className="-ml-1 scale-75">
+          <div className="scale-75">
             <QayLogo />
           </div>
-          <span className="whitespace-nowrap text-sm font-semibold opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-            {backLabel}
-          </span>
         </a>
-        <nav className="flex w-full flex-1 flex-col items-stretch gap-2">
+        <nav className="flex flex-1 flex-col items-center gap-2">
           <DashboardNavItem href={homeHref} label={backLabel}>
             <Home className="size-5" />
           </DashboardNavItem>
@@ -547,7 +536,7 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
             <Settings className="size-5" />
           </DashboardNavItem>
         </nav>
-        <AccountAvatar profile={profile} className="size-11 shrink-0 border-white/10 bg-white/5 text-white/80" />
+        <AccountAvatar profile={profile} className="size-11 border-white/10 bg-white/5 text-white/80" />
       </aside>
 
       <div className="pl-20">
@@ -709,6 +698,16 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                                 alt=""
                                 className="h-full w-full object-cover object-top"
                               />
+                            ) : template.preview_url ? (
+                              <iframe
+                                title={`${template.name} preview`}
+                                src={template.preview_url}
+                                loading="lazy"
+                                tabIndex={-1}
+                                sandbox="allow-same-origin allow-scripts allow-forms"
+                                className="pointer-events-none h-full w-full origin-top-left scale-[0.45] bg-white"
+                                style={{ width: '222%', height: '222%' }}
+                              />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-white/20">
                                 {template.name.slice(0, 1)}
@@ -731,11 +730,22 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                               Price saved for later. Paid template sales are not live yet.
                             </p>
                           )}
+                          {template.preview_url && (
+                            <a
+                              href={template.preview_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-white/10 px-3 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+                            >
+                              <ExternalLink className="size-4" />
+                              Open template
+                            </a>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleUseUserTemplate(template)}
                             disabled={isApplying}
-                            className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="mt-3 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Create project
                           </button>
@@ -760,6 +770,16 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                                 alt=""
                                 className="h-full w-full object-cover object-top"
                               />
+                            ) : template.preview_url ? (
+                              <iframe
+                                title={`${template.name} preview`}
+                                src={template.preview_url}
+                                loading="lazy"
+                                tabIndex={-1}
+                                sandbox="allow-same-origin allow-scripts allow-forms"
+                                className="pointer-events-none h-full w-full origin-top-left scale-[0.45] bg-white"
+                                style={{ width: '222%', height: '222%' }}
+                              />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-white/20">
                                 {template.name.slice(0, 1)}
@@ -770,11 +790,22 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                           <p className="text-xs uppercase tracking-wide text-white/35">{template.category}</p>
                           <h3 className="mt-1 text-base font-medium">{template.name}</h3>
                           <p className="mt-3 line-clamp-2 text-sm text-white/50">{template.description || 'Reusable QAY template.'}</p>
+                          {template.preview_url && (
+                            <a
+                              href={template.preview_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-white/10 px-3 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+                            >
+                              <ExternalLink className="size-4" />
+                              Open template
+                            </a>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleUseUserTemplate(template)}
                             disabled={isApplying}
-                            className="mt-4 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="mt-3 h-10 w-full rounded-md bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Create project
                           </button>

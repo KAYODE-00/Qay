@@ -112,11 +112,27 @@ export function PublicTemplatesList({
             >
               <Link href={template.livePreviewUrl || '/templates'} className="block">
                 <div className="aspect-[4/3] overflow-hidden bg-white/5">
-                  <img
-                    src={template.preview}
-                    alt={`${template.name} template preview`}
-                    className="h-full w-full object-cover transition duration-500 hover:scale-105"
-                  />
+                  {template.preview && template.preview !== template.livePreviewUrl ? (
+                    <img
+                      src={template.preview}
+                      alt={`${template.name} template preview`}
+                      className="h-full w-full object-cover transition duration-500 hover:scale-105"
+                    />
+                  ) : template.livePreviewUrl ? (
+                    <iframe
+                      title={`${template.name} live preview`}
+                      src={template.livePreviewUrl}
+                      loading="lazy"
+                      tabIndex={-1}
+                      sandbox="allow-same-origin allow-scripts allow-forms"
+                      className="pointer-events-none h-full w-full origin-top-left scale-[0.45] bg-white"
+                      style={{ width: '222%', height: '222%' }}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-white/20">
+                      {template.name.slice(0, 1)}
+                    </div>
+                  )}
                 </div>
               </Link>
               <div className="p-5 flex flex-col flex-grow">

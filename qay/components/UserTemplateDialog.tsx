@@ -165,7 +165,7 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
           </label>
 
           <label className="block space-y-2 text-sm">
-            <span className="font-medium">Description</span>
+            <span className="font-medium">About template</span>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
