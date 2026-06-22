@@ -7,7 +7,7 @@ import type { Template } from '@/lib/services/templateService';
 
 type PublicTemplate = Template & {
   categoryName: string;
-  source: 'QAY' | 'Ycode';
+  source: string;
 };
 
 interface PublicTemplatesListProps {

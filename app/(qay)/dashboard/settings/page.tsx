@@ -22,14 +22,16 @@ function NavItem({
       href={href}
       aria-label={label}
       title={label}
-      className={`flex size-11 items-center justify-center rounded-xl border transition ${
+      className={`group/navitem flex h-11 w-full items-center gap-3 overflow-hidden rounded-xl border px-3 transition ${
         active
           ? 'border-foreground/15 bg-foreground text-background shadow-sm'
           : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent hover:text-accent-foreground'
       }`}
     >
-      {children}
-      <span className="sr-only">{label}</span>
+      <span className="flex size-5 shrink-0 items-center justify-center">{children}</span>
+      <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-150 group-hover/navitem:opacity-100">
+        {label}
+      </span>
     </a>
   );
 }
@@ -40,28 +42,34 @@ export default async function DashboardSettingsPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-40 flex w-20 flex-col items-center border-r border-border bg-card/90 px-3 py-4 shadow-sm backdrop-blur">
+      <aside className="group fixed inset-y-0 left-0 z-50 flex w-20 flex-col items-start border-r border-border bg-card/95 px-3 py-4 shadow-sm backdrop-blur transition-[width] duration-200 hover:w-56">
         <a
           href="/dashboard"
           aria-label="Dashboard"
-          className="mb-6 flex size-11 items-center justify-center overflow-hidden rounded-xl border border-border bg-background"
+          className="mb-6 flex h-11 w-full items-center gap-3 overflow-hidden rounded-xl border border-border bg-background px-3"
         >
-          <div className="scale-75">
+          <div className="-ml-1 scale-75">
             <QayLogo />
           </div>
+          <span className="whitespace-nowrap text-sm font-semibold opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+            Dashboard
+          </span>
         </a>
-        <nav className="flex flex-1 flex-col items-center gap-2">
+        <nav className="flex w-full flex-1 flex-col items-stretch gap-2">
           <NavItem href="/dashboard" label="Sites">
             <Home className="size-5" />
           </NavItem>
           <NavItem href="/dashboard/templates" label="Templates">
             <LayoutTemplate className="size-5" />
           </NavItem>
-          <NavItem href="/dashboard/settings" label="Settings" active>
+          <NavItem
+            href="/dashboard/settings" label="Settings"
+            active
+          >
             <Settings className="size-5" />
           </NavItem>
         </nav>
-        <AccountAvatar profile={profile} className="size-11" />
+        <AccountAvatar profile={profile} className="size-11 shrink-0" />
       </aside>
 
       <div className="pl-20">

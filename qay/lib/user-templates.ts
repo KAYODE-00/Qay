@@ -42,6 +42,7 @@ type SubmitTemplateInput = {
   intendedPrice: number | null;
   thumbnailUrl?: string;
   previewUrl?: string;
+  sourceLabel?: string;
 };
 
 type ApplyTemplateInput = {
@@ -78,6 +79,7 @@ async function ensureUserTemplatesTable(knex: Knex) {
       paid_available boolean NOT NULL DEFAULT false,
       preview_url text,
       thumbnail_url text,
+      source_label text NOT NULL DEFAULT 'QAY',
       review_score integer,
       review_notes text,
       template_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -89,6 +91,7 @@ async function ensureUserTemplatesTable(knex: Knex) {
   await knex.raw('CREATE INDEX IF NOT EXISTS qay_user_templates_status_idx ON qay_user_templates(status)');
   await knex.raw('CREATE INDEX IF NOT EXISTS qay_user_templates_category_idx ON qay_user_templates(category)');
   await knex.raw('ALTER TABLE qay_user_templates ADD COLUMN IF NOT EXISTS thumbnail_url text');
+  await knex.raw("ALTER TABLE qay_user_templates ADD COLUMN IF NOT EXISTS source_label text NOT NULL DEFAULT 'QAY'");
 }
 
 function normalizeTemplateUrl(value: string) {
@@ -351,6 +354,7 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
       paid_available: false,
       preview_url: input.previewUrl ? normalizeTemplateUrl(input.previewUrl) : (getQaySiteBaseUrl(site) || site.live_url || `/${site.slug}`),
       thumbnail_url: normalizeTemplateUrl(input.thumbnailUrl || '') || site.thumbnail_url || null,
+      source_label: input.sourceLabel?.trim().replace(/\s+/g, ' ').slice(0, 40) || 'QAY',
       review_score: reviewScore,
       review_notes: reviewNotes,
       template_payload: payload,
@@ -368,7 +372,7 @@ export async function listPublicUserTemplates() {
 
   return knex('qay_user_templates')
     .where('status', 'approved')
-    .select('id', 'name', 'description', 'category', 'preview_url', 'thumbnail_url', 'updated_at')
+    .select('id', 'name', 'description', 'category', 'preview_url', 'thumbnail_url', 'source_label', 'updated_at')
     .orderBy('updated_at', 'desc')
     .limit(72);
 }
@@ -379,13 +383,13 @@ export async function listUserTemplates(userId: string) {
 
   const ownTemplates = await knex('qay_user_templates')
     .where('owner_id', userId)
-    .select('id', 'name', 'description', 'category', 'status', 'pricing_mode', 'intended_price', 'paid_available', 'preview_url', 'thumbnail_url', 'review_score', 'review_notes', 'created_at', 'updated_at')
+    .select('id', 'name', 'description', 'category', 'status', 'pricing_mode', 'intended_price', 'paid_available', 'preview_url', 'thumbnail_url', 'source_label', 'review_score', 'review_notes', 'created_at', 'updated_at')
     .orderBy('updated_at', 'desc');
 
   const communityTemplates = await knex('qay_user_templates')
     .where('status', 'approved')
     .whereNot('owner_id', userId)
-    .select('id', 'name', 'description', 'category', 'status', 'pricing_mode', 'intended_price', 'paid_available', 'preview_url', 'thumbnail_url', 'review_score', 'created_at', 'updated_at')
+    .select('id', 'name', 'description', 'category', 'status', 'pricing_mode', 'intended_price', 'paid_available', 'preview_url', 'thumbnail_url', 'source_label', 'review_score', 'created_at', 'updated_at')
     .orderBy('updated_at', 'desc')
     .limit(48);
 

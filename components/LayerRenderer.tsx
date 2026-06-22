@@ -1791,7 +1791,7 @@ const LayerItem: React.FC<{
       elementProps['aria-current'] = 'page';
     }
 
-    if (!isEditMode && layerLinkContext && typeof elementProps.href === 'string') {
+    if (!isEditMode && typeof elementProps.href === 'string') {
       elementProps.href = normalizeSiteHref(elementProps.href, {
         isPreview,
         previewBasePath,

@@ -15,6 +15,7 @@ const CATEGORIES = ['Portfolio', 'Business', 'SaaS', 'Landing', 'Blog', 'Ecommer
 export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateDialogProps) {
   const [siteId, setSiteId] = useState<string | null>(null);
   const [templateUrl, setTemplateUrl] = useState('');
+  const [sourceLabel, setSourceLabel] = useState('QAY');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Portfolio');
@@ -29,6 +30,7 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
     const currentSiteId = readQayEditorSiteIdFromBrowser();
     setSiteId(currentSiteId);
     setTemplateUrl('');
+    setSourceLabel('QAY');
     setMessage(null);
     setError(null);
 
@@ -73,6 +75,8 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
         body: JSON.stringify({
           siteId,
           name,
+          previewUrl: templateUrl,
+          sourceLabel,
           description,
           category,
           pricingMode,
@@ -138,12 +142,27 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
             />
           </label>
 
-          {templateUrl && (
-            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
-              <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">Template URL</span>
-              <span className="mt-1 block break-all text-muted-foreground">{templateUrl}</span>
-            </div>
-          )}
+          <label className="block space-y-2 text-sm">
+            <span className="font-medium">Live preview URL</span>
+            <input
+              value={templateUrl}
+              onChange={(event) => setTemplateUrl(event.target.value)}
+              type="url"
+              className="h-10 w-full rounded-md border border-border bg-background px-3 outline-none transition focus:border-foreground"
+              placeholder="https://qay-theta.vercel.app/my-template"
+            />
+          </label>
+
+          <label className="block space-y-2 text-sm">
+            <span className="font-medium">Source label</span>
+            <input
+              value={sourceLabel}
+              onChange={(event) => setSourceLabel(event.target.value)}
+              maxLength={40}
+              className="h-10 w-full rounded-md border border-border bg-background px-3 outline-none transition focus:border-foreground"
+              placeholder="QAY, Ycode, Webflow"
+            />
+          </label>
 
           <label className="block space-y-2 text-sm">
             <span className="font-medium">Description</span>

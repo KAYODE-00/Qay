@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const description = typeof body?.description === 'string' ? body.description.trim() : '';
     const category = typeof body?.category === 'string' ? body.category.trim() : 'General';
+    const previewUrl = typeof body?.previewUrl === 'string' ? body.previewUrl.trim() : '';
+    const sourceLabel = typeof body?.sourceLabel === 'string' ? body.sourceLabel.trim() : 'QAY';
     const pricingMode = body?.pricingMode === 'paid' ? 'paid' : 'free';
     const intendedPrice = typeof body?.intendedPrice === 'number'
       ? body.intendedPrice
@@ -57,6 +59,8 @@ export async function POST(request: Request) {
       name,
       description,
       category,
+      previewUrl,
+      sourceLabel,
       pricingMode,
       intendedPrice: Number.isFinite(intendedPrice) ? intendedPrice : null,
     });

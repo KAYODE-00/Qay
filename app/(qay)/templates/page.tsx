@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 type PublicTemplate = Template & {
   categoryName: string;
-  source: 'QAY' | 'Ycode';
+  source: string;
 };
 
 async function getPublicTemplates(): Promise<PublicTemplate[]> {
@@ -27,7 +27,7 @@ async function getPublicTemplates(): Promise<PublicTemplate[]> {
     .filter((template) => Boolean(template.preview && template.livePreviewUrl))
     .map((template) => {
       const categoryName = template.categoryId ? categoryNameById.get(template.categoryId) || 'Template' : 'Template';
-      const source: 'QAY' | 'Ycode' = `${template.id} ${categoryName} ${template.name}`.toLowerCase().includes('qay') ? 'QAY' : 'Ycode';
+      const source = `${template.id} ${categoryName} ${template.name}`.toLowerCase().includes('qay') ? 'QAY' : 'Ycode';
 
       return {
         ...template,
@@ -48,7 +48,7 @@ async function getPublicTemplates(): Promise<PublicTemplate[]> {
       categoryId: null,
       livePreviewUrl: template.preview_url || null,
       categoryName: template.category || 'Template',
-      source: 'QAY',
+      source: template.source_label || 'QAY',
     }));
 
   return [...qayTemplates, ...externalTemplates];
