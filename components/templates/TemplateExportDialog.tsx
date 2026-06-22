@@ -25,6 +25,7 @@ import { generateId } from '@/lib/utils';
 import { Empty, EmptyMedia, EmptyDescription, EmptyTitle } from '../ui/empty';
 import Icon from '../ui/icon';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 
 interface TemplateExportDialogProps {
   open: boolean;
@@ -45,10 +46,14 @@ export function TemplateExportDialog({
   // Form state
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
+  const [templateUrl, setTemplateUrl] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
 
   const resetForm = () => {
     setTemplateName('');
     setDescription('');
+    setTemplateUrl('');
+    setImageUrl('');
     setError(null);
     setSuccess(false);
   };
@@ -63,6 +68,12 @@ export function TemplateExportDialog({
     // Validate
     if (!templateName.trim()) {
       setError('Template name is required');
+      return;
+    }
+
+    const siteId = readQayEditorSiteIdFromBrowser();
+    if (!siteId) {
+      setError('Unable to detect the current site ID.');
       return;
     }
 
@@ -81,6 +92,9 @@ export function TemplateExportDialog({
           templateName: templateName.trim(),
           description: description.trim(),
           email: user?.email || '',
+          siteId,
+          templateUrl: templateUrl.trim(),
+          imageUrl: imageUrl.trim(),
         }),
       });
 
@@ -112,7 +126,7 @@ export function TemplateExportDialog({
               </EmptyMedia>
               <EmptyTitle>Template submitted successfully!</EmptyTitle>
               <EmptyDescription>
-                Thansk for submitting your template. We will review it and get back to you soon.
+                Thanks for submitting your template. We will review it and get back to you soon.
               </EmptyDescription>
             </Empty>
           </div>
@@ -147,6 +161,30 @@ export function TemplateExportDialog({
                   onChange={(e) => setDescription(e.target.value)}
                   disabled={loading}
                   rows={3}
+                />
+              </div>
+
+              {/* Template URL */}
+              <div className="space-y-2">
+                <Label htmlFor="template-url">Template URL (Demo URL)</Label>
+                <Input
+                  id="template-url"
+                  placeholder="https://myqaytemplate.com"
+                  value={templateUrl}
+                  onChange={(e) => setTemplateUrl(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Image URL */}
+              <div className="space-y-2">
+                <Label htmlFor="template-image">Image URL (Preview Thumbnail)</Label>
+                <Input
+                  id="template-image"
+                  placeholder="https://myqaytemplate.com/screenshot.png"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  disabled={loading}
                 />
               </div>
 

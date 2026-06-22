@@ -41,6 +41,7 @@ type SubmitTemplateInput = {
   pricingMode: QayUserTemplatePricingMode;
   intendedPrice: number | null;
   thumbnailUrl: string;
+  previewUrl?: string;
 };
 
 type ApplyTemplateInput = {
@@ -348,7 +349,7 @@ export async function submitUserTemplate(input: SubmitTemplateInput) {
       pricing_mode: pricingMode,
       intended_price: intendedPrice,
       paid_available: false,
-      preview_url: getQaySiteBaseUrl(site) || site.live_url || `/${site.slug}`,
+      preview_url: input.previewUrl ? normalizeTemplateUrl(input.previewUrl) : (getQaySiteBaseUrl(site) || site.live_url || `/${site.slug}`),
       thumbnail_url: normalizeTemplateUrl(input.thumbnailUrl),
       review_score: reviewScore,
       review_notes: reviewNotes,

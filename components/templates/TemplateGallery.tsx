@@ -22,7 +22,8 @@ import {
 import Icon from '@/components/ui/icon';
 import { Label } from '@/components/ui/label';
 import BuilderLoading from '@/components/BuilderLoading';
-import { Empty, EmptyDescription, EmptyTitle } from '@/components/ui/empty';
+import { Search } from 'lucide-react';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 
 interface Template {
   id: string;
@@ -64,6 +65,7 @@ export function TemplateGallery({
   const [showApplyDialog, setShowApplyDialog] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch templates and categories on mount
   useEffect(() => {
@@ -94,13 +96,22 @@ export function TemplateGallery({
     fetchData();
   }, []);
 
-  // Filter templates by selected category
+  // Filter templates by selected category and search query
   const filteredTemplates = useMemo(() => {
-    if (selectedCategory === 'all') {
-      return templates;
+    let result = templates;
+    if (selectedCategory !== 'all') {
+      result = templates.filter((t) => t.categoryId === selectedCategory);
     }
-    return templates.filter((t) => t.categoryId === selectedCategory);
-  }, [templates, selectedCategory]);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (t) =>
+          t.name.toLowerCase().includes(q) ||
+          (t.description && t.description.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [templates, selectedCategory, searchQuery]);
 
   // Clear selected template when category changes and template is no longer visible
   useEffect(() => {
@@ -120,9 +131,17 @@ export function TemplateGallery({
     setSelectedTemplate(template);
 
     try {
-      const response = await fetch(`/api/templates/${template.id}/apply`, {
-        method: 'POST',
-      });
+      const siteId = readQayEditorSiteIdFromBrowser();
+      const response = await fetch(
+        siteId
+          ? `/api/qay/templates/${template.id}/apply`
+          : `/api/templates/${template.id}/apply`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: siteId ? JSON.stringify({ siteId }) : undefined,
+        }
+      );
 
       const data = await response.json();
 
@@ -131,7 +150,7 @@ export function TemplateGallery({
       }
 
       onApplySuccess?.();
-      window.location.href = '/ycode';
+      window.location.href = siteId ? `/ycode?site=${encodeURIComponent(siteId)}` : '/ycode';
     } catch (err) {
       console.error('[TemplateGallery] Apply error:', err);
       setApplyError(
@@ -207,9 +226,9 @@ export function TemplateGallery({
         </div>
       )}
 
-      {/* Category Filter Dropdown */}
-      {categories.length > 0 && (
-        <div className="mb-6">
+      {/* Category Filter and Search */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {categories.length > 0 && (
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Select category" />
@@ -223,8 +242,27 @@ export function TemplateGallery({
               ))}
             </SelectContent>
           </Select>
+        )}
+        <div className="relative flex-1 max-w-sm">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search templates by name..."
+            className="h-10 w-full rounded-md border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition focus:border-ring"
+          />
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Template Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -254,10 +292,11 @@ export function TemplateGallery({
 
       {/* Empty state for filtered results */}
       {filteredTemplates.length === 0 && templates.length > 0 && (
-        <Empty>
-          <EmptyTitle>No templates in this category</EmptyTitle>
-          <EmptyDescription>Try searching a different category.</EmptyDescription>
-        </Empty>
+        <EmptyState
+          icon="search"
+          title="No templates found"
+          description="Try searching a different keyword or category."
+        />
       )}
 
       {/* Apply Confirmation Dialog (only when not in immediate mode) */}

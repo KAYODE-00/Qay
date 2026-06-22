@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import Icon from '@/components/ui/icon';
+import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
 
 interface Template {
   id: string;
@@ -49,9 +50,17 @@ export function TemplateApplyDialog({
     setError(null);
 
     try {
-      const response = await fetch(`/api/templates/${template.id}/apply`, {
-        method: 'POST',
-      });
+      const siteId = readQayEditorSiteIdFromBrowser();
+      const response = await fetch(
+        siteId
+          ? `/api/qay/templates/${template.id}/apply`
+          : `/api/templates/${template.id}/apply`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: siteId ? JSON.stringify({ siteId }) : undefined,
+        }
+      );
 
       const data = await response.json();
 
@@ -64,7 +73,7 @@ export function TemplateApplyDialog({
       onSuccess?.();
 
       // Navigate to /ycode to refresh the whole app with new content
-      window.location.href = '/ycode';
+      window.location.href = siteId ? `/ycode?site=${encodeURIComponent(siteId)}` : '/ycode';
     } catch (err) {
       console.error('[TemplateApplyDialog] Error:', err);
       setError(err instanceof Error ? err.message : 'Failed to apply template');

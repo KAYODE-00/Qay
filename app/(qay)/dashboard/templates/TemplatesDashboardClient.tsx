@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, Settings, Sparkles } from 'lucide-react';
+import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, Search, Settings, Sparkles } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
 import { htmlToPageImports } from '@/lib/html-layer-converter';
 import { QayLogo } from '@/qay/components/QayLogo';
@@ -130,6 +130,7 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [restriction, setRestriction] = useState<{ title: string; message: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function loadTemplates() {
@@ -166,18 +167,78 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
   }, []);
 
   const filteredTemplates = useMemo(() => {
-    if (selectedCategory === 'all') return templates;
-    if (selectedCategory.startsWith('site:')) {
-      const siteTypeId = selectedCategory.replace('site:', '');
-      const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
-      return templates.filter((template) => templateMatchesSiteType(
-        template,
-        template.categoryId ? categoryNameById.get(template.categoryId) || '' : '',
-        siteTypeId
-      ));
+    let result = templates;
+    if (selectedCategory !== 'all') {
+      if (selectedCategory.startsWith('site:')) {
+        const siteTypeId = selectedCategory.replace('site:', '');
+        const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
+        result = templates.filter((template) => templateMatchesSiteType(
+          template,
+          template.categoryId ? categoryNameById.get(template.categoryId) || '' : '',
+          siteTypeId
+        ));
+      } else {
+        result = templates.filter((template) => template.categoryId === selectedCategory);
+      }
     }
-    return templates.filter((template) => template.categoryId === selectedCategory);
-  }, [categories, selectedCategory, templates]);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((t) => t.name.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)));
+    }
+    return result;
+  }, [categories, selectedCategory, templates, searchQuery]);
+
+  const filteredUserTemplates = useMemo(() => {
+    let result = userTemplates;
+    if (selectedCategory !== 'all') {
+      if (selectedCategory.startsWith('site:')) {
+        const siteTypeId = selectedCategory.replace('site:', '');
+        const filter = SITE_TYPE_FILTERS.find((item) => item.id === siteTypeId);
+        if (filter) {
+          result = result.filter((template) => {
+            const haystack = `${template.name} ${template.description || ''} ${template.category || ''}`.toLowerCase();
+            return filter.keywords.some((keyword) => haystack.includes(keyword));
+          });
+        }
+      } else {
+        const cat = categories.find((c) => c.id === selectedCategory);
+        if (cat) {
+          result = result.filter((template) => template.category.toLowerCase() === cat.name.toLowerCase());
+        }
+      }
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((t) => t.name.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)));
+    }
+    return result;
+  }, [userTemplates, selectedCategory, searchQuery, categories]);
+
+  const filteredCommunityTemplates = useMemo(() => {
+    let result = communityTemplates;
+    if (selectedCategory !== 'all') {
+      if (selectedCategory.startsWith('site:')) {
+        const siteTypeId = selectedCategory.replace('site:', '');
+        const filter = SITE_TYPE_FILTERS.find((item) => item.id === siteTypeId);
+        if (filter) {
+          result = result.filter((template) => {
+            const haystack = `${template.name} ${template.description || ''} ${template.category || ''}`.toLowerCase();
+            return filter.keywords.some((keyword) => haystack.includes(keyword));
+          });
+        }
+      } else {
+        const cat = categories.find((c) => c.id === selectedCategory);
+        if (cat) {
+          result = result.filter((template) => template.category.toLowerCase() === cat.name.toLowerCase());
+        }
+      }
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((t) => t.name.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)));
+    }
+    return result;
+  }, [communityTemplates, selectedCategory, searchQuery, categories]);
 
   const categoryTabs = useMemo(() => {
     const preferred = [
@@ -569,6 +630,28 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
           ))}
         </div>
 
+        <div className="mt-5 max-w-md">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search templates by name..."
+              className="h-10 w-full rounded-md border border-white/10 bg-white/[0.03] pl-10 pr-10 text-sm text-white outline-none transition focus:border-white/20 focus:bg-white/[0.05]"
+            />
+            <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-white/40" />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-white/40 hover:text-white"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
             <p className="text-xs uppercase tracking-wide text-white/40">My templates</p>
@@ -600,9 +683,9 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
           </div>
         ) : (
           <>
-            {(userTemplates.length > 0 || communityTemplates.length > 0) && (
+            {(filteredUserTemplates.length > 0 || filteredCommunityTemplates.length > 0) && (
               <div className="mt-8 space-y-8">
-                {userTemplates.length > 0 && (
+                {filteredUserTemplates.length > 0 && (
                   <section>
                     <div className="flex items-end justify-between gap-4">
                       <div>
@@ -611,7 +694,7 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                       </div>
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {userTemplates.map((template) => (
+                      {filteredUserTemplates.map((template) => (
                         <article key={template.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
                           <div className="aspect-[72/48] bg-white/[0.04]">
                             {template.thumbnail_url ? (
@@ -658,11 +741,11 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                   </section>
                 )}
 
-                {communityTemplates.length > 0 && (
+                {filteredCommunityTemplates.length > 0 && (
                   <section>
                     <h2 className="text-xl font-semibold tracking-normal">Community</h2>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {communityTemplates.map((template) => (
+                      {filteredCommunityTemplates.map((template) => (
                         <article key={template.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
                           <div className="aspect-[72/48] bg-white/[0.04]">
                             {template.thumbnail_url ? (
@@ -749,10 +832,12 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                   </article>
                 ))}
               </div>
-            ) : userTemplates.length === 0 && communityTemplates.length === 0 ? (
+            ) : filteredUserTemplates.length === 0 && filteredCommunityTemplates.length === 0 ? (
               <div className="mt-12 flex min-h-72 flex-col items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-center">
                 <LayoutTemplate className="size-8 text-white/35" />
-                <p className="mt-3 text-sm text-white/60">No templates yet. Create your own or import a site to get started.</p>
+                <p className="mt-3 text-sm text-white/60">
+                  {searchQuery ? 'No templates found matching filters.' : 'No templates yet. Create your own or import a site to get started.'}
+                </p>
               </div>
             ) : null}
           </>
