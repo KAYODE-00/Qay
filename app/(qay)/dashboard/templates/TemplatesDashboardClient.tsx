@@ -51,6 +51,7 @@ type Props = {
   initialSites: QaySite[];
   profile: QayAccountProfile;
   context?: 'dashboard' | 'editor';
+  showSourceTemplates?: boolean;
 };
 
 const SITE_TYPE_FILTERS = [
@@ -108,7 +109,7 @@ function DashboardNavItem({
   );
 }
 
-export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Props) {
+export function TemplatesDashboardClient({ profile, context = 'dashboard', showSourceTemplates = false }: Props) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [userTemplates, setUserTemplates] = useState<UserTemplate[]>([]);
   const [communityTemplates, setCommunityTemplates] = useState<UserTemplate[]>([]);
@@ -138,7 +139,20 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
       try {
         setIsLoading(true);
         setError(null);
-        const userTemplateResponse = await fetch('/api/qay/templates/user', { cache: 'no-store' });
+        const [userTemplateResponse, sourceTemplateResponse] = await Promise.all([
+          fetch('/api/qay/templates/user', { cache: 'no-store' }),
+          showSourceTemplates ? fetch('/api/templates', { cache: 'no-store' }) : Promise.resolve(null),
+        ]);
+
+        const nextCategories: Category[] = [];
+
+        if (sourceTemplateResponse?.ok) {
+          const sourcePayload = await sourceTemplateResponse.json();
+          setTemplates(sourcePayload.templates ?? []);
+          nextCategories.push(...(sourcePayload.categories ?? []));
+        } else {
+          setTemplates([]);
+        }
 
         if (userTemplateResponse.ok) {
           const userTemplatePayload = await userTemplateResponse.json();
@@ -147,9 +161,22 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
           setUserTemplates(ownTemplates);
           setCommunityTemplates(sharedTemplates);
           setUserTemplateCounts(userTemplatePayload.data?.counts ?? { total: 0, pending: 0, approved: 0 });
-          const categoryNames = Array.from(new Set([...ownTemplates, ...sharedTemplates].map((template: UserTemplate) => template.category).filter(Boolean)));
-          setCategories(categoryNames.map((name) => ({ id: name, name })));
+          const categoryNames = Array.from(new Set<string>(
+            [...ownTemplates, ...sharedTemplates]
+              .map((template: UserTemplate) => template.category)
+              .filter((name): name is string => Boolean(name))
+          ));
+          nextCategories.push(...categoryNames.map((name) => ({ id: name, name })));
         }
+
+        const dedupedCategories = new Map<string, Category>();
+        for (const category of nextCategories) {
+          const key = category.id || category.name;
+          if (!dedupedCategories.has(key)) {
+            dedupedCategories.set(key, category);
+          }
+        }
+        setCategories(Array.from(dedupedCategories.values()));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load templates');
       } finally {
@@ -158,7 +185,7 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
     }
 
     loadTemplates();
-  }, []);
+  }, [showSourceTemplates]);
 
   const filteredTemplates = useMemo(() => {
     let result = templates;
@@ -508,11 +535,15 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
   const headerKicker = isEditorContext ? 'QAY Editor' : 'QAY Studio';
   const backLabel = isEditorContext ? 'Editor' : 'Dashboard';
   const introCopy = isEditorContext
-    ? 'Saved QAY templates stay available here, ready to reuse in this editor.'
-    : 'Clone a submitted template or import pasted HTML into a new QAY project.';
+    ? showSourceTemplates
+      ? 'Saved templates and admin source templates stay available here, ready to reuse in this editor.'
+      : 'Saved QAY templates stay available here, ready to reuse in this editor.'
+    : showSourceTemplates
+      ? 'Clone submitted templates, review source templates, or import pasted HTML into a new QAY project.'
+      : 'Clone a submitted template or import pasted HTML into a new QAY project.';
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-white">
+    <main className="min-h-screen bg-black text-white">
       <aside className="fixed inset-y-0 left-0 z-40 flex w-20 flex-col items-center border-r border-white/10 bg-black/40 px-3 py-4 shadow-sm backdrop-blur">
         <a
           href={homeHref} aria-label={backLabel}
@@ -690,7 +721,7 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                     <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {filteredUserTemplates.map((template) => (
                         <article key={template.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
-                          <div className="aspect-[72/48] bg-white/[0.04]">
+                          <div className="relative aspect-[72/48] overflow-hidden bg-white/[0.04]">
                             {template.thumbnail_url ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
@@ -705,8 +736,7 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                                 loading="lazy"
                                 tabIndex={-1}
                                 sandbox="allow-same-origin allow-scripts allow-forms"
-                                className="pointer-events-none h-full w-full origin-top-left scale-[0.45] bg-white"
-                                style={{ width: '222%', height: '222%' }}
+                                className="pointer-events-none absolute left-0 top-0 h-[222%] w-[222%] origin-top-left scale-[0.45] bg-white"
                               />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-white/20">
@@ -762,7 +792,7 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                     <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {filteredCommunityTemplates.map((template) => (
                         <article key={template.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
-                          <div className="aspect-[72/48] bg-white/[0.04]">
+                          <div className="relative aspect-[72/48] overflow-hidden bg-white/[0.04]">
                             {template.thumbnail_url ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
@@ -777,8 +807,7 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard' }: Pro
                                 loading="lazy"
                                 tabIndex={-1}
                                 sandbox="allow-same-origin allow-scripts allow-forms"
-                                className="pointer-events-none h-full w-full origin-top-left scale-[0.45] bg-white"
-                                style={{ width: '222%', height: '222%' }}
+                                className="pointer-events-none absolute left-0 top-0 h-[222%] w-[222%] origin-top-left scale-[0.45] bg-white"
                               />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-white/20">

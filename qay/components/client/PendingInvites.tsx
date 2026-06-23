@@ -63,6 +63,16 @@ export function PendingInvites({ invites }: PendingInvitesProps) {
               <div>
                 <p className="text-sm font-medium text-foreground">{invite.site?.name || 'Shared site'}</p>
                 <p className="text-xs text-muted-foreground">Role: {invite.role}</p>
+                {invite.site?.live_url && (
+                  <a
+                    href={invite.site.live_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex max-w-[240px] truncate text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:max-w-md"
+                  >
+                    {invite.site.live_url}
+                  </a>
+                )}
               </div>
             </div>
 

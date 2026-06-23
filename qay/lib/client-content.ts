@@ -66,7 +66,10 @@ export type ClientPendingInvite = {
   role: string;
   expires_at: string | null;
   created_at: string | null;
-  site: Pick<QaySite, 'id' | 'name' | 'slug' | 'thumbnail_url'> | null;
+  site: Pick<
+    QaySite,
+    'id' | 'name' | 'slug' | 'thumbnail_url' | 'custom_domain' | 'domain_verified' | 'publish_status' | 'live_url'
+  > | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -484,27 +487,33 @@ export async function getClientAccessibleSites(userId: string): Promise<ClientAc
 }
 
 export async function getPendingClientInvites(email: string | null | undefined): Promise<ClientPendingInvite[]> {
-  if (!email) {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail) {
     return [];
   }
 
   const supabase = getQayAdmin() as any;
   const { data, error } = await supabase
     .from('qay_site_invites')
-    .select('id, site_id, email, token, role, expires_at, created_at, site:qay_sites(id, name, slug, thumbnail_url)')
-    .ilike('email', email)
+    .select('id, site_id, email, token, role, expires_at, created_at, site:qay_sites(id, name, slug, thumbnail_url, custom_domain, domain_verified, publish_status, live_url)')
+    .ilike('email', normalizedEmail)
     .eq('status', 'pending')
-    .gt('expires_at', new Date().toISOString())
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .order('created_at', { ascending: false });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map((invite: any) => ({
-    ...invite,
-    site: Array.isArray(invite.site) ? invite.site[0] ?? null : invite.site ?? null,
-  }));
+  return (data ?? []).map((invite: any) => {
+    const site = Array.isArray(invite.site) ? invite.site[0] ?? null : invite.site ?? null;
+
+    return {
+      ...invite,
+      site: site ? withResolvedQayLiveUrl(site) : null,
+    };
+  });
 }
 
 export async function getClientSiteContent(userId: string, siteId: string, pageId?: string | null): Promise<ClientSiteContent | null> {

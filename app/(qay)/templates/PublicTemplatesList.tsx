@@ -111,7 +111,7 @@ export function PublicTemplatesList({
               className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/30 flex flex-col h-full"
             >
               <Link href={template.livePreviewUrl || '/templates'} className="block">
-                <div className="aspect-[4/3] overflow-hidden bg-white/5">
+                <div className="relative aspect-[4/3] overflow-hidden bg-white/5">
                   {template.preview && template.preview !== template.livePreviewUrl ? (
                     <img
                       src={template.preview}
@@ -125,8 +125,7 @@ export function PublicTemplatesList({
                       loading="lazy"
                       tabIndex={-1}
                       sandbox="allow-same-origin allow-scripts allow-forms"
-                      className="pointer-events-none h-full w-full origin-top-left scale-[0.45] bg-white"
-                      style={{ width: '222%', height: '222%' }}
+                      className="pointer-events-none absolute left-0 top-0 h-[222%] w-[222%] origin-top-left scale-[0.45] bg-white"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-white/20">

@@ -38,6 +38,7 @@ interface PendingInvite {
   role: string;
   invited_at: string;
   expires_at: string;
+  invite_url?: string;
 }
 
 export default function UsersSettingsPage() {
@@ -374,6 +375,16 @@ export default function UsersSettingsPage() {
                         <div className="text-xs text-muted-foreground">
                           Invited {formatDate(invite.invited_at)}
                         </div>
+                        {invite.invite_url && (
+                          <a
+                            href={invite.invite_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 block max-w-[260px] truncate text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:max-w-md"
+                          >
+                            {invite.invite_url}
+                          </a>
+                        )}
                       </div>
 
                       <DropdownMenu>

@@ -60,34 +60,37 @@ export async function GET(request: NextRequest) {
     const memberSummaries = await Promise.all(
       (members ?? []).map(async (member: any) => {
         const summary = await getAuthUserSummary(client, member.user_id);
-        return summary
-          ? {
-              ...summary,
-              member_id: member.id,
-              role: member.role,
-              accepted_at: member.accepted_at,
-              is_owner: false,
-            }
-          : null;
+
+        if (!summary) {
+          return null;
+        }
+
+        return {
+          ...summary,
+          member_id: member.id,
+          role: member.role,
+          accepted_at: member.accepted_at,
+          is_owner: false,
+        };
       })
     );
 
     const activeUsers = [
-      ownerSummary
-        ? {
-            ...ownerSummary,
-            member_id: null,
-            role: 'owner',
-            accepted_at: null,
-            is_owner: true,
-          }
-        : null,
+      ...(ownerSummary
+        ? [{
+          ...ownerSummary,
+          member_id: null,
+          role: 'owner',
+          accepted_at: null,
+          is_owner: true,
+        }]
+        : []),
       ...memberSummaries,
     ].filter(Boolean);
 
     const { data: pendingInvites, error: invitesError } = await client
       .from('qay_site_invites')
-      .select('id, email, role, status, created_at, expires_at')
+      .select('id, email, role, status, token, created_at, expires_at')
       .eq('site_id', siteId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
@@ -105,6 +108,7 @@ export async function GET(request: NextRequest) {
           role: invite.role,
           invited_at: invite.created_at,
           expires_at: invite.expires_at,
+          invite_url: `${request.nextUrl.origin}/invite/${invite.token}`,
         })),
       },
     });

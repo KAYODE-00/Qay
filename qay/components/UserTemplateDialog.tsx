@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
@@ -19,8 +19,6 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Portfolio');
-  const [pricingMode, setPricingMode] = useState<'free' | 'paid'>('free');
-  const [intendedPrice, setIntendedPrice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +50,6 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
     };
   }, [open]);
 
-  const paidNotice = useMemo(() => {
-    if (pricingMode !== 'paid') return null;
-    return 'Paid template selling is not live yet. We will save the amount and keep this template free for now.';
-  }, [pricingMode]);
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!siteId) {
@@ -79,8 +72,8 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
           sourceLabel,
           description,
           category,
-          pricingMode,
-          intendedPrice: pricingMode === 'paid' ? Number(intendedPrice) : null,
+          pricingMode: 'free',
+          intendedPrice: null,
         }),
       });
       const payload = await response.json().catch(() => null);
@@ -95,8 +88,6 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
         : 'Template saved. It is waiting for review.');
       setName('');
       setDescription('');
-      setIntendedPrice('');
-      setPricingMode('free');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save template');
     } finally {
@@ -180,53 +171,18 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
             QAY will use this site&apos;s generated preview image for the template card.
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-2 text-sm">
-              <span className="font-medium">Category</span>
-              <select
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                className="h-10 w-full rounded-md border border-border bg-background px-3 outline-none transition focus:border-foreground"
-              >
-                {CATEGORIES.map((item) => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block space-y-2 text-sm">
-              <span className="font-medium">Pricing</span>
-              <select
-                value={pricingMode}
-                onChange={(event) => setPricingMode(event.target.value as 'free' | 'paid')}
-                className="h-10 w-full rounded-md border border-border bg-background px-3 outline-none transition focus:border-foreground"
-              >
-                <option value="free">Free</option>
-                <option value="paid">Paid later</option>
-              </select>
-            </label>
-          </div>
-
-          {pricingMode === 'paid' && (
-            <label className="block space-y-2 text-sm">
-              <span className="font-medium">Intended price</span>
-              <input
-                value={intendedPrice}
-                onChange={(event) => setIntendedPrice(event.target.value)}
-                type="number"
-                min="0"
-                step="0.01"
-                className="h-10 w-full rounded-md border border-border bg-background px-3 outline-none transition focus:border-foreground"
-                placeholder="29"
-              />
-            </label>
-          )}
-
-          {paidNotice && (
-            <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              {paidNotice}
-            </p>
-          )}
+          <label className="block space-y-2 text-sm">
+            <span className="font-medium">Category</span>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className="h-10 w-full rounded-md border border-border bg-background px-3 outline-none transition focus:border-foreground"
+            >
+              {CATEGORIES.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
 
           {(message || error) && (
             <p

@@ -4,6 +4,15 @@ import type { QaySite } from '@/qay/types';
 import { TemplatesDashboardClient } from '@/app/(qay)/dashboard/templates/TemplatesDashboardClient';
 import { getQayAccountProfile } from '@/qay/lib/account';
 
+function isQayTemplateAdmin(email: string | null | undefined) {
+  const admins = (process.env.QAY_ADMIN_EMAILS || '')
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
+  return Boolean(email && admins.includes(email.toLowerCase()));
+}
+
 export default async function QayEditorSettingsTemplatesPage() {
   const user = await requireDeveloper();
   const supabase = getQayAdmin() as any;
@@ -23,6 +32,7 @@ export default async function QayEditorSettingsTemplatesPage() {
       initialSites={(data ?? []) as QaySite[]}
       profile={await getQayAccountProfile(user)}
       context="editor"
+      showSourceTemplates={isQayTemplateAdmin(user.email)}
     />
   );
 }

@@ -444,7 +444,10 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
   await knex.transaction(async (trx) => {
     for (const [index, page] of payload.pages.entries()) {
       const pageId = randomUUID();
-      const isRootHomepage = page.error_page === null && page.page_folder_id === null && page.is_index && !hasRootIndex;
+      const isRootHomepage = page.error_page === null
+        && page.page_folder_id === null
+        && !hasRootIndex
+        && (page.is_index || index === 0);
       const isIndex = isRootHomepage;
       if (isIndex) {
         hasRootIndex = true;
