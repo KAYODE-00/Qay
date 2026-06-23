@@ -599,7 +599,10 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
         created_at: now,
         updated_at: now,
       };
-      const layers = cloneLayers(normalizeLayers(page.layers), pageIdMap);
+      const rawLayers = normalizeLayers(page.layers);
+      const assetUrlMap = await getPortableAssetUrlMap(trx, rawLayers);
+      const portableLayers = makeTemplateAssetsPortable(rawLayers, assetUrlMap) as Layer[];
+      const layers = cloneLayers(portableLayers, pageIdMap);
 
       await trx('pages').insert(pageRecord);
       await trx('page_layers').insert({
