@@ -51,6 +51,11 @@ type ApplyTemplateInput = {
   siteId: string;
 };
 
+type DeleteTemplateInput = {
+  userId: string;
+  templateId: string;
+};
+
 function normalizeCategory(value: string) {
   const category = value.trim().replace(/\s+/g, ' ').slice(0, 48);
   return category || 'General';
@@ -179,6 +184,85 @@ function collectLayerStats(layers: Layer[]) {
   };
 }
 
+function collectAssetVariableIds(value: unknown, ids = new Set<string>()) {
+  if (!value) return ids;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectAssetVariableIds(item, ids);
+    }
+    return ids;
+  }
+
+  if (typeof value !== 'object') return ids;
+
+  const record = value as Record<string, unknown>;
+  const data = record.data as Record<string, unknown> | undefined;
+
+  if (record.type === 'asset' && typeof data?.asset_id === 'string') {
+    ids.add(data.asset_id);
+  }
+
+  for (const entry of Object.values(record)) {
+    collectAssetVariableIds(entry, ids);
+  }
+
+  return ids;
+}
+
+async function getPortableAssetUrlMap(knex: Knex, layers: Layer[]) {
+  const assetIds = Array.from(collectAssetVariableIds(layers));
+
+  if (assetIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const rows = await knex('assets')
+    .whereIn('id', assetIds)
+    .whereNull('deleted_at')
+    .select('id', 'public_url', 'content');
+
+  return new Map(
+    rows
+      .map((asset) => {
+        const url = asset.public_url
+          || (asset.content ? `data:image/svg+xml,${encodeURIComponent(asset.content)}` : '');
+        return [asset.id, url] as const;
+      })
+      .filter(([, url]) => Boolean(url))
+  );
+}
+
+function makeTemplateAssetsPortable(value: unknown, assetUrlMap: Map<string, string>): unknown {
+  if (!value) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => makeTemplateAssetsPortable(item, assetUrlMap));
+  }
+
+  if (typeof value !== 'object') return value;
+
+  const record = value as Record<string, unknown>;
+  const data = record.data as Record<string, unknown> | undefined;
+
+  if (record.type === 'asset' && typeof data?.asset_id === 'string') {
+    const url = assetUrlMap.get(data.asset_id);
+    if (url) {
+      return {
+        type: 'dynamic_text',
+        data: { content: url },
+      };
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(record).map(([key, entry]) => [
+      key,
+      makeTemplateAssetsPortable(entry, assetUrlMap),
+    ])
+  );
+}
+
 async function buildTemplatePayload(knex: Knex, siteId: string): Promise<TemplatePayload> {
   const pages = await knex('pages')
     .whereNull('deleted_at')
@@ -218,18 +302,24 @@ async function buildTemplatePayload(knex: Knex, siteId: string): Promise<Templat
     }
   }
 
-  const snapshots = pages.map((page): TemplatePageSnapshot => ({
-    id: page.id,
-    name: page.name || 'Page',
-    slug: page.slug || '',
-    is_index: Boolean(page.is_index),
-    is_dynamic: Boolean(page.is_dynamic),
-    error_page: page.error_page ?? null,
-    page_folder_id: page.page_folder_id ?? null,
-    order: Number(page.order ?? 0),
-    depth: Number(page.depth ?? 0),
-    settings: page.settings || {},
-    layers: layerMap.get(page.id) || [],
+  const snapshots = await Promise.all(pages.map(async (page): Promise<TemplatePageSnapshot> => {
+    const layers = layerMap.get(page.id) || [];
+    const assetUrlMap = await getPortableAssetUrlMap(knex, layers);
+    const portableLayers = makeTemplateAssetsPortable(layers, assetUrlMap) as Layer[];
+
+    return {
+      id: page.id,
+      name: page.name || 'Page',
+      slug: page.slug || '',
+      is_index: Boolean(page.is_index),
+      is_dynamic: Boolean(page.is_dynamic),
+      error_page: page.error_page ?? null,
+      page_folder_id: page.page_folder_id ?? null,
+      order: Number(page.order ?? 0),
+      depth: Number(page.depth ?? 0),
+      settings: page.settings || {},
+      layers: portableLayers,
+    };
   }));
 
   if (snapshots.every((page) => page.layers.length === 0)) {
@@ -266,7 +356,28 @@ function localReview(payload: TemplatePayload) {
   };
 }
 
-function cloneLayers(layers: Layer[]) {
+function remapTemplateReferences(value: unknown, layerIdMap: Map<string, string>, pageIdMap: Map<string, string>): unknown {
+  if (typeof value === 'string') {
+    return layerIdMap.get(value) || pageIdMap.get(value) || value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => remapTemplateReferences(item, layerIdMap, pageIdMap));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      key,
+      remapTemplateReferences(entry, layerIdMap, pageIdMap),
+    ])
+  );
+}
+
+function cloneLayers(layers: Layer[], pageIdMap = new Map<string, string>()) {
   const idMap = new Map<string, string>();
 
   const firstPass = (items: Layer[]): Layer[] => items.map((layer) => {
@@ -282,12 +393,12 @@ function cloneLayers(layers: Layer[]) {
   const cloned = firstPass(layers);
 
   const secondPass = (items: Layer[]): Layer[] => items.map((layer) => ({
-    ...layer,
+    ...(remapTemplateReferences(layer, idMap, pageIdMap) as Layer),
     interactions: layer.interactions?.map((interaction) => ({
-      ...interaction,
+      ...(remapTemplateReferences(interaction, idMap, pageIdMap) as typeof interaction),
       id: generateId('int'),
       tweens: interaction.tweens.map((tween) => ({
-        ...tween,
+        ...(remapTemplateReferences(tween, idMap, pageIdMap) as typeof tween),
         id: generateId('anm'),
         layer_id: idMap.get(tween.layer_id) || layer.id,
       })),
@@ -296,6 +407,10 @@ function cloneLayers(layers: Layer[]) {
   }));
 
   return secondPass(cloned);
+}
+
+function remapPageSettings(settings: Record<string, unknown>, pageIdMap: Map<string, string>) {
+  return remapTemplateReferences(settings, new Map<string, string>(), pageIdMap) as Record<string, unknown>;
 }
 
 function slugify(value: string) {
@@ -440,10 +555,11 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
   const usedSlugs = new Set(existingPages.map((page) => page.slug || '').filter(Boolean));
   let hasRootIndex = existingPages.some((page) => page.is_index && page.page_folder_id === null && page.error_page === null);
   const now = new Date().toISOString();
+  const pageIdMap = new Map(payload.pages.map((page) => [page.id, randomUUID()]));
 
   await knex.transaction(async (trx) => {
     for (const [index, page] of payload.pages.entries()) {
-      const pageId = randomUUID();
+      const pageId = pageIdMap.get(page.id) || randomUUID();
       const isRootHomepage = page.error_page === null
         && page.page_folder_id === null
         && !hasRootIndex
@@ -456,7 +572,7 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
         ? buildQayIndexSlug(input.siteId)
         : uniqueSlug(page.slug || page.name, usedSlugs);
       const settings = {
-        ...(page.settings || {}),
+        ...remapPageSettings(page.settings || {}, pageIdMap),
         qay_site_id: input.siteId,
         source_user_template_id: input.templateId,
       };
@@ -483,7 +599,7 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
         created_at: now,
         updated_at: now,
       };
-      const layers = cloneLayers(normalizeLayers(page.layers));
+      const layers = cloneLayers(normalizeLayers(page.layers), pageIdMap);
 
       await trx('pages').insert(pageRecord);
       await trx('page_layers').insert({
@@ -502,4 +618,19 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
   });
 
   return { success: true, templateName: template.name };
+}
+
+export async function deleteUserTemplate(input: DeleteTemplateInput) {
+  const knex = await getKnexClient();
+  await ensureUserTemplatesTable(knex);
+
+  const deleted = await knex('qay_user_templates')
+    .where({ id: input.templateId, owner_id: input.userId })
+    .delete();
+
+  if (!deleted) {
+    throw new Error('Template not found');
+  }
+
+  return { success: true };
 }

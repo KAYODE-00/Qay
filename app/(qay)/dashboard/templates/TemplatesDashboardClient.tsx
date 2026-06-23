@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, Search, Settings, Sparkles } from 'lucide-react';
+import { ArrowLeft, Code2, ExternalLink, Home, LayoutTemplate, Plus, Search, Settings, Sparkles, Trash2 } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
 import { htmlToPageImports } from '@/lib/html-layer-converter';
 import { QayLogo } from '@/qay/components/QayLogo';
@@ -133,6 +133,8 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard', showS
   const [error, setError] = useState<string | null>(null);
   const [restriction, setRestriction] = useState<{ title: string; message: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<UserTemplate | null>(null);
 
   useEffect(() => {
     async function loadTemplates() {
@@ -356,6 +358,38 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard', showS
     setCreationMode('blank');
     setIsCreateOpen(true);
     setNotice('Create a new project from this template. It will appear in your dashboard.');
+  }
+
+  async function confirmDeleteOwnTemplate() {
+    const template = deleteCandidate;
+    if (!template) return;
+    setDeletingTemplateId(template.id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response = await fetch(`/api/qay/templates/user/${template.id}`, {
+        method: 'DELETE',
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to delete template');
+      }
+
+      setUserTemplates((items) => items.filter((item) => item.id !== template.id));
+      setUserTemplateCounts((counts) => ({
+        total: Math.max(0, counts.total - 1),
+        pending: template.status === 'pending_review' ? Math.max(0, counts.pending - 1) : counts.pending,
+        approved: template.status === 'approved' ? Math.max(0, counts.approved - 1) : counts.approved,
+      }));
+      setNotice('Template deleted.');
+      setDeleteCandidate(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete template');
+    } finally {
+      setDeletingTemplateId(null);
+    }
   }
 
   function handleUseTemplate(template: Template) {
@@ -779,6 +813,15 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard', showS
                           >
                             Create project
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteCandidate(template)}
+                            disabled={deletingTemplateId === template.id}
+                            className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-red-400/20 px-4 text-sm font-medium text-red-100 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Trash2 className="size-4" />
+                            {deletingTemplateId === template.id ? 'Deleting...' : 'Delete template'}
+                          </button>
                           </div>
                         </article>
                       ))}
@@ -995,6 +1038,47 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard', showS
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {deleteCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#101010] p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold tracking-normal">Delete template?</h2>
+                <p className="mt-1 text-sm text-white/55">
+                  This removes {deleteCandidate.name} from your saved templates. Existing sites created from it will stay unchanged.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteCandidate(null)}
+                className="rounded-md px-2 py-1 text-sm text-white/50 hover:bg-white/5 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteCandidate(null)}
+                className="h-10 rounded-md border border-white/10 px-4 text-sm font-medium text-white/75 transition hover:bg-white/5 hover:text-white"
+              >
+                Keep template
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteOwnTemplate}
+                disabled={deletingTemplateId === deleteCandidate.id}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-red-500 px-4 text-sm font-medium text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Trash2 className="size-4" />
+                {deletingTemplateId === deleteCandidate.id ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
