@@ -127,6 +127,28 @@ function normalizeLayers(value: unknown): Layer[] {
   }
 }
 
+function ensureBodyLayer(layers: Layer[]): Layer[] {
+  if (layers.length === 1 && (layers[0]?.id === 'body' || layers[0]?.name === 'body')) {
+    return [
+      {
+        ...layers[0],
+        id: 'body',
+        name: 'body',
+        children: layers[0].children || [],
+      },
+    ];
+  }
+
+  return [
+    {
+      id: 'body',
+      name: 'body',
+      classes: '',
+      children: layers,
+    } as Layer,
+  ];
+}
+
 function normalizeTemplatePayload(value: unknown): TemplatePayload | null {
   const parsed = typeof value === 'string'
     ? (() => {
@@ -303,7 +325,7 @@ async function buildTemplatePayload(knex: Knex, siteId: string): Promise<Templat
   }
 
   const snapshots = await Promise.all(pages.map(async (page): Promise<TemplatePageSnapshot> => {
-    const layers = layerMap.get(page.id) || [];
+    const layers = ensureBodyLayer(layerMap.get(page.id) || []);
     const assetUrlMap = await getPortableAssetUrlMap(knex, layers);
     const portableLayers = makeTemplateAssetsPortable(layers, assetUrlMap) as Layer[];
 
@@ -381,11 +403,13 @@ function cloneLayers(layers: Layer[], pageIdMap = new Map<string, string>()) {
   const idMap = new Map<string, string>();
 
   const firstPass = (items: Layer[]): Layer[] => items.map((layer) => {
-    const nextId = generateId('lyr');
+    const isBodyLayer = layer.id === 'body' || layer.name === 'body';
+    const nextId = isBodyLayer ? 'body' : generateId('lyr');
     idMap.set(layer.id, nextId);
     return {
       ...layer,
       id: nextId,
+      name: isBodyLayer ? 'body' : layer.name,
       children: layer.children ? firstPass(layer.children) : undefined,
     };
   });
@@ -599,7 +623,7 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
         created_at: now,
         updated_at: now,
       };
-      const rawLayers = normalizeLayers(page.layers);
+      const rawLayers = ensureBodyLayer(normalizeLayers(page.layers));
       const assetUrlMap = await getPortableAssetUrlMap(trx, rawLayers);
       const portableLayers = makeTemplateAssetsPortable(rawLayers, assetUrlMap) as Layer[];
       const layers = cloneLayers(portableLayers, pageIdMap);

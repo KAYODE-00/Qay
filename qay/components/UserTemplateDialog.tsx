@@ -167,10 +167,6 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
             />
           </label>
 
-          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs leading-5 text-muted-foreground">
-            QAY will use this site&apos;s generated preview image for the template card.
-          </div>
-
           <label className="block space-y-2 text-sm">
             <span className="font-medium">Category</span>
             <select
