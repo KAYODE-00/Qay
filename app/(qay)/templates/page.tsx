@@ -21,7 +21,6 @@ type PublicTemplate = Template & {
 async function getPublicTemplates(): Promise<PublicTemplate[]> {
   const userTemplates = await listPublicUserTemplates().catch(() => []);
   const qayTemplates: PublicTemplate[] = userTemplates
-    .filter((template) => Boolean(template.thumbnail_url || template.preview_url))
     .map((template) => ({
       id: `user-${template.id}`,
       name: template.name,
@@ -42,7 +41,7 @@ export default async function PublicTemplatesPage() {
   const categories = Array.from(new Set(templates.map((template) => template.categoryName))).slice(0, 14);
 
   return (
-    <main className="min-h-screen bg-[#070707] text-white">
+    <main className="min-h-screen bg-black text-white">
       <header className="border-b border-white/10">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5 sm:px-10 lg:px-16">
           <Link href="/" aria-label="QAY home">

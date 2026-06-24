@@ -84,7 +84,7 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
 
       const status = payload?.data?.status;
       setMessage(status === 'approved'
-        ? 'Template saved and published to the template gallery.'
+        ? 'Template saved successfully. It is now available in the template gallery.'
         : 'Template saved. It is waiting for review.');
       setName('');
       setDescription('');
@@ -183,7 +183,7 @@ export default function UserTemplateDialog({ open, onOpenChange }: UserTemplateD
           {(message || error) && (
             <p
               className={`rounded-md border px-3 py-2 text-sm ${
-                error ? 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-200' : 'border-border bg-muted/40 text-muted-foreground'
+                error ? 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
               }`}
             >
               {error || message}

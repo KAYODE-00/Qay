@@ -27,9 +27,17 @@ type TemplatePageSnapshot = {
   layers: Layer[];
 };
 
+type TemplateCollectionSnapshot = {
+  rows: Array<Record<string, unknown>>;
+  fields: Array<Record<string, unknown>>;
+  items: Array<Record<string, unknown>>;
+  values: Array<Record<string, unknown>>;
+};
+
 type TemplatePayload = {
   version: 1;
   pages: TemplatePageSnapshot[];
+  collections?: TemplateCollectionSnapshot;
 };
 
 type SubmitTemplateInput = {
@@ -181,9 +189,19 @@ function normalizeTemplatePayload(value: unknown): TemplatePayload | null {
     };
   });
 
+  const collections = parsed as Partial<TemplatePayload>;
+
   return {
     version: 1,
     pages: normalizedPages,
+    collections: collections.collections && typeof collections.collections === 'object'
+      ? {
+        rows: Array.isArray(collections.collections.rows) ? collections.collections.rows as Array<Record<string, unknown>> : [],
+        fields: Array.isArray(collections.collections.fields) ? collections.collections.fields as Array<Record<string, unknown>> : [],
+        items: Array.isArray(collections.collections.items) ? collections.collections.items as Array<Record<string, unknown>> : [],
+        values: Array.isArray(collections.collections.values) ? collections.collections.values as Array<Record<string, unknown>> : [],
+      }
+      : undefined,
   };
 }
 
@@ -285,6 +303,253 @@ function makeTemplateAssetsPortable(value: unknown, assetUrlMap: Map<string, str
   );
 }
 
+function remapIdStrings(value: unknown, idMap: Map<string, string>): unknown {
+  if (typeof value === 'string') {
+    return idMap.get(value) || value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => remapIdStrings(item, idMap));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      key,
+      remapIdStrings(entry, idMap),
+    ])
+  );
+}
+
+function cloneRow(row: Record<string, unknown>, overrides: Record<string, unknown>) {
+  return {
+    ...row,
+    ...overrides,
+    created_at: row.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function remapSerializedValue(value: unknown, idMap: Map<string, string>) {
+  if (typeof value !== 'string' || idMap.size === 0) {
+    return value;
+  }
+
+  const exact = idMap.get(value);
+  if (exact) {
+    return exact;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      return JSON.stringify(remapIdStrings(JSON.parse(trimmed), idMap));
+    } catch {
+      // Keep going; some CMS values are plain strings that happen to start with punctuation.
+    }
+  }
+
+  let nextValue = value;
+  for (const [oldId, newId] of idMap.entries()) {
+    nextValue = nextValue.split(oldId).join(newId);
+  }
+  return nextValue;
+}
+
+async function buildTemplateCollectionsSnapshot(knex: Knex, siteId: string): Promise<TemplateCollectionSnapshot | undefined> {
+  const hasCollections =
+    await knex.schema.hasTable('qay_site_collections') &&
+    await knex.schema.hasTable('collections') &&
+    await knex.schema.hasTable('collection_fields') &&
+    await knex.schema.hasTable('collection_items') &&
+    await knex.schema.hasTable('collection_item_values');
+
+  if (!hasCollections) {
+    return undefined;
+  }
+
+  const siteCollections = await knex('qay_site_collections')
+    .where('site_id', siteId)
+    .select('collection_id');
+  const collectionIds = siteCollections
+    .map((row) => row.collection_id)
+    .filter(Boolean);
+
+  if (collectionIds.length === 0) {
+    return undefined;
+  }
+
+  const rows = await knex('collections')
+    .whereNull('deleted_at')
+    .whereIn('id', collectionIds)
+    .select('*');
+  const fields = await knex('collection_fields')
+    .whereNull('deleted_at')
+    .whereIn('collection_id', collectionIds)
+    .select('*');
+  const items = await knex('collection_items')
+    .whereNull('deleted_at')
+    .whereIn('collection_id', collectionIds)
+    .select('*');
+  const itemIds = Array.from(new Set(items.map((item) => item.id).filter(Boolean)));
+  const fieldIds = Array.from(new Set(fields.map((field) => field.id).filter(Boolean)));
+  const values = itemIds.length > 0 && fieldIds.length > 0
+    ? await knex('collection_item_values')
+      .whereNull('deleted_at')
+      .whereIn('item_id', itemIds)
+      .whereIn('field_id', fieldIds)
+      .select('*')
+    : [];
+
+  return {
+    rows,
+    fields,
+    items,
+    values,
+  };
+}
+
+async function cloneTemplateCollections(
+  trx: Knex.Transaction,
+  snapshot: TemplateCollectionSnapshot | undefined,
+  siteId: string,
+  userId: string
+) {
+  const contentIdMap = new Map<string, string>();
+  if (!snapshot?.rows?.length) {
+    return contentIdMap;
+  }
+
+  const hasCollections =
+    await trx.schema.hasTable('qay_site_collections') &&
+    await trx.schema.hasTable('collections') &&
+    await trx.schema.hasTable('collection_fields') &&
+    await trx.schema.hasTable('collection_items') &&
+    await trx.schema.hasTable('collection_item_values');
+
+  if (!hasCollections) {
+    return contentIdMap;
+  }
+
+  const collectionIds = Array.from(new Set(snapshot.rows.map((row) => String(row.id || '')).filter(Boolean)));
+  const fieldIds = Array.from(new Set(snapshot.fields.map((row) => String(row.id || '')).filter(Boolean)));
+  const itemIds = Array.from(new Set(snapshot.items.map((row) => String(row.id || '')).filter(Boolean)));
+
+  const collectionIdMap = new Map(collectionIds.map((id) => [id, randomUUID()]));
+  const fieldIdMap = new Map(fieldIds.map((id) => [id, randomUUID()]));
+  const itemIdMap = new Map(itemIds.map((id) => [id, randomUUID()]));
+
+  for (const map of [collectionIdMap, fieldIdMap, itemIdMap]) {
+    for (const [oldId, newId] of map.entries()) {
+      contentIdMap.set(oldId, newId);
+    }
+  }
+
+  const now = new Date().toISOString();
+  const collectionRows = snapshot.rows
+    .map((row) => {
+      const id = String(row.id || '');
+      const nextId = collectionIdMap.get(id);
+      if (!nextId) return null;
+      return cloneRow(row, {
+        id: nextId,
+        uuid: randomUUID(),
+        sorting: remapIdStrings(row.sorting, contentIdMap),
+        created_at: now,
+        updated_at: now,
+      });
+    })
+    .filter(Boolean) as Array<Record<string, unknown>>;
+
+  if (collectionRows.length > 0) {
+    await trx('collections').insert(collectionRows);
+  }
+
+  const fieldRows = snapshot.fields
+    .map((row) => {
+      const id = String(row.id || '');
+      const collectionId = String(row.collection_id || '');
+      const nextId = fieldIdMap.get(id);
+      const nextCollectionId = collectionIdMap.get(collectionId);
+      if (!nextId || !nextCollectionId) return null;
+      return cloneRow(row, {
+        id: nextId,
+        collection_id: nextCollectionId,
+        reference_collection_id: typeof row.reference_collection_id === 'string'
+          ? collectionIdMap.get(row.reference_collection_id) || null
+          : null,
+        data: remapIdStrings(row.data, contentIdMap),
+        created_at: now,
+        updated_at: now,
+      });
+    })
+    .filter(Boolean) as Array<Record<string, unknown>>;
+
+  if (fieldRows.length > 0) {
+    await trx('collection_fields').insert(fieldRows);
+  }
+
+  const itemRows = snapshot.items
+    .map((row) => {
+      const id = String(row.id || '');
+      const collectionId = String(row.collection_id || '');
+      const nextId = itemIdMap.get(id);
+      const nextCollectionId = collectionIdMap.get(collectionId);
+      if (!nextId || !nextCollectionId) return null;
+      return cloneRow(row, {
+        id: nextId,
+        collection_id: nextCollectionId,
+        created_at: now,
+        updated_at: now,
+      });
+    })
+    .filter(Boolean) as Array<Record<string, unknown>>;
+
+  if (itemRows.length > 0) {
+    await trx('collection_items').insert(itemRows);
+  }
+
+  const valueRows = snapshot.values
+    .map((row) => {
+      const id = String(row.id || '');
+      const itemId = String(row.item_id || '');
+      const fieldId = String(row.field_id || '');
+      const nextItemId = itemIdMap.get(itemId);
+      const nextFieldId = fieldIdMap.get(fieldId);
+      if (!nextItemId || !nextFieldId) return null;
+      return cloneRow(row, {
+        id: randomUUID(),
+        item_id: nextItemId,
+        field_id: nextFieldId,
+        value: remapSerializedValue(row.value, contentIdMap),
+        created_at: now,
+        updated_at: now,
+      });
+    })
+    .filter(Boolean) as Array<Record<string, unknown>>;
+
+  if (valueRows.length > 0) {
+    await trx('collection_item_values').insert(valueRows);
+  }
+
+  const linkedCollections = Array.from(new Set(collectionIdMap.values()));
+  if (linkedCollections.length > 0) {
+    await trx('qay_site_collections')
+      .insert(linkedCollections.map((collectionId) => ({
+        site_id: siteId,
+        collection_id: collectionId,
+        created_by: userId,
+      })))
+      .onConflict('collection_id')
+      .ignore();
+  }
+
+  return contentIdMap;
+}
+
 async function buildTemplatePayload(knex: Knex, siteId: string): Promise<TemplatePayload> {
   const pages = await knex('pages')
     .whereNull('deleted_at')
@@ -352,7 +617,11 @@ async function buildTemplatePayload(knex: Knex, siteId: string): Promise<Templat
     throw new Error('This template still contains prompt text. Replace it with real page content first.');
   }
 
-  return { version: 1, pages: snapshots };
+  return {
+    version: 1,
+    pages: snapshots,
+    collections: await buildTemplateCollectionsSnapshot(knex, siteId),
+  };
 }
 
 function localReview(payload: TemplatePayload) {
@@ -378,13 +647,18 @@ function localReview(payload: TemplatePayload) {
   };
 }
 
-function remapTemplateReferences(value: unknown, layerIdMap: Map<string, string>, pageIdMap: Map<string, string>): unknown {
+function remapTemplateReferences(
+  value: unknown,
+  layerIdMap: Map<string, string>,
+  pageIdMap: Map<string, string>,
+  contentIdMap = new Map<string, string>()
+): unknown {
   if (typeof value === 'string') {
-    return layerIdMap.get(value) || pageIdMap.get(value) || value;
+    return layerIdMap.get(value) || pageIdMap.get(value) || contentIdMap.get(value) || value;
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => remapTemplateReferences(item, layerIdMap, pageIdMap));
+    return value.map((item) => remapTemplateReferences(item, layerIdMap, pageIdMap, contentIdMap));
   }
 
   if (!value || typeof value !== 'object') {
@@ -394,12 +668,12 @@ function remapTemplateReferences(value: unknown, layerIdMap: Map<string, string>
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
       key,
-      remapTemplateReferences(entry, layerIdMap, pageIdMap),
+      remapTemplateReferences(entry, layerIdMap, pageIdMap, contentIdMap),
     ])
   );
 }
 
-function cloneLayers(layers: Layer[], pageIdMap = new Map<string, string>()) {
+function cloneLayers(layers: Layer[], pageIdMap = new Map<string, string>(), contentIdMap = new Map<string, string>()) {
   const idMap = new Map<string, string>();
 
   const firstPass = (items: Layer[]): Layer[] => items.map((layer) => {
@@ -417,12 +691,12 @@ function cloneLayers(layers: Layer[], pageIdMap = new Map<string, string>()) {
   const cloned = firstPass(layers);
 
   const secondPass = (items: Layer[]): Layer[] => items.map((layer) => ({
-    ...(remapTemplateReferences(layer, idMap, pageIdMap) as Layer),
+    ...(remapTemplateReferences(layer, idMap, pageIdMap, contentIdMap) as Layer),
     interactions: layer.interactions?.map((interaction) => ({
-      ...(remapTemplateReferences(interaction, idMap, pageIdMap) as typeof interaction),
+      ...(remapTemplateReferences(interaction, idMap, pageIdMap, contentIdMap) as typeof interaction),
       id: generateId('int'),
       tweens: interaction.tweens.map((tween) => ({
-        ...(remapTemplateReferences(tween, idMap, pageIdMap) as typeof tween),
+        ...(remapTemplateReferences(tween, idMap, pageIdMap, contentIdMap) as typeof tween),
         id: generateId('anm'),
         layer_id: idMap.get(tween.layer_id) || layer.id,
       })),
@@ -433,8 +707,12 @@ function cloneLayers(layers: Layer[], pageIdMap = new Map<string, string>()) {
   return secondPass(cloned);
 }
 
-function remapPageSettings(settings: Record<string, unknown>, pageIdMap: Map<string, string>) {
-  return remapTemplateReferences(settings, new Map<string, string>(), pageIdMap) as Record<string, unknown>;
+function remapPageSettings(
+  settings: Record<string, unknown>,
+  pageIdMap: Map<string, string>,
+  contentIdMap = new Map<string, string>()
+) {
+  return remapTemplateReferences(settings, new Map<string, string>(), pageIdMap, contentIdMap) as Record<string, unknown>;
 }
 
 function slugify(value: string) {
@@ -582,6 +860,8 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
   const pageIdMap = new Map(payload.pages.map((page) => [page.id, randomUUID()]));
 
   await knex.transaction(async (trx) => {
+    const contentIdMap = await cloneTemplateCollections(trx, payload.collections, input.siteId, input.userId);
+
     for (const [index, page] of payload.pages.entries()) {
       const pageId = pageIdMap.get(page.id) || randomUUID();
       const isRootHomepage = page.error_page === null
@@ -596,7 +876,7 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
         ? buildQayIndexSlug(input.siteId)
         : uniqueSlug(page.slug || page.name, usedSlugs);
       const settings = {
-        ...remapPageSettings(page.settings || {}, pageIdMap),
+        ...remapPageSettings(page.settings || {}, pageIdMap, contentIdMap),
         qay_site_id: input.siteId,
         source_user_template_id: input.templateId,
       };
@@ -626,7 +906,7 @@ export async function applyUserTemplate(input: ApplyTemplateInput) {
       const rawLayers = ensureBodyLayer(normalizeLayers(page.layers));
       const assetUrlMap = await getPortableAssetUrlMap(trx, rawLayers);
       const portableLayers = makeTemplateAssetsPortable(rawLayers, assetUrlMap) as Layer[];
-      const layers = cloneLayers(portableLayers, pageIdMap);
+      const layers = cloneLayers(portableLayers, pageIdMap, contentIdMap);
 
       await trx('pages').insert(pageRecord);
       await trx('page_layers').insert({

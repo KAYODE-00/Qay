@@ -52,9 +52,97 @@ function normalizeStockSearchQuery(query: string): string {
   return cleaned || query;
 }
 
+const CURATED_UNSPLASH_IMAGES: StockImage[] = [
+  {
+    id: 'qay-fashion-1',
+    provider: 'unsplash',
+    title: 'Editorial streetwear look',
+    description: 'Fashion editorial model in streetwear',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=480&auto=format&q=75',
+    imageUrl: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=1600&auto=format&q=85',
+    width: 1600,
+    height: 2400,
+    author: 'Unsplash',
+    sourceUrl: 'https://unsplash.com',
+  },
+  {
+    id: 'qay-restaurant-1',
+    provider: 'unsplash',
+    title: 'Restaurant table setting',
+    description: 'Warm restaurant dining table',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=480&auto=format&q=75',
+    imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1600&auto=format&q=85',
+    width: 1600,
+    height: 1067,
+    author: 'Unsplash',
+    sourceUrl: 'https://unsplash.com',
+  },
+  {
+    id: 'qay-saas-1',
+    provider: 'unsplash',
+    title: 'Product dashboard workspace',
+    description: 'Modern software dashboard workspace',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=480&auto=format&q=75',
+    imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1600&auto=format&q=85',
+    width: 1600,
+    height: 1067,
+    author: 'Unsplash',
+    sourceUrl: 'https://unsplash.com',
+  },
+  {
+    id: 'qay-real-estate-1',
+    provider: 'unsplash',
+    title: 'Modern home interior',
+    description: 'Bright premium home interior',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=480&auto=format&q=75',
+    imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1600&auto=format&q=85',
+    width: 1600,
+    height: 1067,
+    author: 'Unsplash',
+    sourceUrl: 'https://unsplash.com',
+  },
+  {
+    id: 'qay-hotel-1',
+    provider: 'unsplash',
+    title: 'Luxury hotel room',
+    description: 'Calm luxury hotel suite',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=480&auto=format&q=75',
+    imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1600&auto=format&q=85',
+    width: 1600,
+    height: 1067,
+    author: 'Unsplash',
+    sourceUrl: 'https://unsplash.com',
+  },
+  {
+    id: 'qay-medical-1',
+    provider: 'unsplash',
+    title: 'Modern clinic care',
+    description: 'Medical professional in a clinic',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=480&auto=format&q=75',
+    imageUrl: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1600&auto=format&q=85',
+    width: 1600,
+    height: 1067,
+    author: 'Unsplash',
+    sourceUrl: 'https://unsplash.com',
+  },
+];
+
+function searchCuratedUnsplash(query: string, limit: number): StockImage[] {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const ranked = CURATED_UNSPLASH_IMAGES
+    .map((image) => {
+      const haystack = `${image.title} ${image.description || ''}`.toLowerCase();
+      const score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
+      return { image, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  return ranked.slice(0, limit).map(({ image }) => image);
+}
+
 async function searchUnsplash(query: string, page: number, limit: number): Promise<StockImage[]> {
   const key = getUnsplashKey();
-  if (!key) return [];
+  if (!key) return searchCuratedUnsplash(query, limit);
 
   const url = new URL('https://api.unsplash.com/search/photos');
   url.searchParams.set('query', query);
@@ -153,7 +241,7 @@ export async function GET(request: NextRequest) {
       return noCache({
         data: [],
         providers: {
-          unsplash: Boolean(getUnsplashKey()),
+          unsplash: true,
           istock: Boolean(getIstockKey()),
         },
       });
@@ -173,7 +261,7 @@ export async function GET(request: NextRequest) {
     return noCache({
       data: results,
       providers: {
-        unsplash: Boolean(getUnsplashKey()),
+        unsplash: true,
         istock: Boolean(getIstockKey()),
       },
     });
