@@ -14,6 +14,7 @@ const QAY_MIGRATION_FILES = [
   '005_qay_site_settings.sql',
   '007_qay_localisation_isolation.sql',
   '008_qay_user_templates.sql',
+  '019_ai_templates.sql',
 ];
 
 const QAY_LOCALISATION_MIGRATION_FILES = [
@@ -109,7 +110,7 @@ async function runQayMigrationFiles(fileNames: string[], fallbackError: string) 
 export function qaySchemaSetupMessage(error?: string) {
   return [
     'QAY database tables are not ready yet.',
-    'Run the QAY migrations after Ycode setup: qay/database/migrations/001_qay_core.sql through qay/database/migrations/008_qay_user_templates.sql.',
+    'Run the QAY migrations after Ycode setup. QAY core includes the required files listed in qay/lib/schema.ts.',
     error ? `Details: ${error}` : null,
   ].filter(Boolean).join(' ');
 }

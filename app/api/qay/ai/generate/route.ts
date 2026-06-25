@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { Layer } from '@/types';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
+import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { assembleFromDecision } from '@/qay/lib/ai/assemble-from-decision';
 import { generateQayAiHtml, generateQayAiLayers, type AiBuilderMode } from '@/qay/lib/ai/builder';
 import { AiProviderFailureError, AiProviderLimitsError } from '@/qay/lib/ai/providers';
+import { detectTemplateChoice } from '@/qay/lib/ai/template-detector';
+import { modifyTemplate } from '@/qay/lib/ai/template-modifier';
 import { translatePromptToDecision } from '@/qay/lib/ai/translate-prompt';
 
 export const runtime = 'nodejs';
@@ -13,6 +16,7 @@ type GenerateRequestBody = {
   mode?: AiBuilderMode;
   output?: 'layers' | 'html';
   selectedLayers?: Layer[];
+  variation?: number;
 };
 
 function isAiQualityError(message: string) {
@@ -27,6 +31,48 @@ function isAiQualityError(message: string) {
     || normalized.includes('copy did not match')
     || normalized.includes('missing required')
   );
+}
+
+function normalizeTemplatePages(value: unknown) {
+  return Array.isArray(value) ? value : [];
+}
+
+async function generateFromAiTemplate(prompt: string, variation?: number) {
+  const decision = detectTemplateChoice(prompt, variation);
+  const admin = getQayAdmin() as any;
+  const { data, error } = await admin
+    .from('qay_ai_templates')
+    .select('id, site_type, theme, label, html, pages, rank')
+    .eq('site_type', decision.siteType)
+    .eq('is_active', true)
+    .order('rank', { ascending: false })
+    .limit(8);
+
+  if (error) {
+    console.warn('[QAY AI generate] Template lookup failed, falling back:', error.message || error);
+    return null;
+  }
+
+  const templates = Array.isArray(data) ? data : [];
+  const template = templates.find((item: any) => item.theme === decision.theme)
+    || templates.find((item: any) => item.theme === 'light')
+    || templates[0];
+
+  if (!template?.html) {
+    return null;
+  }
+
+  const html = await modifyTemplate(String(template.html), prompt, decision);
+  return {
+    html,
+    pages: normalizeTemplatePages(template.pages),
+    siteType: decision.siteType,
+    theme: decision.theme,
+    templateId: template.id,
+    templateLabel: template.label,
+    provider: 'template-modifier',
+    model: 'qay-ai-template',
+  };
 }
 
 export async function POST(request: Request) {
@@ -48,6 +94,16 @@ export async function POST(request: Request) {
     }
 
     if (body.output === 'html' && mode === 'page') {
+      try {
+        const templateResult = await generateFromAiTemplate(prompt, body.variation);
+        if (templateResult) {
+          console.log('[QAY AI generate] Generated template-modifier HTML:', templateResult.html);
+          return NextResponse.json({ data: templateResult });
+        }
+      } catch (templateError) {
+        console.warn('[QAY AI generate] Template modifier unavailable, falling back:', templateError);
+      }
+
       try {
         const decision = await translatePromptToDecision(prompt);
         const { html, pages } = await assembleFromDecision(decision, prompt);
