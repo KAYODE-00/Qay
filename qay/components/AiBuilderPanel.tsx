@@ -43,6 +43,10 @@ type GenerateResponse = {
     navMode?: string;
     pages?: string[];
     sectionPicks?: Record<string, number>;
+    stats?: {
+      fromLibrary?: number;
+      generated?: number;
+    };
   };
   error?: string;
   details?: string;
@@ -356,11 +360,15 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
           </div>
         ) : null}
 
-        {generationMeta?.provider === 'section-library' || generationMeta?.provider === 'section-library-v2' ? (
+        {generationMeta?.provider === 'section-library' || generationMeta?.provider === 'section-library-v2' || generationMeta?.provider === 'hybrid-section-assembler' ? (
           <div className="rounded-lg border border-border bg-card p-3 text-xs">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-medium text-foreground">Assembled from sections</p>
+                <p className="font-medium text-foreground">
+                  {generationMeta.stats
+                    ? `Built using ${generationMeta.stats.fromLibrary || 0} pre-designed sections + ${generationMeta.stats.generated || 0} AI-generated sections`
+                    : 'Assembled from sections'}
+                </p>
                 <p className="mt-1 text-muted-foreground">
                   {generationMeta.theme?.label || generationMeta.model} system
                   {generationMeta.siteType ? ` for ${generationMeta.siteType}` : ''}

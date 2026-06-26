@@ -106,7 +106,7 @@ export async function POST(request: Request) {
 
       try {
         const decision = await translatePromptToDecision(prompt);
-        const { html, pages } = await assembleFromDecision(decision, prompt);
+        const { html, pages, stats } = await assembleFromDecision(decision, prompt);
         console.log('[QAY AI generate] Generated section-library-v2 HTML:', html);
 
         return NextResponse.json({
@@ -116,7 +116,8 @@ export async function POST(request: Request) {
             siteType: decision.siteType,
             navMode: decision.navMode,
             sectionPicks: decision.sectionPicks,
-            provider: 'section-library-v2',
+            stats,
+            provider: 'hybrid-section-assembler',
             model: 'prompt-translator',
           },
         });

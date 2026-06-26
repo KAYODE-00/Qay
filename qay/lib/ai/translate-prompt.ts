@@ -319,6 +319,11 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     validSectionTypes.add(s);
   }
   validSectionTypes.add('auth');
+  if (siteType === 'ecommerce') {
+    validSectionTypes.add('productDetail');
+    validSectionTypes.add('cart');
+    validSectionTypes.add('checkout');
+  }
 
   const rawPicks = decision.sectionPicks || {};
   const validatedPicks: Record<string, number> = {};
@@ -408,7 +413,6 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
         if (s === 'collection') return 'collectionsLanding';
         if (s === 'brandStory') return 'about';
         if (s === 'newsletter') return 'cta';
-        if (s === 'productDetail') return 'productGrid';
         if (s === 'login' || s === 'register' || s === 'dashboard') return 'auth';
         return s;
       })

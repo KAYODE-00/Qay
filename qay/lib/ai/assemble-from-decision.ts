@@ -2,14 +2,21 @@ import type { SiteDecision } from './decision-schema';
 import { loadLibrary, normalizeDecisionSlot } from '../section-library/manifest';
 import type { SectionDesign } from '../section-library/manifest';
 import { callWithFallbackDetailed } from './providers';
+import { generateMissingSection } from './section-generator';
 
 export async function assembleFromDecision(decision: SiteDecision, prompt?: string): Promise<{
   html: string;
   pages: string[];
+  stats: {
+    fromLibrary: number;
+    generated: number;
+  };
 }> {
   const lib = await loadLibrary(decision.siteType);
   const colors = decision.brand.colors;
   const fonts = decision.brand.fonts;
+  const sharedChrome = new Map<string, string>();
+  const stats = { fromLibrary: 0, generated: 0 };
 
   const themeCss = `
 <style>
@@ -34,7 +41,9 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
 `;
 
   function pickSection(sectionType: string, context = ''): string {
-    const slot = normalizeDecisionSlot(sectionType);
+    const slot = normalizeRenderableSlot(sectionType);
+    const cacheKey = slot === 'navbar' || slot === 'footer' ? slot : '';
+    if (cacheKey && sharedChrome.has(cacheKey)) return sharedChrome.get(cacheKey) || '';
     const pool = lib[slot] as SectionDesign[] | undefined;
     if (!pool?.length) return '';
     const rawIndex = decision.sectionPicks[slot] ?? decision.sectionPicks[sectionType];
@@ -42,12 +51,30 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
     if (rawIndex !== undefined && rawIndex !== null) {
       const index = Number.isFinite(Number(rawIndex)) ? Number(rawIndex) : 0;
       const exact = pool.find((item) => item.index === index);
-      if (exact) return exact.html;
+      if (exact) {
+        if (cacheKey) sharedChrome.set(cacheKey, exact.html);
+        return exact.html;
+      }
     }
     // Random fallback — ensures different layouts when regenerating
     const seed = `${prompt || ''}:${decision.siteType}:${decision.brand.name}:${slot}:${context}`;
     const deterministicIndex = stableHash(seed) % pool.length;
-    return pool[deterministicIndex]?.html || pool[0].html;
+    const html = pool[deterministicIndex]?.html || pool[0].html;
+    if (cacheKey) sharedChrome.set(cacheKey, html);
+    return html;
+  }
+
+  async function renderSlot(sectionType: string, pageName: string, context = ''): Promise<string> {
+    const html = pickSection(sectionType, context);
+    if (html) {
+      stats.fromLibrary += 1;
+      return html;
+    }
+
+    if (!prompt) return '';
+
+    stats.generated += 1;
+    return generateMissingSection(sectionType, decision, prompt, pageName);
   }
 
   function injectContentAndImages(html: string): string {
@@ -73,7 +100,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
 
   if (decision.navMode === 'single-page-scroll') {
     const page = decision.pages[0] || { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'footer'] };
-    const body = page.sectionSlots.map((slot, index) => pickSection(slot, `${page.slug}:${index}`)).join('\n\n');
+    const body = (await Promise.all(page.sectionSlots.map((slot, index) => renderSlot(slot, page.name, `${page.slug}:${index}`)))).join('\n\n');
     let homepageHtml = injectContentAndImages(body);
     pageNames = [page.name];
 
@@ -83,18 +110,8 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
         let content = '';
         if (i === 0) {
           content = homepageHtml;
-        } else if (p.slug === 'login') {
-          content = buildCustomLoginPage(decision.brand.name, decision.brand.tagline);
-        } else if (p.slug === 'register') {
-          content = buildCustomRegisterPage(decision.brand.name, decision.brand.tagline);
-        } else if (p.slug === 'dashboard') {
-          content = buildCustomDashboardPage(decision.brand.name, decision.brand.tagline);
-        } else if (decision.siteType === 'ecommerce' && p.slug === 'cart') {
-          content = buildCustomCartPage(decision.brand.name);
-        } else if (decision.siteType === 'ecommerce' && p.slug === 'checkout') {
-          content = buildCustomCheckoutPage(decision.brand.name);
         } else {
-          const sectionsHtml = p.sectionSlots.map((slot, index) => pickSection(slot, `${p.slug}:${index}`)).join('\n\n');
+          const sectionsHtml = (await Promise.all(p.sectionSlots.map((slot, index) => renderSlot(slot, p.name, `${p.slug}:${index}`)))).join('\n\n');
           content = injectContentAndImages(sectionsHtml);
         }
 
@@ -122,20 +139,8 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
     const pageBlocks: string[] = [];
     const pagePromises = decision.pages.map(async (page) => {
       let content = '';
-      if (page.slug === 'login') {
-        content = buildCustomLoginPage(decision.brand.name, decision.brand.tagline);
-      } else if (page.slug === 'register') {
-        content = buildCustomRegisterPage(decision.brand.name, decision.brand.tagline);
-      } else if (page.slug === 'dashboard') {
-        content = buildCustomDashboardPage(decision.brand.name, decision.brand.tagline);
-      } else if (decision.siteType === 'ecommerce' && page.slug === 'cart') {
-        content = buildCustomCartPage(decision.brand.name);
-      } else if (decision.siteType === 'ecommerce' && page.slug === 'checkout') {
-        content = buildCustomCheckoutPage(decision.brand.name);
-      } else {
-        const sectionsHtml = page.sectionSlots.map((slot, index) => pickSection(slot, `${page.slug}:${index}`)).join('\n\n');
-        content = injectContentAndImages(sectionsHtml);
-      }
+      const sectionsHtml = (await Promise.all(page.sectionSlots.map((slot, index) => renderSlot(slot, page.name, `${page.slug}:${index}`)))).join('\n\n');
+      content = injectContentAndImages(sectionsHtml);
 
       if (prompt && prompt.length > 5 && !isFunctionalPageSlug(page.slug)) {
         content = await personalizePageHtml(content, page.name, decision, prompt);
@@ -157,7 +162,12 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
   const materializedBody = materializeThemeVariables(personalizedBody, colors, fonts);
   const html = `${themeCss}\n${materializedBody}`;
 
-  return { html, pages: pageNames };
+  return { html, pages: pageNames, stats };
+}
+
+function normalizeRenderableSlot(sectionType: string) {
+  if (sectionType === 'cart' || sectionType === 'checkout' || sectionType === 'productDetail') return sectionType;
+  return normalizeDecisionSlot(sectionType);
 }
 
 function pageWrapper(name: string, slug: string, html: string) {
