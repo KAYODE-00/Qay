@@ -48,6 +48,7 @@ import { useEditorActions } from '@/hooks/use-editor-url';
 import type { UseLiveLayerUpdatesReturn } from '@/hooks/use-live-layer-updates';
 import { useResizablePanel } from '@/hooks/use-resizable-panel';
 import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
+import QayComponentsPanel from '@/qay/components/editor/QayComponentsPanel';
 
 /**
  * Element Button with drag support
@@ -153,7 +154,7 @@ interface ElementLibraryProps {
   liveLayerUpdates?: UseLiveLayerUpdatesReturn | null;
 }
 
-type LibraryTab = 'elements' | 'layouts' | 'components' | 'sections';
+type LibraryTab = 'elements' | 'layouts' | 'components' | 'sections' | 'qay';
 
 type QayCatalogSection = {
   id?: string | null;
@@ -300,7 +301,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
   const [activeTab, setActiveTab] = React.useState<LibraryTab>(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('elementLibrary-activeTab');
-      if (saved && ['elements', 'layouts', 'components', 'sections'].includes(saved)) {
+      if (saved && ['elements', 'layouts', 'components', 'sections', 'qay'].includes(saved)) {
         return saved as LibraryTab;
       }
     }
@@ -385,7 +386,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
   React.useEffect(() => {
     const handleToggle = (event: Event) => {
       const tab = (event as CustomEvent<{ tab?: string }>).detail?.tab;
-      if (tab && ['elements', 'layouts', 'components', 'sections'].includes(tab)) {
+      if (tab && ['elements', 'layouts', 'components', 'sections', 'qay'].includes(tab)) {
         setActiveTab(tab as LibraryTab);
       }
     };
@@ -765,6 +766,48 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
     const result = addToBody(tree);
     return result.found ? result.layers : [...tree, ...importedLayers];
   }, []);
+
+  // QAY Library insert via custom event (fallback for QayComponentsPanel).
+  React.useEffect(() => {
+    const handleQayInsert = (event: Event) => {
+      const detail = (event as CustomEvent<{ html?: string; componentName?: string }>).detail;
+      if (!detail?.html) return;
+
+      const importedLayers = htmlToLayers(detail.html);
+      if (!importedLayers.length) {
+        toast.error('Could not convert component HTML to layers.');
+        return;
+      }
+
+      if (editingComponentId) {
+        const layers = componentDrafts[editingComponentId] || [];
+        updateComponentDraft(editingComponentId, appendImportedLayers(layers, importedLayers));
+        setSelectedLayerId(importedLayers[0]?.id || null);
+        toast.success(`Added ${detail.componentName || 'component'}`);
+        onClose();
+        return;
+      }
+
+      if (!currentPageId) {
+        toast.error('Open a page before adding a component.');
+        return;
+      }
+
+      const freshDraft = usePagesStore.getState().draftsByPageId[currentPageId];
+      if (!freshDraft) {
+        toast.error('Page draft is still loading.');
+        return;
+      }
+
+      setDraftLayers(currentPageId, appendImportedLayers(freshDraft.layers, importedLayers));
+      setSelectedLayerId(importedLayers[0]?.id || null);
+      toast.success(`Added ${detail.componentName || 'component'}`);
+      onClose();
+    };
+
+    window.addEventListener('qay:insert-component-html', handleQayInsert);
+    return () => window.removeEventListener('qay:insert-component-html', handleQayInsert);
+  }, [editingComponentId, componentDrafts, currentPageId, updateComponentDraft, setDraftLayers, setSelectedLayerId, appendImportedLayers, onClose]);
 
   const handleAddQaySection = useCallback((section: QayCatalogSection) => {
     const importedLayers = htmlToLayers(section.html);
@@ -1597,11 +1640,12 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
         >
           <div className="flex flex-col shrink-0 gap-2">
             <div className="p-4 pb-0">
-              <TabsList className="grid w-full grid-cols-4 gap-1.5">
+              <TabsList className="grid w-full grid-cols-5 gap-1.5">
                 <TabsTrigger value="elements">Elements</TabsTrigger>
                 <TabsTrigger value="sections">Sections</TabsTrigger>
                 <TabsTrigger value="layouts">Layouts</TabsTrigger>
                 <TabsTrigger value="components">Components</TabsTrigger>
+                <TabsTrigger value="qay">QAY</TabsTrigger>
               </TabsList>
             </div>
 
@@ -1939,6 +1983,48 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent
+            value="qay" forceMount
+            ref={(el) => { tabRefs.current.qay = el; }} className="flex flex-col overflow-y-auto flex-1 no-scrollbar"
+          >
+            <QayComponentsPanel
+              open={isOpen && activeTab === 'qay'}
+              onClose={onClose}
+              onInsertHtml={(html, component) => {
+                const importedLayers = htmlToLayers(html);
+                if (!importedLayers.length) {
+                  toast.error('Could not convert component HTML to layers.');
+                  return;
+                }
+
+                if (editingComponentId) {
+                  const layers = componentDrafts[editingComponentId] || [];
+                  updateComponentDraft(editingComponentId, appendImportedLayers(layers, importedLayers));
+                  setSelectedLayerId(importedLayers[0]?.id || null);
+                  toast.success(`Added ${component.name}`);
+                  onClose();
+                  return;
+                }
+
+                if (!currentPageId) {
+                  toast.error('Open a page before adding a component.');
+                  return;
+                }
+
+                const freshDraft = usePagesStore.getState().draftsByPageId[currentPageId];
+                if (!freshDraft) {
+                  toast.error('Page draft is still loading.');
+                  return;
+                }
+
+                setDraftLayers(currentPageId, appendImportedLayers(freshDraft.layers, importedLayers));
+                setSelectedLayerId(importedLayers[0]?.id || null);
+                toast.success(`Added ${component.name}`);
+                onClose();
+              }}
+            />
           </TabsContent>
         </Tabs>
 
