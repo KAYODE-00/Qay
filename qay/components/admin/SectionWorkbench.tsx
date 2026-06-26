@@ -422,9 +422,9 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
   const [activeTab, setActiveTab] = useState<ActiveTab>('editor');
   const [openRefSection, setOpenRefSection] = useState<number | null>(0);
 
-  const fullPreview = useMemo(() => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script></head><body>${html}</body></html>`, [html]);
+  const fullPreview = useMemo(() => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><style>html,body{margin:0;scrollbar-width:none}::-webkit-scrollbar{display:none}body{font-family:Inter,ui-sans-serif,system-ui,sans-serif}.hidden{display:none}.grid{display:grid}.flex{display:flex}.inline-flex{display:inline-flex}.relative{position:relative}.absolute{position:absolute}.overflow-hidden{overflow:hidden}img{max-width:100%;display:block;object-fit:cover}section,article,nav,footer,div,form{box-sizing:border-box}</style></head><body>${html}</body></html>`, [html]);
 
-  const fullAssemblyPreview = useMemo(() => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script></head><body>${assembly.html}</body></html>`, [assembly.html]);
+  const fullAssemblyPreview = useMemo(() => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><style>html,body{margin:0;scrollbar-width:none}::-webkit-scrollbar{display:none}body{font-family:Inter,ui-sans-serif,system-ui,sans-serif}.hidden{display:none}.grid{display:grid}.flex{display:flex}.inline-flex{display:inline-flex}.relative{position:relative}.absolute{position:absolute}.overflow-hidden{overflow:hidden}img{max-width:100%;display:block;object-fit:cover}section,article,nav,footer,div,form{box-sizing:border-box}</style></head><body>${assembly.html}</body></html>`, [assembly.html]);
 
   useEffect(() => {
     let cancelled = false;
@@ -848,7 +848,7 @@ export function SectionWorkbench({ initialPrompt, assembly, siteTypes, sectionTy
                     <div className="relative">
                       <iframe
                         title={`${section.label} preview`}
-                        srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script><style>html,body{margin:0;overflow:hidden;scrollbar-width:none}::-webkit-scrollbar{display:none}</style></head><body>${section.html}</body></html>`}
+                        srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><style>html,body{margin:0;overflow:hidden;scrollbar-width:none}::-webkit-scrollbar{display:none}body{font-family:Inter,ui-sans-serif,system-ui,sans-serif}.hidden{display:none}.grid{display:grid}.flex{display:flex}.inline-flex{display:inline-flex}.relative{position:relative}.absolute{position:absolute}.overflow-hidden{overflow:hidden}img{max-width:100%;display:block;object-fit:cover}section,article,nav,footer,div,form{box-sizing:border-box}</style></head><body>${section.html}</body></html>`}
                         scrolling="no"
                         className="pointer-events-none h-36 w-full bg-white"
                       />

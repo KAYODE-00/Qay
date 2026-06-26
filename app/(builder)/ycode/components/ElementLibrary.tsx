@@ -1743,7 +1743,7 @@ export default function ElementLibrary({ isOpen, onClose, offsetLeft = 256, live
                     <div className="relative">
                       <iframe
                         title={`${section.label} preview`}
-                        srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><script src="https://cdn.tailwindcss.com"></script><style>html,body{margin:0;overflow:hidden;scrollbar-width:none}::-webkit-scrollbar{display:none}</style></head><body>${section.html}</body></html>`}
+                        srcDoc={`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1" /><style>html,body{margin:0;overflow:hidden;scrollbar-width:none}::-webkit-scrollbar{display:none}body{font-family:Inter,ui-sans-serif,system-ui,sans-serif}.hidden{display:none}.grid{display:grid}.flex{display:flex}.inline-flex{display:inline-flex}.relative{position:relative}.absolute{position:absolute}.overflow-hidden{overflow:hidden}img{max-width:100%;display:block;object-fit:cover}section,article,nav,footer,div,form{box-sizing:border-box}</style></head><body>${section.html}</body></html>`}
                         scrolling="no"
                         className="pointer-events-none h-32 w-full bg-white"
                       />

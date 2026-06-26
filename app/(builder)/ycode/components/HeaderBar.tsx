@@ -82,7 +82,10 @@ function RailButton({ title, icon, active, onClick }: RailButtonProps) {
       type="button"
       aria-label={title}
       title={title}
-      onClick={onClick}
+      onClick={(event) => {
+        event.currentTarget.blur();
+        onClick();
+      }}
       className={`group/railbutton flex h-10 w-full items-center gap-3 overflow-hidden rounded-lg border px-3 text-left transition ${
         active
           ? 'border-primary/30 bg-primary/15 text-primary shadow-sm'

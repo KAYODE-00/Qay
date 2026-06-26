@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getQayAdmin() as any;
-    const { data: link, error: linkError } = await supabase
+    const { data: existingLink, error: linkError } = await supabase
       .from('qay_site_components')
       .select('site_id, component_id, category')
       .eq('site_id', siteId)
@@ -71,8 +71,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: linkError.message }, { status: 500 });
     }
 
+    let link = existingLink;
     if (!link) {
-      return NextResponse.json({ error: 'Component is not part of this QAY site' }, { status: 403 });
+      const repairedCategory = cleanString(body?.category, 80) || 'Sections';
+      const { data: repairedLink, error: repairError } = await supabase
+        .from('qay_site_components')
+        .upsert(
+          {
+            site_id: siteId,
+            component_id: componentId,
+            source: 'user',
+            category: repairedCategory,
+          },
+          { onConflict: 'site_id,component_id' }
+        )
+        .select('site_id, component_id, category')
+        .single();
+
+      if (repairError) {
+        return NextResponse.json({ error: repairError.message }, { status: 500 });
+      }
+
+      link = repairedLink;
     }
 
     const category = cleanString(body?.category, 80) || link.category || 'Sections';
