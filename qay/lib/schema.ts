@@ -16,6 +16,7 @@ const QAY_MIGRATION_FILES = [
   '008_qay_user_templates.sql',
   '019_ai_templates.sql',
   '020_component_library.sql',
+  '021_backgrounds.sql',
 ];
 
 const QAY_LOCALISATION_MIGRATION_FILES = [
