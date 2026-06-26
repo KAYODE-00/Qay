@@ -1,5 +1,5 @@
-import nodemailer from 'nodemailer';
 import { escapeHtml } from '@/lib/escape-html';
+import { sendQayEmail } from './email';
 
 type InviteEmailInput = {
   to: string;
@@ -8,51 +8,13 @@ type InviteEmailInput = {
   inviterEmail?: string | null;
 };
 
-function getSmtpSettings() {
-  const host = process.env.QAY_INVITE_SMTP_HOST || process.env.SMTP_HOST;
-  const port = process.env.QAY_INVITE_SMTP_PORT || process.env.SMTP_PORT || '587';
-  const user = process.env.QAY_INVITE_SMTP_USER || process.env.SMTP_USER;
-  const password = process.env.QAY_INVITE_SMTP_PASSWORD || process.env.SMTP_PASSWORD;
-  const fromEmail = process.env.QAY_INVITE_FROM_EMAIL || process.env.SMTP_FROM_EMAIL || user;
-  const fromName = process.env.QAY_INVITE_FROM_NAME || process.env.SMTP_FROM_NAME || 'QAY';
-
-  if (!host || !user || !password || !fromEmail) {
-    return null;
-  }
-
-  return {
-    host,
-    port: Number(port),
-    user,
-    password,
-    fromEmail,
-    fromName,
-  };
-}
-
 export async function sendQayInviteEmail(input: InviteEmailInput): Promise<boolean> {
-  const settings = getSmtpSettings();
-  if (!settings) {
-    return false;
-  }
-
   try {
-    const transporter = nodemailer.createTransport({
-      host: settings.host,
-      port: settings.port,
-      secure: settings.port === 465,
-      auth: {
-        user: settings.user,
-        pass: settings.password,
-      },
-    });
-
     const siteName = escapeHtml(input.siteName);
     const inviter = input.inviterEmail ? escapeHtml(input.inviterEmail) : 'A QAY user';
     const inviteUrl = escapeHtml(input.inviteUrl);
 
-    await transporter.sendMail({
-      from: `"${settings.fromName}" <${settings.fromEmail}>`,
+    const result = await sendQayEmail({
       to: input.to,
       subject: `You're invited to ${input.siteName}`,
       text: `${input.inviterEmail || 'A QAY user'} invited you to work on ${input.siteName}.\n\nAccept invite: ${input.inviteUrl}`,
@@ -66,7 +28,11 @@ export async function sendQayInviteEmail(input: InviteEmailInput): Promise<boole
       `,
     });
 
-    return true;
+    if (!result.ok) {
+      console.error('[QAY invite email] Failed to send invite email:', result.error);
+    }
+
+    return result.ok;
   } catch (error) {
     console.error('[QAY invite email] Failed to send invite email:', error);
     return false;

@@ -278,10 +278,12 @@ async function personalizeSections(html: string, prompt: string, siteType: SiteT
 
   // Extract user-specified colors from the prompt
   const userColors = extractUserColors(prompt);
+  const inferredColors = inferPromptPalette(prompt, siteType);
   const finalCssVariables = {
     ...theme.css_variables,
-    ...(userColors?.primary ? { '--qm-primary': userColors.primary } : {}),
-    ...(userColors?.secondary ? { '--qm-secondary': userColors.secondary } : {}),
+    ...inferredColors,
+    ...(userColors?.primary ? { '--qm-primary': userColors.primary, '--qm-text': userColors.primary } : {}),
+    ...(userColors?.secondary ? { '--qm-secondary': userColors.secondary, '--qm-text-muted': userColors.secondary } : {}),
     ...(userColors?.accent ? { '--qm-accent': userColors.accent } : {}),
     ...(userColors?.background ? { '--qm-bg': userColors.background } : {}),
   };
@@ -381,10 +383,81 @@ function pageWrapper(name: string, slug: string, html: string) {
 }
 
 function shouldGenerateMultiPage(prompt: string, siteType: SiteType) {
-  // Only return false if user EXPLICITLY requests a single page
-  if (/\bsingle[- ]page\b|\bone page\b|\blanding page only\b|\blanding\b/i.test(prompt)) return false;
-  // Default to multi-page for all site types
+  const explicitMultiPage = /\b(create|include|add|design|build)\s+(?:pages?|dedicated\s+pages?|separate\s+pages?)\b|\b(blog page|article page|product page|shop page|checkout page|about page|contact page|privacy policy|terms of service|categories|authors|404 page|login page|signup page)\b/i.test(prompt);
+  if (explicitMultiPage) return true;
+  // Only return false if user explicitly asks for one single page and does not also ask for pages.
+  if (/\bsingle[- ]page\b|\bone[- ]page\b|\blanding page only\b|\bone page only\b/i.test(prompt)) return false;
   return true;
+}
+
+function inferPromptPalette(prompt: string, siteType: SiteType): Record<string, string> {
+  const p = prompt.toLowerCase();
+  const wantsDark = /\b(dark|black|midnight|obsidian|noir|moody)\b/.test(p);
+  const wantsLight = /\b(light|white|clean|minimal|apple|notion|medium|linear|elegant)\b/.test(p);
+  const wantsLuxury = /\b(luxury|premium|high-end|bespoke|exclusive|elegant)\b/.test(p);
+  const wantsBold = /\b(bold|neon|vibrant|street|urban|hype|youthful)\b/.test(p);
+
+  if (wantsDark && wantsLuxury) {
+    return {
+      '--qm-bg': '#070707',
+      '--qm-surface': '#111111',
+      '--qm-text': '#f8f7f2',
+      '--qm-text-muted': '#a1a1aa',
+      '--qm-accent': '#f5d06f',
+      '--qm-accent-text': '#070707',
+      '--qm-border': 'rgba(255,255,255,0.12)',
+    };
+  }
+
+  if (wantsDark) {
+    return {
+      '--qm-bg': '#08090a',
+      '--qm-surface': '#111315',
+      '--qm-text': '#f8fafc',
+      '--qm-text-muted': '#9ca3af',
+      '--qm-accent': wantsBold ? '#b6ff00' : '#ffffff',
+      '--qm-accent-text': '#08090a',
+      '--qm-border': 'rgba(255,255,255,0.12)',
+    };
+  }
+
+  if (siteType === 'blog' && wantsLight) {
+    return {
+      '--qm-bg': '#fbfaf7',
+      '--qm-surface': '#ffffff',
+      '--qm-text': '#111111',
+      '--qm-text-muted': '#62615c',
+      '--qm-accent': '#111111',
+      '--qm-accent-text': '#ffffff',
+      '--qm-border': 'rgba(17,17,17,0.10)',
+    };
+  }
+
+  if (wantsLuxury) {
+    return {
+      '--qm-bg': '#f8f4ec',
+      '--qm-surface': '#fffdf8',
+      '--qm-text': '#17130c',
+      '--qm-text-muted': '#766b5b',
+      '--qm-accent': '#9b6b1d',
+      '--qm-accent-text': '#ffffff',
+      '--qm-border': 'rgba(23,19,12,0.12)',
+    };
+  }
+
+  if (wantsBold) {
+    return {
+      '--qm-bg': '#ffffff',
+      '--qm-surface': '#f6f7f2',
+      '--qm-text': '#080808',
+      '--qm-text-muted': '#4b5563',
+      '--qm-accent': '#39ff14',
+      '--qm-accent-text': '#050505',
+      '--qm-border': 'rgba(8,8,8,0.12)',
+    };
+  }
+
+  return {};
 }
 
 function productCard(id: string, name: string, price: string, description: string, image: string) {
@@ -393,7 +466,7 @@ function productCard(id: string, name: string, price: string, description: strin
 }
 
 function ecommerceExtraPages(theme: QmTheme, prompt: string) {
-  const pageClass = `min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] ${theme.is_dark ? 'dark:bg-[#050505] dark:text-white' : 'dark:bg-[#0d0d0d] dark:text-white'}`;
+  const pageClass = `min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] dark:bg-[#000000] dark:text-white`;
   const heroImage = 'https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=1400&auto=format&q=85';
   const hoodieImage = 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=900&auto=format&q=85';
   const shirtImage = 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900&auto=format&q=85';
@@ -431,10 +504,67 @@ function ecommerceExtraPages(theme: QmTheme, prompt: string) {
   return pages.join('\n\n');
 }
 
-function genericExtraPages(siteType: SiteType, theme: QmTheme, prompt: string) {
-  const pageClass = `min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] ${theme.is_dark ? 'dark:bg-[#050505] dark:text-white' : 'dark:bg-[#0d0d0d] dark:text-white'}`;
-  const nav = `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/95 px-5 py-4 text-[var(--qm-text)] backdrop-blur"><div class="mx-auto flex max-w-7xl items-center justify-between gap-5"><a href="/" class="text-lg font-black" data-qm="brand-name">QAY Studio</a><div class="hidden items-center gap-6 text-sm font-bold md:flex"><a href="/about">About</a><a href="/services">Services</a><a href="/contact">Contact</a></div><button type="button" class="rounded-full border border-[var(--qm-border)] px-4 py-2 text-sm md:hidden" data-qay-click="toggle" data-qay-target="#generic-page-menu" data-qay-class="hidden">Menu</button></div><div id="generic-page-menu" class="hidden fixed inset-x-4 top-20 z-50 flex flex-col gap-3 rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-5 shadow-2xl md:hidden"><a href="/about">About</a><a href="/services">Services</a><a href="/contact">Contact</a></div></nav>`;
-  const footer = `<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-bg)] px-5 py-12 text-[var(--qm-text)]"><div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between"><p class="font-black" data-qm="footer-brand">QAY Studio</p><div class="flex gap-5 text-sm text-[var(--qm-text-muted)]"><a href="/about">About</a><a href="/services">Services</a><a href="/contact">Contact</a></div></div></footer>`;
+function fallbackSharedNavFooter(siteType: SiteType, brandName: string, navHtml?: string, footerHtml?: string) {
+  const baseLinks = siteType === 'blog'
+    ? [
+      ['Blog', '/blog'],
+      ['Categories', '/categories'],
+      ['Authors', '/authors'],
+      ['About', '/about'],
+      ['Contact', '/contact'],
+    ]
+    : [
+      ['About', '/about'],
+      ['Services', '/services'],
+      ['Contact', '/contact'],
+    ];
+  const nav = navHtml || `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/95 px-5 py-4 text-[var(--qm-text)] backdrop-blur"><div class="mx-auto flex max-w-7xl items-center justify-between gap-5"><a href="/" class="text-lg font-black" data-qm="brand-name">${escapeHtml(brandName)}</a><div class="hidden items-center gap-6 text-sm font-bold md:flex">${baseLinks.map(([label, href]) => `<a href="${href}">${label}</a>`).join('')}<a href="#newsletter" class="rounded-full bg-[var(--qm-accent)] px-5 py-3 text-[var(--qm-accent-text)]">Subscribe</a></div><button type="button" class="rounded-full border border-[var(--qm-border)] px-4 py-2 text-sm md:hidden" data-qay-click="toggle" data-qay-target="#shared-page-menu" data-qay-class="hidden">Menu</button></div><div id="shared-page-menu" class="hidden fixed inset-x-4 top-20 z-50 flex flex-col gap-3 rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-5 shadow-2xl md:hidden">${baseLinks.map(([label, href]) => `<a href="${href}" class="rounded-xl px-3 py-2 hover:bg-[var(--qm-bg)]">${label}</a>`).join('')}<a href="#newsletter" class="rounded-xl bg-[var(--qm-accent)] px-3 py-3 text-center text-[var(--qm-accent-text)]">Subscribe</a></div></nav>`;
+  const footer = footerHtml || `<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-bg)] px-5 py-12 text-[var(--qm-text)]"><div class="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1.2fr_0.8fr_0.8fr]"><div><p class="font-black" data-qm="footer-brand">${escapeHtml(brandName)}</p><p class="mt-3 max-w-sm text-sm text-[var(--qm-text-muted)]">A polished publication built for thoughtful reading and useful ideas.</p></div><div class="flex flex-col gap-3 text-sm">${baseLinks.slice(0, 3).map(([label, href]) => `<a href="${href}">${label}</a>`).join('')}</div><div class="flex flex-col gap-3 text-sm"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/contact">Contact</a></div></div></footer>`;
+  return { nav, footer };
+}
+
+function blogExtraPages(theme: QmTheme, prompt: string, navHtml?: string, footerHtml?: string) {
+  const brandName = extractBusinessName(prompt) || 'Metric';
+  const pageClass = 'min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] dark:bg-[#050505] dark:text-white';
+  const { nav, footer } = fallbackSharedNavFooter('blog', brandName, navHtml, footerHtml);
+  const editorialImage = 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=1400&auto=format&q=85';
+  const codeImage = 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=1200&auto=format&q=85';
+  const deskImage = 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1200&auto=format&q=85';
+  const articleCards = [
+    ['The Operating System for Better Product Decisions', 'A practical guide to choosing fewer metrics, reading them clearly, and turning insight into weekly action.', 'Product', 'Maya Chen', '8 min read', editorialImage],
+    ['Designing Interfaces That Feel Quietly Fast', 'How spacing, loading states, and motion details make a product feel more trustworthy before users notice why.', 'Design', 'Noah Bell', '6 min read', deskImage],
+    ['A Founder Guide to Useful Analytics', 'The dashboards, rituals, and review loops that keep young teams focused without drowning them in charts.', 'Industry', 'Iris Cole', '10 min read', codeImage],
+  ].map(([title, desc, category, author, readTime, image], index) => `<article class="group overflow-hidden rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] shadow-sm transition hover:-translate-y-1 hover:shadow-xl" data-qay-hover="luxe-lift"><div class="overflow-hidden" data-qay-hover="img-zoom"><img src="${image}" alt="${title}" class="aspect-[16/10] w-full object-cover" /></div><div class="p-5"><div class="flex flex-wrap items-center gap-2 text-xs text-[var(--qm-text-muted)]"><span class="rounded-full border border-[var(--qm-border)] px-2.5 py-1">${category}</span><span>${author}</span><span>${index + 12} Jun</span><span>${readTime}</span></div><h2 class="mt-4 text-2xl font-black leading-tight">${title}</h2><p class="mt-3 text-sm leading-6 text-[var(--qm-text-muted)]">${desc}</p><a href="/article" class="mt-5 inline-flex rounded-full bg-[var(--qm-accent)] px-4 py-2 text-sm font-bold text-[var(--qm-accent-text)]">Read more</a></div></article>`).join('');
+
+  const blog = `${nav}<main class="${pageClass}"><section class="px-5 py-16"><div class="mx-auto max-w-7xl"><div class="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-end"><div data-qay-animate="slide-up"><p class="text-xs font-bold uppercase tracking-[0.28em] text-[var(--qm-accent)]">Blog</p><h1 class="mt-4 text-5xl font-black leading-none md:text-7xl">Read the Metric archive.</h1><p class="mt-5 max-w-2xl text-[var(--qm-text-muted)]">Search articles, tutorials, industry notes, and opinion pieces designed for calm, focused reading.</p></div><div class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-4 shadow-sm"><div class="grid gap-3 md:grid-cols-[1fr_auto_auto]"><input type="search" placeholder="Search articles" class="rounded-2xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none" /><select class="rounded-2xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm"><option>All categories</option><option>Product</option><option>Design</option><option>Engineering</option></select><select class="rounded-2xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm"><option>Newest</option><option>Trending</option><option>Most read</option></select></div><div class="mt-3 flex flex-wrap gap-2 text-xs">${['AI', 'Product', 'Design', 'Startups', 'Systems', 'Tutorials'].map((tag) => `<span class="rounded-full border border-[var(--qm-border)] px-3 py-1 text-[var(--qm-text-muted)]">${tag}</span>`).join('')}</div></div></div><div class="mt-10 grid gap-5 md:grid-cols-3" data-qay-animate="stagger-children">${articleCards}</div></div></section></main>${footer}`;
+
+  const article = `${nav}<main class="${pageClass}"><article class="px-5 py-16"><div class="mx-auto max-w-4xl"><p class="text-xs font-bold uppercase tracking-[0.28em] text-[var(--qm-accent)]">Product thinking</p><h1 class="mt-5 text-5xl font-black leading-none md:text-7xl">How Metric turns scattered reading into sharper product judgment.</h1><div class="mt-6 flex flex-wrap items-center gap-3 text-sm text-[var(--qm-text-muted)]"><span>By Ada Morgan</span><span>Jun 16, 2026</span><span>9 min read</span><span>Strategy</span></div></div><div class="mx-auto mt-10 max-w-6xl overflow-hidden rounded-[2rem]" data-qay-scroll="shrink" data-qay-scale="0.94"><img src="${editorialImage}" alt="Editorial workspace for Metric article" class="h-[560px] w-full object-cover" /></div><div class="mx-auto mt-12 grid max-w-6xl gap-10 lg:grid-cols-[240px_1fr]"><aside class="hidden lg:block"><div class="sticky top-28 rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-5 text-sm"><p class="font-bold">Table of contents</p><ol class="mt-4 grid gap-3 text-[var(--qm-text-muted)]"><li>01. The signal problem</li><li>02. Reading rituals</li><li>03. Useful dashboards</li><li>04. Related articles</li></ol></div></aside><div class="prose prose-neutral max-w-none dark:prose-invert"><p class="text-xl leading-9 text-[var(--qm-text-muted)]">Metric exists for people who want thoughtful technology writing without noise. The best reading experiences do not shout; they organize attention.</p><h2>Start with the question, not the chart.</h2><p>Every useful article should leave the reader with a sharper question, a cleaner model, or a practical next step. Metric articles are built around that promise.</p><blockquote class="border-l-4 border-[var(--qm-accent)] pl-5 text-2xl font-semibold">Good publishing makes complex ideas easier to return to.</blockquote><h2>Example code block</h2><pre class="overflow-auto rounded-2xl bg-[#0b0b0b] p-5 text-sm text-white"><code>const readingSignal = articles.filter((post) =&gt; post.value &gt; noise);</code></pre><div class="aspect-video overflow-hidden rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)]"><iframe title="Embedded editorial video" class="h-full w-full" src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe></div><h2>Comments</h2><form class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-5"><input placeholder="Name" class="mb-3 w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3" /><textarea placeholder="Add a thoughtful comment" class="h-32 w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3"></textarea><button type="submit" class="mt-3 rounded-full bg-[var(--qm-accent)] px-5 py-3 font-bold text-[var(--qm-accent-text)]">Post comment</button></form><div class="grid gap-3 border-t border-[var(--qm-border)] pt-8 sm:grid-cols-2"><a href="/article" class="rounded-2xl border border-[var(--qm-border)] p-4">Previous: Better editorial systems</a><a href="/article" class="rounded-2xl border border-[var(--qm-border)] p-4 text-right">Next: The quiet dashboard</a></div></div></div></article></main>${footer}`;
+
+  const about = `${nav}<main class="${pageClass}"><section class="px-5 py-20"><div class="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.85fr_1.15fr]"><div data-qay-animate="slide-up"><p class="text-xs font-bold uppercase tracking-[0.28em] text-[var(--qm-accent)]">About Metric</p><h1 class="mt-5 text-5xl font-black leading-none md:text-7xl">A calmer place for modern ideas.</h1><p class="mt-6 text-lg leading-8 text-[var(--qm-text-muted)]">Metric publishes essays, tutorials, and industry analysis for readers who care about product quality, design taste, and useful technology.</p></div><div class="grid gap-4 sm:grid-cols-2"><div class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6"><p class="text-4xl font-black">120+</p><p class="mt-2 text-sm text-[var(--qm-text-muted)]">Editorial pieces</p></div><div class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6"><p class="text-4xl font-black">38k</p><p class="mt-2 text-sm text-[var(--qm-text-muted)]">Monthly readers</p></div></div></div></section></main>${footer}`;
+  const contact = `${nav}<main class="${pageClass}"><section class="px-5 py-20"><div class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.85fr_1.15fr]"><div><p class="text-xs font-bold uppercase tracking-[0.28em] text-[var(--qm-accent)]">Contact</p><h1 class="mt-5 text-5xl font-black leading-none md:text-7xl">Pitch a story or ask a question.</h1><p class="mt-5 text-[var(--qm-text-muted)]">For editorial pitches, partnerships, corrections, and reader notes.</p></div><form class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6"><input name="name" placeholder="Name" class="mb-3 w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3" /><input name="email" type="email" placeholder="Email" class="mb-3 w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3" /><textarea name="message" placeholder="Message" class="h-36 w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3"></textarea><button type="submit" class="mt-4 rounded-xl bg-[var(--qm-accent)] px-6 py-4 font-bold text-[var(--qm-accent-text)]">Send message</button></form></div></section></main>${footer}`;
+  const categories = `${nav}<main class="${pageClass}"><section class="px-5 py-20"><div class="mx-auto max-w-7xl"><h1 class="text-5xl font-black md:text-7xl">Categories</h1><div class="mt-10 grid gap-4 md:grid-cols-3">${['Product', 'Design', 'Engineering', 'Industry News', 'Tutorials', 'Ideas'].map((item) => `<a href="/blog" class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 transition hover:-translate-y-1"><h2 class="text-2xl font-black">${item}</h2><p class="mt-3 text-sm text-[var(--qm-text-muted)]">Read the latest Metric essays in ${item.toLowerCase()}.</p></a>`).join('')}</div></div></section></main>${footer}`;
+  const authors = `${nav}<main class="${pageClass}"><section class="px-5 py-20"><div class="mx-auto max-w-7xl"><h1 class="text-5xl font-black md:text-7xl">Authors</h1><div class="mt-10 grid gap-5 md:grid-cols-3">${['Maya Chen', 'Noah Bell', 'Iris Cole'].map((name, index) => `<article class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6"><div class="grid size-16 place-items-center rounded-full bg-[var(--qm-accent)] text-xl font-black text-[var(--qm-accent-text)]">${name.split(' ').map((part) => part[0]).join('')}</div><h2 class="mt-5 text-2xl font-black">${name}</h2><p class="mt-2 text-sm text-[var(--qm-text-muted)]">${['Product editor', 'Design critic', 'Industry analyst'][index]} writing for Metric readers.</p></article>`).join('')}</div></div></section></main>${footer}`;
+  const privacy = `${nav}<main class="${pageClass}"><section class="px-5 py-20"><div class="mx-auto max-w-3xl"><h1 class="text-5xl font-black">Privacy Policy</h1><p class="mt-6 text-[var(--qm-text-muted)]">Metric only collects the information needed to operate subscriptions, comments, analytics, and reader support. This page is editable before launch.</p></div></section></main>${footer}`;
+  const terms = `${nav}<main class="${pageClass}"><section class="px-5 py-20"><div class="mx-auto max-w-3xl"><h1 class="text-5xl font-black">Terms of Service</h1><p class="mt-6 text-[var(--qm-text-muted)]">These terms describe how readers may use Metric, quote articles, submit comments, and contact the editorial team.</p></div></section></main>${footer}`;
+  const notFound = `${nav}<main class="${pageClass}"><section class="grid min-h-[70vh] place-items-center px-5 py-20 text-center"><div><p class="text-xs font-bold uppercase tracking-[0.3em] text-[var(--qm-accent)]">404</p><h1 class="mt-4 text-6xl font-black md:text-8xl">This idea moved.</h1><p class="mx-auto mt-5 max-w-xl text-[var(--qm-text-muted)]">The page you are looking for is not in the Metric archive. Try the blog or search by category.</p><a href="/blog" class="mt-8 inline-flex rounded-full bg-[var(--qm-accent)] px-6 py-3 font-bold text-[var(--qm-accent-text)]">Back to articles</a></div></section></main>${footer}`;
+
+  return [
+    pageWrapper('Blog', 'blog', blog),
+    pageWrapper('Article', 'article', article),
+    pageWrapper('About', 'about', about),
+    pageWrapper('Contact', 'contact', contact),
+    pageWrapper('Categories', 'categories', categories),
+    pageWrapper('Authors', 'authors', authors),
+    pageWrapper('Privacy Policy', 'privacy', privacy),
+    pageWrapper('Terms of Service', 'terms', terms),
+    pageWrapper('404', '404', notFound),
+  ].join('\n\n');
+}
+
+function genericExtraPages(siteType: SiteType, theme: QmTheme, prompt: string, navHtml?: string, footerHtml?: string) {
+  const pageClass = `min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] dark:bg-[#000000] dark:text-white`;
+  const brandName = extractBusinessName(prompt) || 'QAY Studio';
+  const { nav, footer } = fallbackSharedNavFooter(siteType, brandName, navHtml, footerHtml);
 
   const about = `${nav}<main class="${pageClass}"><section class="px-5 py-20"><div class="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center"><div data-qay-animate="slide-up"><p class="text-xs font-bold uppercase tracking-[0.28em] text-[var(--qm-accent)]">About</p><h1 class="mt-5 text-5xl font-black leading-none md:text-7xl" data-qm="about-title">A focused story with real reasons to believe.</h1><p class="mt-6 max-w-2xl text-lg leading-8 text-[var(--qm-text-muted)]" data-qm="about-copy">This page gives the brand room to explain its origin, approach, audience, standards, and next step.</p></div><div class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-8"><div class="grid gap-4 sm:grid-cols-2"><div class="rounded-2xl bg-[var(--qm-bg)] p-5"><p class="text-3xl font-black">01</p><p class="mt-3 text-sm text-[var(--qm-text-muted)]">Clear positioning</p></div><div class="rounded-2xl bg-[var(--qm-bg)] p-5"><p class="text-3xl font-black">02</p><p class="mt-3 text-sm text-[var(--qm-text-muted)]">Proof and credibility</p></div><div class="rounded-2xl bg-[var(--qm-bg)] p-5 sm:col-span-2"><p class="text-3xl font-black">03</p><p class="mt-3 text-sm text-[var(--qm-text-muted)]">A conversion path that feels natural.</p></div></div></div></div></section></main>${footer}`;
   const services = `${nav}<main class="${pageClass}"><section class="px-5 py-20"><div class="mx-auto max-w-7xl"><p class="text-xs font-bold uppercase tracking-[0.28em] text-[var(--qm-accent)]">Services</p><h1 class="mt-5 max-w-4xl text-5xl font-black leading-none md:text-7xl" data-qm="features-title">Offer pages that make the work easy to understand.</h1><div class="mt-10 grid gap-5 md:grid-cols-3" data-qay-animate="stagger-children"><article class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6" data-qay-hover="lift"><h2 class="text-2xl font-black">Strategy</h2><p class="mt-3 text-sm leading-6 text-[var(--qm-text-muted)]">Positioning, planning, and the first decision path.</p></article><article class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6" data-qay-hover="lift"><h2 class="text-2xl font-black">Delivery</h2><p class="mt-3 text-sm leading-6 text-[var(--qm-text-muted)]">Clear process, timelines, and polished outcomes.</p></article><article class="rounded-3xl bg-[var(--qm-accent)] p-6 text-[var(--qm-accent-text)]"><h2 class="text-2xl font-black">Support</h2><p class="mt-3 text-sm leading-6 opacity-80">Follow-through, updates, and next-step guidance.</p></article></div></div></section></main>${footer}`;
@@ -469,6 +599,8 @@ export async function assembleSiteFromSections(prompt: string, overrideSiteType?
   const sectionOrder = SECTION_ORDER[siteType];
   const sectionsUsed: AssemblyResult['sectionsUsed'] = [];
   const htmlParts: string[] = [];
+  let pickedNavHtml = '';
+  let pickedFooterHtml = '';
 
   // Ensure navbar is at the beginning
   const finalOrder = [...sectionOrder];
@@ -496,15 +628,22 @@ export async function assembleSiteFromSections(prompt: string, overrideSiteType?
     if (!picked) continue;
 
     htmlParts.push(picked.html);
+    if (sectionType === 'nav') pickedNavHtml = picked.html;
+    if (sectionType === 'footer') pickedFooterHtml = picked.html;
     sectionsUsed.push({ type: sectionType, sectionId: picked.id, keywords: picked.keywords });
   }
 
   const bodyHtml = htmlParts.join('\n\n');
+  const extraPages = siteType === 'ecommerce'
+    ? ecommerceExtraPages(theme, prompt)
+    : siteType === 'blog'
+      ? blogExtraPages(theme, prompt, pickedNavHtml, pickedFooterHtml)
+      : genericExtraPages(siteType, theme, prompt, pickedNavHtml, pickedFooterHtml);
   const html = await personalizeSections(
     shouldGenerateMultiPage(prompt, siteType)
       ? [
         pageWrapper('Homepage', '/', bodyHtml),
-        siteType === 'ecommerce' ? ecommerceExtraPages(theme, prompt) : genericExtraPages(siteType, theme, prompt),
+        extraPages,
       ].filter(Boolean).join('\n\n')
       : bodyHtml,
     prompt,
