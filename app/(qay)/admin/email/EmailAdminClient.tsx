@@ -31,7 +31,11 @@ type SendResult = {
 function formatDate(value: string | null | undefined) {
   if (!value) return 'Never';
   try {
-    return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+    return new Intl.DateTimeFormat('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'UTC',
+    }).format(new Date(value));
   } catch {
     return value;
   }

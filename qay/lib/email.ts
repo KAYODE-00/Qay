@@ -83,12 +83,46 @@ function normalizeRecipients(to: string | string[]) {
   );
 }
 
+function resendSetupError() {
+  const missing: string[] = [];
+  if (!(clean(process.env.RESEND_API_KEY) || clean(process.env.QAY_RESEND_API_KEY))) {
+    missing.push('RESEND_API_KEY');
+  }
+  if (!fromAddress()) {
+    missing.push('QAY_EMAIL_FROM_EMAIL');
+  }
+  return missing.length ? `Resend is not configured. Missing: ${missing.join(', ')}.` : null;
+}
+
+function smtpSetupError() {
+  const missing: string[] = [];
+  const hasHost = clean(process.env.QAY_EMAIL_SMTP_HOST) ||
+    clean(process.env.QAY_SITE_AUTH_SMTP_HOST) ||
+    clean(process.env.QAY_INVITE_SMTP_HOST) ||
+    clean(process.env.SMTP_HOST);
+  const hasUser = clean(process.env.QAY_EMAIL_SMTP_USER) ||
+    clean(process.env.QAY_SITE_AUTH_SMTP_USER) ||
+    clean(process.env.QAY_INVITE_SMTP_USER) ||
+    clean(process.env.SMTP_USER);
+  const hasPassword = clean(process.env.QAY_EMAIL_SMTP_PASSWORD) ||
+    clean(process.env.QAY_SITE_AUTH_SMTP_PASSWORD) ||
+    clean(process.env.QAY_INVITE_SMTP_PASSWORD) ||
+    clean(process.env.SMTP_PASSWORD);
+
+  if (!hasHost) missing.push('QAY_EMAIL_SMTP_HOST');
+  if (!hasUser) missing.push('QAY_EMAIL_SMTP_USER');
+  if (!hasPassword) missing.push('QAY_EMAIL_SMTP_PASSWORD');
+  if (!fromAddress()) missing.push('QAY_EMAIL_FROM_EMAIL');
+
+  return missing.length ? `SMTP is not configured. Missing: ${missing.join(', ')}.` : null;
+}
+
 async function sendWithResend(input: QayEmailInput, recipients: string[]): Promise<QayEmailResult> {
   const apiKey = clean(process.env.RESEND_API_KEY) || clean(process.env.QAY_RESEND_API_KEY);
   const from = fromAddress();
 
   if (!apiKey || !from) {
-    return { ok: false, provider: 'none', error: 'Resend is not configured.' };
+    return { ok: false, provider: 'none', error: resendSetupError() || 'Resend is not configured.' };
   }
 
   try {
@@ -130,7 +164,7 @@ async function sendWithResend(input: QayEmailInput, recipients: string[]): Promi
 async function sendWithSmtp(input: QayEmailInput, recipients: string[]): Promise<QayEmailResult> {
   const settings = getSmtpSettings();
   if (!settings) {
-    return { ok: false, provider: 'none', error: 'SMTP is not configured.' };
+    return { ok: false, provider: 'none', error: smtpSetupError() || 'SMTP is not configured.' };
   }
 
   try {
@@ -180,5 +214,12 @@ export async function sendQayEmail(input: QayEmailInput): Promise<QayEmailResult
   const resendResult = await sendWithResend(input, recipients);
   if (resendResult.ok || provider === 'resend') return resendResult;
 
-  return sendWithSmtp(input, recipients);
+  const smtpResult = await sendWithSmtp(input, recipients);
+  if (smtpResult.ok) return smtpResult;
+
+  return {
+    ok: false,
+    provider: 'none',
+    error: `${resendResult.error || 'Resend failed.'} ${smtpResult.error || 'SMTP failed.'}`,
+  };
 }
