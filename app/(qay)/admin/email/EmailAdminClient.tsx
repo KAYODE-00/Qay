@@ -57,6 +57,9 @@ export function EmailAdminClient({
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [emailLogs, setEmailLogs] = useState(logs);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SendResult | null>(null);
 
@@ -96,6 +99,36 @@ export function EmailAdminClient({
       setError(sendError instanceof Error ? sendError.message : 'Failed to send email.');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const deleteLog = async (id: string) => {
+    setDeletingId(id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/qay/admin/email/logs/${id}`, { method: 'DELETE' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Failed to delete email log.');
+      setEmailLogs((current) => current.filter((log) => log.id !== id));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete email log.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const clearLogs = async () => {
+    setIsClearing(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/qay/admin/email/logs', { method: 'DELETE' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Failed to clear email logs.');
+      setEmailLogs([]);
+    } catch (clearError) {
+      setError(clearError instanceof Error ? clearError.message : 'Failed to clear email logs.');
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -196,16 +229,38 @@ export function EmailAdminClient({
       </section>
 
       <section className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-xl font-semibold">Recent sends</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold">Recent sends</h2>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isClearing || emailLogs.length < 1}
+            onClick={clearLogs}
+          >
+            {isClearing ? 'Clearing...' : 'Clear all'}
+          </Button>
+        </div>
         <div className="mt-5 space-y-3">
-          {logs.length ? logs.map((log) => (
+          {emailLogs.length ? emailLogs.map((log) => (
             <article key={log.id} className="rounded-xl border border-border bg-background p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-medium">{log.subject}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">{formatDate(log.created_at)}</p>
                 </div>
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs capitalize text-muted-foreground">{log.status}</span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs capitalize text-muted-foreground">{log.status}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={deletingId === log.id}
+                    onClick={() => deleteLog(log.id)}
+                  >
+                    {deletingId === log.id ? 'Deleting...' : 'Delete'}
+                  </Button>
+                </div>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
                 {log.recipient_count} recipient{log.recipient_count === 1 ? '' : 's'} via {log.provider || 'unknown'}.

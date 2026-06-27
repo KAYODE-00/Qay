@@ -38,7 +38,7 @@ function fromAddress() {
 }
 
 function getSmtpSettings() {
-  const host =
+  const rawHost =
     clean(process.env.QAY_EMAIL_SMTP_HOST) ||
     clean(process.env.QAY_SITE_AUTH_SMTP_HOST) ||
     clean(process.env.QAY_INVITE_SMTP_HOST) ||
@@ -60,6 +60,9 @@ function getSmtpSettings() {
     clean(process.env.QAY_INVITE_SMTP_PASSWORD) ||
     clean(process.env.SMTP_PASSWORD);
   const from = fromAddress() || (user ? { email: user, name: 'QAY', formatted: `QAY <${user}>` } : null);
+  const host = rawHost === 'smtp' && /@gmail\.com$/i.test(user || from?.email || '')
+    ? 'smtp.gmail.com'
+    : rawHost;
 
   if (!host || !user || !password || !from) return null;
 
@@ -70,6 +73,16 @@ function getSmtpSettings() {
     auth: { user, pass: password },
     from: from.formatted,
   };
+}
+
+function isGmailSender() {
+  const from = fromAddress();
+  const smtpUser =
+    clean(process.env.QAY_EMAIL_SMTP_USER) ||
+    clean(process.env.QAY_SITE_AUTH_SMTP_USER) ||
+    clean(process.env.QAY_INVITE_SMTP_USER) ||
+    clean(process.env.SMTP_USER);
+  return /@gmail\.com$/i.test(from?.email || '') || /@gmail\.com$/i.test(smtpUser);
 }
 
 function normalizeRecipients(to: string | string[]) {
@@ -197,7 +210,7 @@ export function isQayEmailConfigured() {
   const provider = clean(process.env.QAY_EMAIL_PROVIDER).toLowerCase();
   const hasResend = !!((clean(process.env.RESEND_API_KEY) || clean(process.env.QAY_RESEND_API_KEY)) && fromAddress());
   const hasSmtp = !!getSmtpSettings();
-  return provider === 'smtp' ? hasSmtp : hasResend || hasSmtp;
+  return provider === 'smtp' || isGmailSender() ? hasSmtp : hasResend || hasSmtp;
 }
 
 export async function sendQayEmail(input: QayEmailInput): Promise<QayEmailResult> {
@@ -207,7 +220,7 @@ export async function sendQayEmail(input: QayEmailInput): Promise<QayEmailResult
   }
 
   const provider = clean(process.env.QAY_EMAIL_PROVIDER).toLowerCase();
-  if (provider === 'smtp') {
+  if (provider === 'smtp' || isGmailSender()) {
     return sendWithSmtp(input, recipients);
   }
 
