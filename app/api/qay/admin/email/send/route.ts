@@ -40,21 +40,23 @@ async function listAllAuthUsers(admin: ReturnType<typeof getQayAdmin>) {
 }
 
 function emailHtml(subject: string, body: string) {
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_QAY_SITE_URL || 'https://qay-theta.vercel.app')
+    .trim()
+    .replace(/\/$/, '');
   const paragraphs = body
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
-    .map((paragraph) => `<p style="margin:0 0 16px;color:#374151;line-height:1.7">${escapeHtml(paragraph).replace(/\n/g, '<br />')}</p>`)
+    .map((paragraph) => `<p style="margin:0 0 16px;line-height:1.7">${escapeHtml(paragraph).replace(/\n/g, '<br />')}</p>`)
     .join('');
+  const safeSiteUrl = escapeHtml(siteUrl);
 
   return `
-    <div style="font-family:Inter,Arial,sans-serif;max-width:640px;margin:0 auto;padding:32px;color:#111827;background:#ffffff">
-      <div style="border:1px solid #e5e7eb;border-radius:18px;padding:28px;background:#ffffff">
-        <p style="margin:0 0 12px;color:#6b7280;font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase">QAY update</p>
-        <h1 style="margin:0 0 20px;font-size:28px;line-height:1.15;letter-spacing:-.03em">${escapeHtml(subject)}</h1>
-        ${paragraphs}
-      </div>
-      <p style="margin:20px 0 0;color:#9ca3af;font-size:12px;line-height:1.6">You received this because you have a QAY account.</p>
+    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#111827;background:#ffffff">
+      ${paragraphs || `<p style="margin:0 0 16px;line-height:1.7">${escapeHtml(subject)}</p>`}
+      <p style="margin:24px 0 0;line-height:1.7">
+        <a href="${safeSiteUrl}" style="color:#111827;text-decoration:underline">${safeSiteUrl}</a>
+      </p>
     </div>
   `;
 }
