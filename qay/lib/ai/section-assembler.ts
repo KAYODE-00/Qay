@@ -233,6 +233,183 @@ function materializeThemeVariables(html: string, cssVariables: Record<string, st
   ), html);
 }
 
+function colorLuminance(hex: string) {
+  const normalized = hex.replace('#', '');
+  const full = normalized.length === 3
+    ? normalized.split('').map((char) => char + char).join('')
+    : normalized.slice(0, 6);
+  if (!/^[0-9a-f]{6}$/i.test(full)) return 1;
+  const [r, g, b] = [0, 2, 4].map((index) => parseInt(full.slice(index, index + 2), 16) / 255);
+  const srgb = [r, g, b].map((value) => (
+    value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  ));
+  return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+}
+
+function isDarkColor(hex?: string) {
+  return Boolean(hex && colorLuminance(hex) < 0.42);
+}
+
+const PROMPT_COLOR_MAP: Record<string, string> = {
+  'neon green': '#39ff14',
+  'neon pink': '#ff6ec7',
+  'neon blue': '#3b82ff',
+  'deep grey': '#171717',
+  'deep gray': '#171717',
+  charcoal: '#111111',
+  black: '#050505',
+  white: '#ffffff',
+  cream: '#fff7ed',
+  ivory: '#fffaf0',
+  gold: '#d4af37',
+  amber: '#f59e0b',
+  yellow: '#eab308',
+  green: '#22c55e',
+  emerald: '#10b981',
+  blue: '#2563eb',
+  navy: '#0f172a',
+  indigo: '#4f46e5',
+  purple: '#7c3aed',
+  violet: '#8b5cf6',
+  red: '#ef4444',
+  crimson: '#dc143c',
+  pink: '#ec4899',
+  orange: '#f97316',
+  teal: '#14b8a6',
+  cyan: '#06b6d4',
+  gray: '#6b7280',
+  grey: '#6b7280',
+  slate: '#475569',
+  beige: '#f5f5dc',
+  brown: '#92400e',
+  burgundy: '#800020',
+};
+
+function findPromptColor(value: string) {
+  const hex = value.match(/#[0-9a-fA-F]{3,8}/)?.[0];
+  if (hex) return hex;
+  const lower = value.toLowerCase();
+  const match = Object.keys(PROMPT_COLOR_MAP)
+    .sort((a, b) => b.length - a.length)
+    .find((name) => new RegExp(`\\b${name.replace(/\s+/g, '\\s+')}\\b`, 'i').test(lower));
+  return match ? PROMPT_COLOR_MAP[match] : undefined;
+}
+
+function extractPromptColorIntent(prompt: string) {
+  const intent: { background?: string; surface?: string; primary?: string; accent?: string } = {};
+  const labelPatterns: Array<[keyof typeof intent, RegExp]> = [
+    ['background', /\b(?:background|bg)\s*:\s*([^\n.;]+)/i],
+    ['primary', /\bprimary\s*:\s*([^\n.;]+)/i],
+    ['accent', /\baccent\s*:\s*([^\n.;]+)/i],
+    ['surface', /\b(?:surface|card)\s*:\s*([^\n.;]+)/i],
+  ];
+
+  for (const [key, pattern] of labelPatterns) {
+    const color = findPromptColor(prompt.match(pattern)?.[1] || '');
+    if (color) intent[key] = color;
+  }
+
+  const lower = prompt.toLowerCase();
+  if (!intent.background && /\b(dark|black|obsidian|midnight|noir)\b/i.test(prompt)) {
+    intent.background = findPromptColor(lower.includes('deep grey') || lower.includes('deep gray') ? 'deep grey' : 'black');
+  }
+  if (!intent.background && /\b(light|white|clean|minimal|airy|bright)\b/i.test(prompt)) {
+    intent.background = '#ffffff';
+  }
+  if (!intent.accent) {
+    const accentLine = prompt.match(/\baccent\s*:\s*([^\n]+)/i)?.[1] || prompt;
+    const wantsBold = /\b(neon|street|urban|bold|hype|youthful)\b/i.test(prompt);
+    if (wantsBold && /\bneon green\b/i.test(accentLine)) {
+      intent.accent = PROMPT_COLOR_MAP['neon green'];
+    } else {
+      intent.accent = findPromptColor(accentLine);
+    }
+  }
+
+  return intent;
+}
+
+function inferPromptFonts(prompt: string, siteType: SiteType): Record<string, string> {
+  const p = prompt.toLowerCase();
+  const explicitHeading = prompt.match(/(?:heading\s+font|font|typeface)\s*:\s*([A-Za-z0-9\s]+?)(?:\s+and|\s*,|\.|\n|$)/i)?.[1]?.trim();
+  const explicitBody = prompt.match(/body\s+font\s*:\s*([A-Za-z0-9\s]+?)(?:\s+and|\s*,|\.|\n|$)/i)?.[1]?.trim();
+  if (explicitHeading || explicitBody) {
+    return {
+      '--qm-heading-font': explicitHeading ? `'${explicitHeading}', sans-serif` : 'Inter, sans-serif',
+      '--qm-body-font': explicitBody ? `'${explicitBody}', sans-serif` : 'Inter, sans-serif',
+    };
+  }
+  if (/\b(streetwear|urban|hype|bold|youthful)\b/.test(p)) {
+    return { '--qm-heading-font': "'Bebas Neue', Inter, sans-serif", '--qm-body-font': 'Inter, sans-serif' };
+  }
+  if (/\b(editorial|magazine|medium|elegant|luxury|premium)\b/.test(p) || siteType === 'blog') {
+    return { '--qm-heading-font': "'Inter', 'Plus Jakarta Sans', sans-serif", '--qm-body-font': "'Inter', sans-serif" };
+  }
+  if (/\b(restaurant|hotel|wedding|beauty)\b/.test(p)) {
+    return { '--qm-heading-font': "'Playfair Display', Georgia, serif", '--qm-body-font': "'DM Sans', sans-serif" };
+  }
+  return { '--qm-heading-font': "'Inter', sans-serif", '--qm-body-font': "'Inter', sans-serif" };
+}
+
+function buildBrandCssVariables(prompt: string, siteType: SiteType, theme: QmTheme): Record<string, string> {
+  const userColors = extractUserColors(prompt);
+  const colorIntent = extractPromptColorIntent(prompt);
+  const inferredColors = inferPromptPalette(prompt, siteType);
+  const background = colorIntent.background || userColors?.background || inferredColors['--qm-bg'] || theme.css_variables['--qm-bg'] || '#ffffff';
+  const dark = isDarkColor(background);
+  const text = dark ? '#f8fafc' : '#0a0a0a';
+  const muted = dark ? '#a1a1aa' : '#5f6368';
+  const surface = colorIntent.surface || inferredColors['--qm-surface'] || (dark ? '#111111' : '#ffffff');
+  const accent = colorIntent.accent || userColors?.accent || inferredColors['--qm-accent'] || theme.css_variables['--qm-accent'] || (dark ? '#ffffff' : '#111111');
+
+  return {
+    ...theme.css_variables,
+    ...inferredColors,
+    ...inferPromptFonts(prompt, siteType),
+    '--qm-bg': background,
+    '--qm-surface': surface,
+    '--qm-primary': colorIntent.primary || userColors?.primary || theme.css_variables['--qm-primary'] || text,
+    '--qm-text': text,
+    '--qm-text-muted': muted,
+    '--qm-accent': accent,
+    '--qm-accent-text': isDarkColor(accent) ? '#ffffff' : '#050505',
+    '--qm-border': dark ? 'rgba(255,255,255,0.13)' : 'rgba(10,10,10,0.12)',
+  };
+}
+
+function normalizePromptBrandClasses(html: string) {
+  return html.replace(/class="([^"]*)"/g, (_match, className: string) => {
+    let next = ` ${className} `;
+    next = next
+      .replace(/\s(?:dark:)?bg-(?:white|black|zinc|neutral|slate|gray|stone)-(?:50|100|900|950)\b/g, ' bg-[var(--qm-bg)]')
+      .replace(/\s(?:dark:)?bg-(?:white|black)\b/g, ' bg-[var(--qm-bg)]')
+      .replace(/\s(?:dark:)?text-(?:white|black|zinc|neutral|slate|gray|stone)-(?:50|100|900|950)\b/g, ' text-[var(--qm-text)]')
+      .replace(/\s(?:dark:)?text-(?:white|black)\b/g, ' text-[var(--qm-text)]')
+      .replace(/\stext-(?:zinc|neutral|slate|gray|stone)-(?:300|400|500|600|700|800)\b/g, ' text-[var(--qm-text-muted)]')
+      .replace(/\sdark:text-(?:zinc|neutral|slate|gray|stone)-(?:100|200|300|400|500)\b/g, ' text-[var(--qm-text-muted)]')
+      .replace(/\sborder-(?:zinc|neutral|slate|gray|stone|black|white)(?:-\d{2,3})?(?:\/\d+)?\b/g, ' border-[var(--qm-border)]')
+      .replace(/\stext-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}\b/g, ' text-[var(--qm-accent)]')
+      .replace(/\sdark:text-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}\b/g, ' text-[var(--qm-accent)]')
+      .replace(/\sbg-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}\b/g, ' bg-[var(--qm-accent)]')
+      .replace(/\sring-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}\b/g, ' ring-[var(--qm-accent)]');
+    next = next.replace(/\s+/g, ' ').trim();
+    return `class="${next}"`;
+  });
+}
+
+function promptFontLinks(theme: QmTheme) {
+  const themeFamilies = theme.google_fonts.map((font) => `family=${font}`);
+  const promptFamilies = [
+    'family=Inter:wght@400;500;600;700;800;900',
+    'family=Bebas+Neue',
+    'family=Playfair+Display:wght@500;600;700;800',
+    'family=DM+Sans:wght@400;500;700',
+    'family=Plus+Jakarta+Sans:wght@500;600;700;800',
+  ];
+  const families = [...new Set([...themeFamilies, ...promptFamilies])];
+  return `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?${families.join('&')}&display=swap" rel="stylesheet">`;
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -275,18 +452,7 @@ async function aiCopyOverrides(html: string, prompt: string, siteType: SiteType)
 async function personalizeSections(html: string, prompt: string, siteType: SiteType, theme: QmTheme) {
   const deterministic = deterministicCopy(prompt, siteType);
   const aiOverrides = await aiCopyOverrides(html, prompt, siteType);
-
-  // Extract user-specified colors from the prompt
-  const userColors = extractUserColors(prompt);
-  const inferredColors = inferPromptPalette(prompt, siteType);
-  const finalCssVariables = {
-    ...theme.css_variables,
-    ...inferredColors,
-    ...(userColors?.primary ? { '--qm-primary': userColors.primary, '--qm-text': userColors.primary } : {}),
-    ...(userColors?.secondary ? { '--qm-secondary': userColors.secondary, '--qm-text-muted': userColors.secondary } : {}),
-    ...(userColors?.accent ? { '--qm-accent': userColors.accent } : {}),
-    ...(userColors?.background ? { '--qm-bg': userColors.background } : {}),
-  };
+  const finalCssVariables = buildBrandCssVariables(prompt, siteType, theme);
 
   const copied = materializeThemeVariables(
     replaceTextZones(html, { ...deterministic, ...aiOverrides }),
@@ -296,12 +462,12 @@ async function personalizeSections(html: string, prompt: string, siteType: SiteT
   const brandName = extractBusinessName(prompt) || (siteType === 'ecommerce' ? 'Baddo World' : 'QAY Studio');
   
   // Run full copywriting personalization on the materialized body
-  const personalized = await personalizeSectionsFullHtml(copied, prompt, siteType, brandName);
+  const personalized = normalizePromptBrandClasses(
+    await personalizeSectionsFullHtml(copied, prompt, siteType, brandName)
+  );
   
   const cssVars = Object.entries(finalCssVariables).map(([key, value]) => `  ${key}: ${value};`).join('\n');
-  const fontLinks = theme.google_fonts.length
-    ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?${theme.google_fonts.map((font) => `family=${font}`).join('&')}&display=swap" rel="stylesheet">`
-    : '';
+  const fontLinks = promptFontLinks(theme);
 
   return `${fontLinks}
 <style>
