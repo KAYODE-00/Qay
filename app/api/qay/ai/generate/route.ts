@@ -5,6 +5,7 @@ import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { assembleFromDecision } from '@/qay/lib/ai/assemble-from-decision';
 import { generateQayAiHtml, generateQayAiLayers, type AiBuilderMode } from '@/qay/lib/ai/builder';
 import { AiProviderFailureError, AiProviderLimitsError } from '@/qay/lib/ai/providers';
+import { buildPalettePrompt, enforcePaletteOnHtml, pickPalette } from '@/qay/lib/ai/pick-palette';
 import { detectTemplateChoice } from '@/qay/lib/ai/template-detector';
 import { modifyTemplate } from '@/qay/lib/ai/template-modifier';
 import { translatePromptToDecision } from '@/qay/lib/ai/translate-prompt';
@@ -88,6 +89,11 @@ export async function POST(request: Request) {
 
     const mode = body.mode === 'selected' ? 'selected' : 'page';
     const selectedLayers = Array.isArray(body.selectedLayers) ? body.selectedLayers : [];
+    const hexMatches = prompt.match(/#[0-9a-fA-F]{6}/g) || [];
+    const paletteChoice = pickPalette(prompt, hexMatches.length
+      ? { primary: hexMatches[0], accent: hexMatches[1], bg: hexMatches[2] }
+      : undefined);
+    const enhancedPrompt = buildPalettePrompt(prompt, paletteChoice);
 
     if (mode === 'selected' && selectedLayers.length === 0) {
       return NextResponse.json({ error: 'Select a layer before asking AI to redesign it.' }, { status: 400 });
@@ -97,8 +103,15 @@ export async function POST(request: Request) {
       try {
         const templateResult = await generateFromAiTemplate(prompt, body.variation);
         if (templateResult) {
-          console.log('[QAY AI generate] Generated template-modifier HTML:', templateResult.html);
-          return NextResponse.json({ data: templateResult });
+          const html = enforcePaletteOnHtml(templateResult.html, paletteChoice);
+          console.log('[QAY AI generate] Generated template-modifier HTML:', html);
+          return NextResponse.json({
+            data: {
+              ...templateResult,
+              html,
+              palette: paletteChoice.paletteKey,
+            },
+          });
         }
       } catch (templateError) {
         console.warn('[QAY AI generate] Template modifier unavailable, falling back:', templateError);
@@ -106,13 +119,15 @@ export async function POST(request: Request) {
 
       try {
         const decision = await translatePromptToDecision(prompt);
-        const { html, pages, stats } = await assembleFromDecision(decision, prompt);
+        const { html: rawHtml, pages, stats } = await assembleFromDecision(decision, prompt);
+        const html = enforcePaletteOnHtml(rawHtml, paletteChoice);
         console.log('[QAY AI generate] Generated section-library-v2 HTML:', html);
 
         return NextResponse.json({
           data: {
             html,
             pages,
+            palette: paletteChoice.paletteKey,
             siteType: decision.siteType,
             navMode: decision.navMode,
             sectionPicks: decision.sectionPicks,
@@ -127,10 +142,12 @@ export async function POST(request: Request) {
     }
 
     const result = body.output === 'html'
-      ? await generateQayAiHtml({ prompt, mode, selectedLayers })
+      ? await generateQayAiHtml({ prompt: enhancedPrompt, mode, selectedLayers })
       : await generateQayAiLayers({ prompt, mode, selectedLayers });
 
     if (body.output === 'html' && 'html' in result) {
+      result.html = enforcePaletteOnHtml(result.html, paletteChoice);
+      (result as typeof result & { palette?: string }).palette = paletteChoice.paletteKey;
       console.log('[QAY AI generate] Generated HTML:', result.html);
     } else if ('layers' in result) {
       console.log('[QAY AI generate] Generated layer JSON:', JSON.stringify(result.layers, null, 2));
