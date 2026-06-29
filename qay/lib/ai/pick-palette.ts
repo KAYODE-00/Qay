@@ -461,7 +461,7 @@ img { display: block; max-width: 100%; }
 }
 
 function normalizeColorClasses(className: string) {
-  const normalized = (` ${className} `)
+  let normalized = (` ${className} `)
     .replace(/\s(?:dark:)?bg-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\d+)?\b/g, ' bg-[var(--qm-bg)]')
     .replace(/\s(?:dark:)?text-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\d+)?\b/g, ' text-[var(--qm-text)]')
     .replace(/\s(?:dark:)?border-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\d+)?\b/g, ' border-[var(--qm-border)]')
@@ -494,10 +494,49 @@ function normalizeColorClasses(className: string) {
     .trim();
 
   if (normalized.includes('text-[var(--qm-accent-text)]') && !normalized.includes('bg-[var(--qm-accent)]')) {
-    return normalized.replace(/\btext-\[var\(--qm-accent-text\)\]\b/g, 'text-[var(--qm-text)]');
+    normalized = normalized.replace(/\btext-\[var\(--qm-accent-text\)\]\b/g, 'text-[var(--qm-text)]');
+  }
+
+  const hasBg = /\bbg-\[var\(--qm-bg\)\]/.test(normalized);
+  const hasSurface = /\bbg-\[var\(--qm-surface\)\]/.test(normalized);
+  const hasAccent = /\bbg-\[var\(--qm-accent\)\]/.test(normalized);
+  const hasTextBg = /\bbg-\[var\(--qm-text\)\]/.test(normalized);
+
+  if ((hasBg || hasSurface) && /\btext-\[var\(--qm-(?:bg|surface|accent-text)\)\]/.test(normalized)) {
+    normalized = normalized.replace(/\btext-\[var\(--qm-(?:bg|surface|accent-text)\)\]/g, 'text-[var(--qm-text)]');
+  }
+
+  if (hasAccent && /\btext-\[var\(--qm-(?:text|bg|surface|accent)\)\]/.test(normalized)) {
+    normalized = normalized.replace(/\btext-\[var\(--qm-(?:text|bg|surface|accent)\)\]/g, 'text-[var(--qm-accent-text)]');
+  }
+
+  if (hasTextBg && /\btext-\[var\(--qm-text\)\]/.test(normalized)) {
+    normalized = normalized.replace(/\btext-\[var\(--qm-text\)\]/g, 'text-[var(--qm-bg)]');
   }
 
   return normalized;
+}
+
+function normalizeInlineStyleContrast(style: string) {
+  const backgroundMatch = style.match(/(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i);
+  const colorMatch = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+  if (!backgroundMatch || !colorMatch) return style;
+
+  const background = backgroundMatch[1].trim();
+  const color = colorMatch[1].trim();
+  let nextColor: string | null = null;
+
+  if (/var\(--qm-accent\)/i.test(background) && !/var\(--qm-accent-text\)/i.test(color)) {
+    nextColor = 'var(--qm-accent-text)';
+  } else if (/var\(--qm-(?:bg|surface)\)/i.test(background) && /var\(--qm-(?:bg|surface|accent-text)\)/i.test(color)) {
+    nextColor = 'var(--qm-text)';
+  } else if (/var\(--qm-text\)/i.test(background) && /var\(--qm-text\)/i.test(color)) {
+    nextColor = 'var(--qm-bg)';
+  }
+
+  return nextColor
+    ? style.replace(/((?:^|;)\s*color\s*:\s*)[^;]+/i, `$1${nextColor}`)
+    : style;
 }
 
 export function enforcePaletteOnHtml(html: string, choice: PaletteChoice): string {
@@ -514,6 +553,7 @@ export function enforcePaletteOnHtml(html: string, choice: PaletteChoice): strin
     .replace(/:root\s*\{[\s\S]*?\}/gi, `:root {\n${Object.entries(paletteToCssVariables(choice)).map(([key, value]) => `  ${key}: ${value};`).join('\n')}\n}`);
 
   out = out.replace(/class="([^"]*)"/g, (_match, className: string) => `class="${normalizeColorClasses(className)}"`);
+  out = out.replace(/style="([^"]*)"/g, (_match, style: string) => `style="${normalizeInlineStyleContrast(style)}"`);
 
   if (/^<!doctype html/i.test(out) || /<html[\s>]/i.test(out)) {
     if (/<head[^>]*>/i.test(out)) {
