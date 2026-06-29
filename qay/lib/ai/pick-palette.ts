@@ -271,12 +271,30 @@ function findNamedColor(value: string) {
   return name ? PROMPT_COLOR_NAMES[name] : undefined;
 }
 
+function colorMentions(prompt: string) {
+  const mentions: Array<{ color: string; index: number }> = [];
+  for (const match of prompt.matchAll(/#[0-9a-fA-F]{3,8}/g)) {
+    mentions.push({ color: match[0], index: match.index || 0 });
+  }
+  for (const [name, color] of Object.entries(PROMPT_COLOR_NAMES)) {
+    const regex = new RegExp(`\\b${name.replace(/\s+/g, '\\s+')}\\b`, 'gi');
+    for (const match of prompt.matchAll(regex)) {
+      mentions.push({ color, index: match.index || 0 });
+    }
+  }
+
+  return mentions
+    .sort((a, b) => a.index - b.index)
+    .filter((item, index, list) => list.findIndex((other) => other.color.toLowerCase() === item.color.toLowerCase()) === index);
+}
+
 function promptAllowsLightDarkSupport(prompt: string) {
   return /\b(white\s*\/\s*dark|light\s*\/\s*dark|dark mode toggle|dark mode support|both light and dark|light and dark mode)\b/i.test(prompt);
 }
 
 function extractPromptPaletteColors(prompt: string) {
   const colors: { primary?: string; accent?: string; bg?: string } = {};
+  const mentions = colorMentions(prompt);
   const primary = prompt.match(/\bprimary\s*:\s*([^\n.;]+)/i)?.[1];
   const accent = prompt.match(/\baccent\s*:\s*([^\n.;]+)/i)?.[1];
   const background = prompt.match(/\b(?:background|bg)\s*:\s*([^\n.;]+)/i)?.[1];
@@ -286,9 +304,18 @@ function extractPromptPaletteColors(prompt: string) {
   colors.accent = accent ? findNamedColor(accent) : undefined;
   colors.bg = background ? findNamedColor(background) : undefined;
 
+  if (!colors.bg && mentions.length >= 2) {
+    const darkMention = mentions.find((item) => isColorDark(item.color));
+    if (darkMention && !promptAllowsLightDarkSupport(prompt)) {
+      colors.bg = darkMention.color;
+    }
+  }
+
   if (!colors.accent) {
     const colorPhrase = prompt.match(/\b(neon green|neon pink|neon blue|gold|burgundy|crimson|emerald|purple|violet|orange|teal|cyan|red|blue|green|pink|amber)\b/i)?.[1];
-    colors.accent = colorPhrase ? findNamedColor(colorPhrase) : findNamedColor(paletteLine);
+    colors.accent = colorPhrase
+      ? findNamedColor(colorPhrase)
+      : mentions.find((item) => item.color.toLowerCase() !== colors.bg?.toLowerCase())?.color || findNamedColor(paletteLine);
   }
 
   if (!colors.bg && /\b(black|dark|midnight|obsidian|noir|deep grey|deep gray)\b/i.test(prompt) && !promptAllowsLightDarkSupport(prompt)) {
@@ -297,6 +324,10 @@ function extractPromptPaletteColors(prompt: string) {
 
   if (!colors.primary && paletteLine) {
     colors.primary = findNamedColor(paletteLine);
+  }
+
+  if (!colors.primary && colors.bg) {
+    colors.primary = isColorDark(colors.bg) ? '#f8fafc' : '#111111';
   }
 
   return colors.primary || colors.accent || colors.bg ? colors : null;
@@ -313,6 +344,10 @@ function softenSurface(accent: string, dark: boolean) {
   return '#f8f8f6';
 }
 
+function deriveSurface(bg: string, accent: string) {
+  return isColorDark(bg) ? '#141414' : softenSurface(accent, false);
+}
+
 export function pickPalette(prompt: string, userColors?: { primary?: string; accent?: string; bg?: string }): PaletteChoice {
   const p = prompt.toLowerCase();
   const extractedColors = extractPromptPaletteColors(prompt);
@@ -325,9 +360,9 @@ export function pickPalette(prompt: string, userColors?: { primary?: string; acc
     const dark = isColorDark(bg);
     const custom: ColorPalette = {
       bg,
-      surface: softenSurface(accent, dark),
-      text: dark ? '#f0f0f0' : '#111111',
-      textMuted: dark ? '#888888' : '#666666',
+      surface: deriveSurface(bg, accent),
+      text: dark ? '#f8fafc' : '#111111',
+      textMuted: dark ? 'rgba(248,250,252,0.72)' : 'rgba(17,17,17,0.64)',
       accent,
       accentText: isColorDark(accent) ? '#ffffff' : '#000000',
       border: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
@@ -426,7 +461,7 @@ img { display: block; max-width: 100%; }
 }
 
 function normalizeColorClasses(className: string) {
-  return (` ${className} `)
+  const normalized = (` ${className} `)
     .replace(/\s(?:dark:)?bg-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\d+)?\b/g, ' bg-[var(--qm-bg)]')
     .replace(/\s(?:dark:)?text-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\d+)?\b/g, ' text-[var(--qm-text)]')
     .replace(/\s(?:dark:)?border-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\d+)?\b/g, ' border-[var(--qm-border)]')
@@ -451,6 +486,12 @@ function normalizeColorClasses(className: string) {
     .replace(/\sprose-(?:neutral|zinc|slate|gray|stone|invert)\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  if (normalized.includes('text-[var(--qm-accent-text)]') && !normalized.includes('bg-[var(--qm-accent)]')) {
+    return normalized.replace(/\btext-\[var\(--qm-accent-text\)\]\b/g, 'text-[var(--qm-text)]');
+  }
+
+  return normalized;
 }
 
 export function enforcePaletteOnHtml(html: string, choice: PaletteChoice): string {

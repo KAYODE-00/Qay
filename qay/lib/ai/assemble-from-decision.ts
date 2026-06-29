@@ -529,6 +529,17 @@ function buildCustomCheckoutPage(brandName: string) {
 
 async function personalizePageHtml(html: string, pageName: string, decision: SiteDecision, prompt: string): Promise<string> {
   try {
+    const protectedChrome: Record<string, string> = {};
+    const htmlForAi = html
+      .replace(/<nav\b[\s\S]*?<\/nav>/i, (match) => {
+        protectedChrome.__QAY_NAV__ = match;
+        return '<div data-qay-protected-chrome="nav">__QAY_NAV__</div>';
+      })
+      .replace(/<footer\b[\s\S]*?<\/footer>/i, (match) => {
+        protectedChrome.__QAY_FOOTER__ = match;
+        return '<div data-qay-protected-chrome="footer">__QAY_FOOTER__</div>';
+      });
+
     const systemPrompt = `You are an expert copywriter and content personalization engine for the QAY website builder.
 You will receive the user's original website prompt, the site type, brand details, page name ("${pageName}"), and a fully styled HTML page template.
 Your ONLY job is to rewrite ALL visible text content and image URLs on this page to make them hyper-specific to the user's brand, industry, and the page's purpose.
@@ -555,6 +566,7 @@ Your ONLY job is to rewrite ALL visible text content and image URLs on this page
 ## STRICT Rules
 - NEVER change ANY HTML tags, CSS classes, inline styles, IDs, or data-* attributes.
 - NEVER alter any data-qay-*, data-qm, data-qay-commerce, or structural attributes.
+- NEVER alter or remove placeholders named __QAY_NAV__ or __QAY_FOOTER__. Leave protected chrome placeholders exactly as received.
 - Keep text length roughly similar to the template to preserve layout.
 - Return ONLY the final HTML. No markdown code fences, no explanations, no commentary.`;
 
@@ -566,7 +578,7 @@ Page name: ${pageName}
 
 HTML template to personalize:
 """
-${html}
+${htmlForAi}
 """`;
 
     const result = await callWithFallbackDetailed<string>(
@@ -577,7 +589,11 @@ ${html}
         if (!/<[a-z][\s\S]*>/i.test(cleaned)) {
           throw new Error('Invalid HTML returned');
         }
-        return cleaned;
+        return cleaned
+          .replace(/<div data-qay-protected-chrome="nav">__QAY_NAV__<\/div>/g, protectedChrome.__QAY_NAV__ || '')
+          .replace(/<div data-qay-protected-chrome="footer">__QAY_FOOTER__<\/div>/g, protectedChrome.__QAY_FOOTER__ || '')
+          .replace(/__QAY_NAV__/g, protectedChrome.__QAY_NAV__ || '')
+          .replace(/__QAY_FOOTER__/g, protectedChrome.__QAY_FOOTER__ || '');
       }
     );
 
