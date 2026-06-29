@@ -218,6 +218,8 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode'], prom
   const authPages = hasAuth ? [
     { name: 'Login', slug: 'login', sectionSlots: ['navbar', 'login', 'footer'] },
     { name: 'Register', slug: 'register', sectionSlots: ['navbar', 'register', 'footer'] },
+    { name: 'Forgot Password', slug: 'forgot-password', sectionSlots: ['navbar', 'forgot-password', 'footer'] },
+    { name: 'Reset Password', slug: 'reset-password', sectionSlots: ['navbar', 'reset-password', 'footer'] },
     { name: 'Dashboard', slug: 'dashboard', sectionSlots: ['navbar', 'dashboard', 'footer'] },
   ] : [];
 
@@ -236,6 +238,21 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode'], prom
       { name: 'Checkout', slug: 'checkout', sectionSlots: ['navbar', 'checkout', 'footer'] },
       { name: 'About', slug: 'about', sectionSlots: ['navbar', 'about', 'footer'] },
       { name: 'Contact', slug: 'contact', sectionSlots: ['navbar', 'contact', 'footer'] },
+      ...authPages
+    ];
+  }
+  if (siteType === 'blog' || /\b(cms|article|articles|author|authors|category|categories|post|posts|publication|newsletter)\b/i.test(prompt || '')) {
+    return [
+      { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'features', 'testimonials', 'cta', 'footer'] },
+      { name: 'Blog', slug: 'blog', sectionSlots: ['navbar', 'features', 'cta', 'footer'] },
+      { name: 'Article', slug: 'article', sectionSlots: ['navbar', 'features', 'testimonials', 'footer'] },
+      { name: 'Categories', slug: 'categories', sectionSlots: ['navbar', 'features', 'footer'] },
+      { name: 'Authors', slug: 'authors', sectionSlots: ['navbar', 'team', 'footer'] },
+      { name: 'About', slug: 'about', sectionSlots: ['navbar', 'about', 'footer'] },
+      { name: 'Contact', slug: 'contact', sectionSlots: ['navbar', 'contact', 'footer'] },
+      { name: 'Privacy Policy', slug: 'privacy', sectionSlots: ['navbar', 'about', 'footer'] },
+      { name: 'Terms of Service', slug: 'terms', sectionSlots: ['navbar', 'about', 'footer'] },
+      { name: '404', slug: '404', sectionSlots: ['navbar', 'cta', 'footer'] },
       ...authPages
     ];
   }
@@ -401,6 +418,12 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     if (!pages.some(p => p.slug === 'register')) {
       pages.push({ name: 'Register', slug: 'register', sectionSlots: ['navbar', 'register', 'footer'] });
     }
+    if (!pages.some(p => p.slug === 'forgot-password')) {
+      pages.push({ name: 'Forgot Password', slug: 'forgot-password', sectionSlots: ['navbar', 'forgot-password', 'footer'] });
+    }
+    if (!pages.some(p => p.slug === 'reset-password')) {
+      pages.push({ name: 'Reset Password', slug: 'reset-password', sectionSlots: ['navbar', 'reset-password', 'footer'] });
+    }
     if (!pages.some(p => p.slug === 'dashboard')) {
       pages.push({ name: 'Dashboard', slug: 'dashboard', sectionSlots: ['navbar', 'dashboard', 'footer'] });
     }
@@ -425,7 +448,7 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
         if (s === 'collection') return 'collectionsLanding';
         if (s === 'brandStory') return 'about';
         if (s === 'newsletter') return 'cta';
-        if (s === 'login' || s === 'register' || s === 'dashboard') return 'auth';
+        if (s === 'login' || s === 'register' || s === 'dashboard' || s === 'forgot-password' || s === 'reset-password') return 'auth';
         return s;
       })
       .filter((slot) => {

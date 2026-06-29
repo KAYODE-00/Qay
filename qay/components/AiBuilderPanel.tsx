@@ -10,6 +10,7 @@ import { findLayerById } from '@/lib/layer-utils';
 import { useEditorStore } from '@/stores/useEditorStore';
 import { usePagesStore } from '@/stores/usePagesStore';
 import { readQayEditorSiteIdFromBrowser } from '@/qay/lib/editor-site';
+import { qayPromptTemplates } from '@/qay/lib/ai/prompt-library';
 
 type AiBuilderPanelProps = {
   open: boolean;
@@ -114,6 +115,8 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
   const [siteId, setSiteId] = useState<string | null>(null);
   const [mode, setMode] = useState<AiMode>('selected');
   const [prompt, setPrompt] = useState('');
+  const [promptTemplateId, setPromptTemplateId] = useState('');
+  const [isTemplateLibraryOpen, setIsTemplateLibraryOpen] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -200,6 +203,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           prompt: trimmedPrompt,
+          promptTemplateId: promptTemplateId || undefined,
           mode,
           output: 'html',
           selectedLayers: mode === 'selected' ? selectedLayers : [],
@@ -255,8 +259,9 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
 
         await loadPages();
         setStatus(generatedPages.length === 1 ? 'Imported 1 AI-generated page.' : `Imported ${generatedPages.length} AI-generated pages.`);
-        setPrompt('');
-        setGenerationMeta(body.data);
+      setPrompt('');
+      setPromptTemplateId('');
+      setGenerationMeta(body.data);
         addHistory({
           prompt: trimmedPrompt,
           mode,
@@ -276,6 +281,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       applyGeneratedLayers(generatedLayers);
       setStatus('Applied.');
       setPrompt('');
+      setPromptTemplateId('');
       addHistory({
         prompt: trimmedPrompt,
         mode,
@@ -347,6 +353,64 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
             className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-0 transition placeholder:text-muted-foreground focus:border-foreground"
           />
         </label>
+
+        <div className="rounded-lg border border-border bg-muted/30 p-3">
+          <button
+            type="button"
+            onClick={() => setIsTemplateLibraryOpen((current) => !current)}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <span>
+              <span className="block text-xs font-semibold text-foreground">Use QAY prompt template</span>
+              <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
+                Templates help QAY choose the right pages, routes, sections, colors, copy, auth, CMS, and commerce hooks.
+              </span>
+            </span>
+            <Icon name={isTemplateLibraryOpen ? 'chevronUp' : 'chevronDown'} className="size-4 text-muted-foreground" />
+          </button>
+
+          {isTemplateLibraryOpen ? (
+            <div className="mt-3 grid gap-2">
+              {qayPromptTemplates.map((template) => {
+                const selected = promptTemplateId === template.id;
+                return (
+                  <button
+                    type="button"
+                    key={template.id}
+                    onClick={() => {
+                      setPromptTemplateId(template.id);
+                      setPrompt((current) => current.trim() || `Brand name: ${template.exampleBusiness.split(',')[0]}\nColors: \nAudience: \nTone: \nExtra details: `);
+                    }}
+                    className={`rounded-lg border px-3 py-2 text-left transition ${
+                      selected
+                        ? 'border-primary/50 bg-primary/10 text-foreground'
+                        : 'border-border bg-background hover:border-foreground/30'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold">{template.title}</p>
+                        <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{template.description}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                        {template.category}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+              {promptTemplateId ? (
+                <button
+                  type="button"
+                  onClick={() => setPromptTemplateId('')}
+                  className="rounded-lg border border-border px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+                >
+                  Clear template and use my prompt only
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
         {error ? (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">

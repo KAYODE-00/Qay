@@ -69,6 +69,32 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
   }
 
   async function renderSlot(sectionType: string, pageName: string, context = ''): Promise<string> {
+    const lowerPageName = pageName.toLowerCase();
+    if (sectionType === 'auth' || sectionType === 'login' || sectionType === 'register' || sectionType === 'dashboard' || sectionType === 'forgot-password' || sectionType === 'reset-password') {
+      if (lowerPageName.includes('register') || lowerPageName.includes('sign up') || lowerPageName.includes('signup')) {
+        return buildCustomRegisterPage(decision.brand.name, decision.brand.tagline);
+      }
+      if (lowerPageName.includes('dashboard') || lowerPageName.includes('portal') || lowerPageName.includes('account')) {
+        return buildCustomDashboardPage(decision.brand.name, decision.brand.tagline);
+      }
+      if (lowerPageName.includes('forgot')) {
+        return buildCustomPasswordPage(decision.brand.name, 'forgot-password');
+      }
+      if (lowerPageName.includes('reset')) {
+        return buildCustomPasswordPage(decision.brand.name, 'reset-password');
+      }
+      return buildCustomLoginPage(decision.brand.name, decision.brand.tagline);
+    }
+    if (sectionType === 'cart') {
+      return buildCustomCartPage(decision.brand.name);
+    }
+    if (sectionType === 'checkout') {
+      return buildCustomCheckoutPage(decision.brand.name);
+    }
+    if (sectionType === 'productDetail') {
+      return buildCustomProductDetailPage(decision.brand.name, prompt || '');
+    }
+
     const html = pickSection(sectionType, context);
     if (html) {
       stats.fromLibrary += 1;
@@ -104,8 +130,11 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
 
   if (decision.navMode === 'single-page-scroll') {
     const page = decision.pages[0] || { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'footer'] };
-    const body = (await Promise.all(page.sectionSlots.map((slot, index) => renderSlot(slot, page.name, `${page.slug}:${index}`)))).join('\n\n');
-    let homepageHtml = injectContentAndImages(body);
+    const body = (await Promise.all(page.sectionSlots.map(async (slot, index) => {
+      const sectionHtml = await renderSlot(slot, page.name, `${page.slug}:${index}`);
+      return wrapSinglePageSection(slot, sectionHtml);
+    }))).join('\n\n');
+    let homepageHtml = normalizeSinglePageRouting(injectContentAndImages(body));
     pageNames = [page.name];
 
     if (decision.pages.length > 1) {
@@ -174,6 +203,52 @@ function normalizeRenderableSlot(sectionType: string) {
 
 function pageWrapper(name: string, slug: string, html: string) {
   return `<div data-qay-page="${escapeAttribute(name)}" data-qay-slug="${escapeAttribute(slug)}">\n${html.trim()}\n</div>`;
+}
+
+function wrapSinglePageSection(slot: string, html: string) {
+  const id = anchorForSlot(slot);
+  if (!id || /^\s*<nav\b/i.test(html) || /^\s*<footer\b/i.test(html)) return html;
+  return `<div id="${id}">\n${html.trim()}\n</div>`;
+}
+
+function anchorForSlot(slot: string) {
+  const normalized = normalizeRenderableSlot(slot);
+  if (normalized === 'navbar' || normalized === 'footer') return '';
+  if (normalized === 'productGrid') return 'shop';
+  if (normalized === 'collectionsLanding') return 'collections';
+  if (normalized === 'features') return 'features';
+  if (normalized === 'services') return 'services';
+  if (normalized === 'contact') return 'contact';
+  if (normalized === 'about') return 'about';
+  if (normalized === 'pricing') return 'pricing';
+  if (normalized === 'gallery') return 'gallery';
+  if (normalized === 'team') return 'team';
+  if (normalized === 'menu') return 'menu';
+  if (normalized === 'schedule') return 'schedule';
+  return normalized.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+}
+
+function normalizeSinglePageRouting(html: string) {
+  const anchors: Record<string, string> = {
+    '/': '#top',
+    '/about': '#about',
+    '/services': '#services',
+    '/features': '#features',
+    '/pricing': '#pricing',
+    '/contact': '#contact',
+    '/shop': '#shop',
+    '/collections': '#collections',
+    '/work': '#gallery',
+    '/gallery': '#gallery',
+    '/menu': '#menu',
+    '/schedule': '#schedule',
+    '/team': '#team',
+  };
+  let out = `<div id="top"></div>\n${html}`;
+  for (const [route, anchor] of Object.entries(anchors)) {
+    out = out.replace(new RegExp(`href="${escapeRegex(route)}"`, 'g'), `href="${anchor}"`);
+  }
+  return out;
 }
 
 function stableHash(value: string) {
@@ -334,14 +409,14 @@ function buildCustomLoginPage(brandName: string, tagline: string) {
       <h1 class="text-3xl font-black uppercase tracking-tight" style="font-family:var(--qm-heading-font)" data-qm="login-title">Welcome Back</h1>
       <p class="text-xs text-[var(--qm-text-muted)]" data-qm="login-subtitle">Enter your details to access your account dashboard</p>
     </div>
-    <form class="space-y-4">
+    <form data-qay-site-auth-form="signin" class="space-y-4">
       <div>
         <label class="block text-xs font-bold uppercase tracking-wider mb-2">Email Address</label>
-        <input type="email" required placeholder="name@example.com" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+        <input name="email" type="email" required placeholder="name@example.com" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
       </div>
       <div>
         <label class="block text-xs font-bold uppercase tracking-wider mb-2">Password</label>
-        <input type="password" required placeholder="••••••••" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+        <input name="password" type="password" required placeholder="••••••••" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
       </div>
       <div class="flex items-center justify-between text-xs">
         <label class="flex items-center gap-2 cursor-pointer">
@@ -350,7 +425,9 @@ function buildCustomLoginPage(brandName: string, tagline: string) {
         </label>
         <a href="#" class="text-[var(--qm-accent)] hover:underline font-semibold">Forgot password?</a>
       </div>
-      <button type="button" class="w-full rounded-xl bg-[var(--qm-accent)] py-4 text-xs font-black uppercase tracking-wider text-[var(--qm-accent-text)] shadow-lg hover:opacity-90 active:scale-98 transition duration-200">Sign In</button>
+      <button type="submit" class="w-full rounded-xl bg-[var(--qm-accent)] py-4 text-xs font-black uppercase tracking-wider text-[var(--qm-accent-text)] shadow-lg hover:opacity-90 active:scale-98 transition duration-200">Sign In</button>
+      <p data-qay-site-auth-error hidden class="text-sm text-red-500"></p>
+      <p data-qay-site-auth-success hidden class="text-sm text-emerald-500"></p>
     </form>
     <p class="text-center text-xs text-[var(--qm-text-muted)]">
       Don't have an account? <a href="/register" class="text-[var(--qm-accent)] hover:underline font-semibold">Sign up</a>
@@ -380,18 +457,18 @@ function buildCustomRegisterPage(brandName: string, tagline: string) {
       <h1 class="text-3xl font-black uppercase tracking-tight" style="font-family:var(--qm-heading-font)" data-qm="register-title">Create Account</h1>
       <p class="text-xs text-[var(--qm-text-muted)]" data-qm="register-subtitle">Sign up to get started and manage your member dashboard</p>
     </div>
-    <form class="space-y-4">
+    <form data-qay-site-auth-form="signup" class="space-y-4">
       <div>
         <label class="block text-xs font-bold uppercase tracking-wider mb-2">Full Name</label>
-        <input type="text" required placeholder="John Doe" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+        <input name="name" type="text" required placeholder="John Doe" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
       </div>
       <div>
         <label class="block text-xs font-bold uppercase tracking-wider mb-2">Email Address</label>
-        <input type="email" required placeholder="name@example.com" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+        <input name="email" type="email" required placeholder="name@example.com" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
       </div>
       <div>
         <label class="block text-xs font-bold uppercase tracking-wider mb-2">Password</label>
-        <input type="password" required placeholder="••••••••" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
+        <input name="password" type="password" required placeholder="••••••••" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm focus:border-[var(--qm-accent)] outline-none" />
       </div>
       <div class="flex items-center text-xs">
         <label class="flex items-center gap-2 cursor-pointer">
@@ -399,7 +476,9 @@ function buildCustomRegisterPage(brandName: string, tagline: string) {
           <span>I agree to the <a href="#" class="text-[var(--qm-accent)] hover:underline">Terms & Privacy Policy</a></span>
         </label>
       </div>
-      <button type="button" class="w-full rounded-xl bg-[var(--qm-accent)] py-4 text-xs font-black uppercase tracking-wider text-[var(--qm-accent-text)] shadow-lg hover:opacity-90 active:scale-98 transition duration-200">Create Account</button>
+      <button type="submit" class="w-full rounded-xl bg-[var(--qm-accent)] py-4 text-xs font-black uppercase tracking-wider text-[var(--qm-accent-text)] shadow-lg hover:opacity-90 active:scale-98 transition duration-200">Create Account</button>
+      <p data-qay-site-auth-error hidden class="text-sm text-red-500"></p>
+      <p data-qay-site-auth-success hidden class="text-sm text-emerald-500"></p>
     </form>
     <p class="text-center text-xs text-[var(--qm-text-muted)]">
       Already have an account? <a href="/login" class="text-[var(--qm-accent)] hover:underline font-semibold">Sign in</a>
@@ -491,6 +570,96 @@ function buildCustomDashboardPage(brandName: string, tagline: string) {
       </div>
     </div>
   </div>
+</main>
+<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-12 text-sm text-[var(--qm-text-muted)]">
+  <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <p class="font-black text-[var(--qm-text)]" style="font-family:var(--qm-heading-font)" data-qm="footer-brand">${brandName}</p>
+    <p class="text-[10px] uppercase tracking-wider">&copy; 2026 ${brandName}. ALL RIGHTS RESERVED.</p>
+  </div>
+</footer>`;
+}
+
+function buildCustomPasswordPage(brandName: string, mode: 'forgot-password' | 'reset-password') {
+  const isReset = mode === 'reset-password';
+  return `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/80 px-6 py-4 text-[var(--qm-text)] backdrop-blur-xl">
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-5">
+    <a href="/" class="text-xl font-extrabold tracking-tight hover:opacity-85 transition" style="font-family:var(--qm-heading-font)" data-qm="brand-name">${brandName}</a>
+    <a href="/login" class="text-xs font-semibold hover:text-[var(--qm-accent)] transition">Back to login</a>
+  </div>
+</nav>
+<main class="min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)] flex items-center justify-center py-20 px-5">
+  <div class="w-full max-w-md rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-8 shadow-2xl space-y-6">
+    <div class="text-center space-y-2">
+      <h1 class="text-3xl font-black uppercase tracking-tight" style="font-family:var(--qm-heading-font)" data-qm="${isReset ? 'reset-title' : 'forgot-title'}">${isReset ? 'Reset Password' : 'Recover Access'}</h1>
+      <p class="text-xs text-[var(--qm-text-muted)]" data-qm="${isReset ? 'reset-subtitle' : 'forgot-subtitle'}">${isReset ? 'Create a new password for your account.' : 'Enter your email and we will send reset instructions.'}</p>
+    </div>
+    <form data-qay-site-auth-form="${mode}" class="space-y-4">
+      ${isReset
+        ? '<input name="password" type="password" placeholder="New password" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[var(--qm-accent)]" />'
+        : '<input name="email" type="email" placeholder="you@example.com" class="w-full rounded-xl border border-[var(--qm-border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[var(--qm-accent)]" />'}
+      <button type="submit" class="w-full rounded-xl bg-[var(--qm-accent)] py-4 text-xs font-black uppercase tracking-wider text-[var(--qm-accent-text)] shadow-lg hover:opacity-90 transition duration-200">${isReset ? 'Save new password' : 'Send reset link'}</button>
+      <p data-qay-site-auth-error hidden class="text-sm text-red-500"></p>
+      <p data-qay-site-auth-success hidden class="text-sm text-emerald-500"></p>
+    </form>
+  </div>
+</main>
+<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-12 text-sm text-[var(--qm-text-muted)]">
+  <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <p class="font-black text-[var(--qm-text)]" style="font-family:var(--qm-heading-font)" data-qm="footer-brand">${brandName}</p>
+    <p class="text-[10px] uppercase tracking-wider">&copy; 2026 ${brandName}. ALL RIGHTS RESERVED.</p>
+  </div>
+</footer>`;
+}
+
+function buildCustomProductDetailPage(brandName: string, prompt: string) {
+  const profile = ecommerceProfile(prompt, brandName);
+  return `<nav class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/85 px-6 py-4 text-[var(--qm-text)] backdrop-blur-xl">
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-5">
+    <a href="/" class="text-xl font-extrabold tracking-tight hover:opacity-85 transition" style="font-family:var(--qm-heading-font)" data-qm="brand-name">${brandName}</a>
+    <div class="hidden items-center gap-6 text-xs font-bold uppercase tracking-wider md:flex">
+      <a href="/shop" class="hover:text-[var(--qm-accent)] transition">Shop</a>
+      <a href="/cart" class="hover:text-[var(--qm-accent)] transition">Cart</a>
+      <a href="/checkout" class="rounded-full bg-[var(--qm-accent)] px-4 py-2 text-[var(--qm-accent-text)] hover:opacity-90 transition">Checkout</a>
+    </div>
+    <button type="button" data-qay-commerce="cart-button" data-qay-cart-label="Cart" class="rounded-full border border-[var(--qm-border)] px-4 py-2 text-xs font-black uppercase tracking-wider">Cart (0)</button>
+  </div>
+</nav>
+<main class="bg-[var(--qm-bg)] px-5 py-14 text-[var(--qm-text)]">
+  <section class="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+    <div class="grid gap-4 md:grid-cols-[96px_1fr]" data-qay-animate="fade-in">
+      <div class="order-2 grid grid-cols-4 gap-3 md:order-1 md:grid-cols-1">
+        <img src="${profile.image}" alt="${profile.productName} thumbnail" class="aspect-square rounded-2xl object-cover" />
+        <img src="${profile.checkoutImage}" alt="${profile.productName} alternate view" class="aspect-square rounded-2xl object-cover" />
+      </div>
+      <div class="order-1 overflow-hidden rounded-[2rem] border border-[var(--qm-border)] bg-[var(--qm-surface)] md:order-2" data-qay-hover="img-zoom">
+        <img src="${profile.image}" alt="${profile.productName}" class="aspect-[4/5] w-full object-cover" data-qm="product-detail-image" />
+      </div>
+    </div>
+    <div class="rounded-[2rem] border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 md:p-8" data-qay-animate="slide-up" data-qay-duration="0.7" data-qay-y="32">
+      <p class="text-xs font-black uppercase tracking-[0.3em] text-[var(--qm-accent)]" data-qm="product-detail-eyebrow">${profile.collectionName}</p>
+      <h1 class="mt-4 text-4xl font-black uppercase tracking-tight md:text-6xl" style="font-family:var(--qm-heading-font)" data-qay-commerce="product-title" data-qm="product-detail-title">${profile.productName}</h1>
+      <p class="mt-4 text-2xl font-black text-[var(--qm-accent)]" data-qay-commerce="product-price" data-qm="product-detail-price">${profile.price}</p>
+      <p class="mt-5 text-sm leading-7 text-[var(--qm-text-muted)]" data-qay-commerce="product-description" data-qm="product-detail-description">${profile.detail}</p>
+      <div class="mt-8 grid gap-5">
+        <div>
+          <p class="mb-3 text-xs font-black uppercase tracking-wider">Variant</p>
+          <div class="flex flex-wrap gap-2"><button type="button" class="rounded-full border border-[var(--qm-accent)] px-4 py-2 text-xs font-bold">${profile.variant}</button></div>
+        </div>
+        <div>
+          <p class="mb-3 text-xs font-black uppercase tracking-wider">Quantity</p>
+          <div class="inline-flex rounded-full border border-[var(--qm-border)]"><button type="button" class="px-4 py-2">-</button><span class="px-4 py-2">1</span><button type="button" class="px-4 py-2">+</button></div>
+        </div>
+      </div>
+      <div class="mt-8 grid gap-3 sm:grid-cols-2">
+        <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-1" class="rounded-full bg-[var(--qm-accent)] px-5 py-4 text-sm font-black uppercase tracking-wider text-[var(--qm-accent-text)]">Add to cart</button>
+        <a href="/checkout" data-qay-commerce="checkout-button" class="rounded-full border border-[var(--qm-border)] px-5 py-4 text-center text-sm font-black uppercase tracking-wider">Buy now</a>
+      </div>
+      <div class="mt-8 grid gap-3 text-xs text-[var(--qm-text-muted)] md:grid-cols-2">
+        <p class="rounded-2xl border border-[var(--qm-border)] p-4">Delivery: fast tracked shipping with order updates.</p>
+        <p class="rounded-2xl border border-[var(--qm-border)] p-4">Returns: easy returns on eligible unused products.</p>
+      </div>
+    </div>
+  </section>
 </main>
 <footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-12 text-sm text-[var(--qm-text-muted)]">
   <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">

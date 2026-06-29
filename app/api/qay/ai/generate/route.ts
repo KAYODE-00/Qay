@@ -6,6 +6,7 @@ import { assembleFromDecision } from '@/qay/lib/ai/assemble-from-decision';
 import { generateQayAiHtml, generateQayAiLayers, type AiBuilderMode } from '@/qay/lib/ai/builder';
 import { AiProviderFailureError, AiProviderLimitsError } from '@/qay/lib/ai/providers';
 import { buildPalettePrompt, enforcePaletteOnHtml, pickPalette } from '@/qay/lib/ai/pick-palette';
+import { buildQayPromptFromTemplate, enhancePromptForQay } from '@/qay/lib/ai/prompt-library';
 import { detectTemplateChoice } from '@/qay/lib/ai/template-detector';
 import { modifyTemplate } from '@/qay/lib/ai/template-modifier';
 import { translatePromptToDecision } from '@/qay/lib/ai/translate-prompt';
@@ -18,6 +19,7 @@ type GenerateRequestBody = {
   output?: 'layers' | 'html';
   selectedLayers?: Layer[];
   variation?: number;
+  promptTemplateId?: string;
 };
 
 function isAiQualityError(message: string) {
@@ -81,9 +83,10 @@ export async function POST(request: Request) {
     await getQayAuthUser();
 
     const body = (await request.json()) as GenerateRequestBody;
-    const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+    const rawPrompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+    const prompt = enhancePromptForQay(buildQayPromptFromTemplate(body.promptTemplateId || '', rawPrompt));
 
-    if (prompt.length < 4) {
+    if (rawPrompt.length < 4 && !body.promptTemplateId) {
       return NextResponse.json({ error: 'Describe the design you want.' }, { status: 400 });
     }
 
