@@ -72,6 +72,7 @@ function getSmtpSettings() {
     secure: Number(port) === 465,
     auth: { user, pass: password },
     from: from.formatted,
+    user,
   };
 }
 
@@ -198,10 +199,21 @@ async function sendWithSmtp(input: QayEmailInput, recipients: string[]): Promise
 
     return { ok: true, provider: 'smtp', messageId: info.messageId };
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'SMTP send failed.';
+    const code = typeof error === 'object' && error && 'code' in error ? String((error as { code?: unknown }).code || '') : '';
+    const isGmail = /@gmail\.com$/i.test(settings.auth.user);
+    let friendly = message;
+
+    if (/EBUSY|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT/i.test(`${code} ${message}`)) {
+      friendly = `SMTP connection failed for ${settings.host}. If you are using Gmail, set QAY_EMAIL_SMTP_HOST=smtp.gmail.com and QAY_EMAIL_SMTP_PORT=587. ${message}`;
+    } else if (isGmail && /auth|credentials|login|username|password|535|534|invalid/i.test(message)) {
+      friendly = 'Gmail SMTP rejected the login. Use the full Gmail address as QAY_EMAIL_SMTP_USER and a Google App Password as QAY_EMAIL_SMTP_PASSWORD, not your normal Gmail password.';
+    }
+
     return {
       ok: false,
       provider: 'smtp',
-      error: error instanceof Error ? error.message : 'SMTP send failed.',
+      error: friendly,
     };
   }
 }
