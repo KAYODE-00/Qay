@@ -69,7 +69,7 @@ export default async function QayTemplateLivePage({ params }: Props) {
     try {
       const result = await ensureQayTemplateMirror({
         templateId,
-        ownerId: ownerId || null,
+        ownerId,
         origin: await getOrigin(),
       });
       previewUrl = result.previewUrl;
