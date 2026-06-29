@@ -60,18 +60,23 @@ function getSmtpSettings() {
     clean(process.env.QAY_INVITE_SMTP_PASSWORD) ||
     clean(process.env.SMTP_PASSWORD);
   const from = fromAddress() || (user ? { email: user, name: 'QAY', formatted: `QAY <${user}>` } : null);
-  const host = rawHost === 'smtp' && /@gmail\.com$/i.test(user || from?.email || '')
+  const isGmail = /@gmail\.com$/i.test(user || from?.email || '');
+  const host = rawHost === 'smtp' && isGmail
     ? 'smtp.gmail.com'
-    : rawHost;
+    : rawHost || (isGmail ? 'smtp.gmail.com' : '');
 
   if (!host || !user || !password || !from) return null;
+
+  const normalizedFrom = isGmail && from.email.toLowerCase() !== user.toLowerCase()
+    ? { ...from, email: user, formatted: `${from.name} <${user}>` }
+    : from;
 
   return {
     host,
     port: Number(port),
     secure: Number(port) === 465,
     auth: { user, pass: password },
-    from: from.formatted,
+    from: normalizedFrom.formatted,
     user,
   };
 }
@@ -123,7 +128,7 @@ function smtpSetupError() {
     clean(process.env.QAY_INVITE_SMTP_PASSWORD) ||
     clean(process.env.SMTP_PASSWORD);
 
-  if (!hasHost) missing.push('QAY_EMAIL_SMTP_HOST');
+  if (!hasHost && !/@gmail\.com$/i.test(hasUser)) missing.push('QAY_EMAIL_SMTP_HOST');
   if (!hasUser) missing.push('QAY_EMAIL_SMTP_USER');
   if (!hasPassword) missing.push('QAY_EMAIL_SMTP_PASSWORD');
   if (!fromAddress()) missing.push('QAY_EMAIL_FROM_EMAIL');
@@ -207,7 +212,7 @@ async function sendWithSmtp(input: QayEmailInput, recipients: string[]): Promise
     if (/EBUSY|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT/i.test(`${code} ${message}`)) {
       friendly = `SMTP connection failed for ${settings.host}. If you are using Gmail, set QAY_EMAIL_SMTP_HOST=smtp.gmail.com and QAY_EMAIL_SMTP_PORT=587. ${message}`;
     } else if (isGmail && /auth|credentials|login|username|password|535|534|invalid/i.test(message)) {
-      friendly = 'Gmail SMTP rejected the login. Use the full Gmail address as QAY_EMAIL_SMTP_USER and a Google App Password as QAY_EMAIL_SMTP_PASSWORD, not your normal Gmail password.';
+      friendly = 'Gmail SMTP rejected the login. Use the full Gmail address as QAY_EMAIL_SMTP_USER and a Google App Password generated from that same Gmail account as QAY_EMAIL_SMTP_PASSWORD. Your normal Gmail password will not work, and an app password from the old account will fail after changing the sender.';
     }
 
     return {

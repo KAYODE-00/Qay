@@ -468,6 +468,12 @@ function normalizeColorClasses(className: string) {
     .replace(/\s(?:dark:)?bg-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\[[^\]]+\])?\b/g, ' bg-[var(--qm-bg)]')
     .replace(/\s(?:dark:)?text-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\[[^\]]+\])?\b/g, ' text-[var(--qm-text)]')
     .replace(/\s(?:dark:)?border-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\[[^\]]+\])?\b/g, ' border-[var(--qm-border)]')
+    .replace(/\s(?:dark:)?bg-\[(?:rgba?|hsla?)\([^\]]+\)\](?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' bg-[var(--qm-surface)]')
+    .replace(/\s(?:dark:)?text-\[(?:rgba?|hsla?)\([^\]]+\)\](?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' text-[var(--qm-text)]')
+    .replace(/\s(?:dark:)?border-\[(?:rgba?|hsla?)\([^\]]+\)\](?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' border-[var(--qm-border)]')
+    .replace(/\s(?:dark:)?from-\[(?:rgba?|hsla?)\([^\]]+\)\](?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' from-[var(--qm-bg)]')
+    .replace(/\s(?:dark:)?via-\[(?:rgba?|hsla?)\([^\]]+\)\](?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' via-[var(--qm-surface)]')
+    .replace(/\s(?:dark:)?to-\[(?:rgba?|hsla?)\([^\]]+\)\](?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' to-[var(--qm-bg)]')
     .replace(/\s(?:dark:)?bg-(?:white|black|zinc|neutral|slate|gray|stone)-(?:50|100|200|800|900|950)\b/g, ' bg-[var(--qm-bg)]')
     .replace(/\s(?:dark:)?bg-(?:white|black|zinc|neutral|slate|gray|stone)(?:-(?:50|100|200|300|400|500|600|700|800|900|950))?(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' bg-[var(--qm-surface)]')
     .replace(/\s(?:dark:)?from-(?:white|black|zinc|neutral|slate|gray|stone)(?:-(?:50|100|200|300|400|500|600|700|800|900|950))?(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' from-[var(--qm-bg)]')
@@ -502,6 +508,9 @@ export function enforcePaletteOnHtml(html: string, choice: PaletteChoice): strin
     .replace(/(style="[^"]*?background(?:-color)?:\s*)#[0-9a-fA-F]{3,8}([^"]*")/gi, '$1var(--qm-bg)$2')
     .replace(/(style="[^"]*?color:\s*)#[0-9a-fA-F]{3,8}([^"]*")/gi, '$1var(--qm-text)$2')
     .replace(/(style="[^"]*?border-color:\s*)#[0-9a-fA-F]{3,8}([^"]*")/gi, '$1var(--qm-border)$2')
+    .replace(/(style="[^"]*?background(?:-color)?:\s*)(?:rgba?|hsla?)\([^)]+\)([^"]*")/gi, '$1var(--qm-bg)$2')
+    .replace(/(style="[^"]*?color:\s*)(?:rgba?|hsla?)\([^)]+\)([^"]*")/gi, '$1var(--qm-text)$2')
+    .replace(/(style="[^"]*?border-color:\s*)(?:rgba?|hsla?)\([^)]+\)([^"]*")/gi, '$1var(--qm-border)$2')
     .replace(/:root\s*\{[\s\S]*?\}/gi, `:root {\n${Object.entries(paletteToCssVariables(choice)).map(([key, value]) => `  ${key}: ${value};`).join('\n')}\n}`);
 
   out = out.replace(/class="([^"]*)"/g, (_match, className: string) => `class="${normalizeColorClasses(className)}"`);

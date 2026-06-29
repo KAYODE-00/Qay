@@ -160,7 +160,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
     bodyHtml = pageBlocks.join('\n\n');
   }
 
-  const personalizedBody = bodyHtml;
+  const personalizedBody = scrubIndustryMismatches(bodyHtml, prompt || '', decision.brand.name);
   
   const html = `${themeCss}\n${personalizedBody}`;
 
@@ -186,7 +186,137 @@ function stableHash(value: string) {
 }
 
 function isFunctionalPageSlug(slug: string) {
-  return ['login', 'register', 'dashboard', 'cart', 'checkout'].includes(slug.replace(/^\//, ''));
+  return ['login', 'register', 'dashboard'].includes(slug.replace(/^\//, ''));
+}
+
+function ecommerceProfile(prompt: string, brandName: string) {
+  const p = prompt.toLowerCase();
+  if (/\b(phone|phones|smartphone|smartphones|mobile|iphone|android|gadget|gadgets|charger|chargers|earbuds|airpods|device|devices)\b/.test(p)) {
+    return {
+      brandName,
+      hero: 'Premium phones, smart accessories, and trusted device support.',
+      categoryPlural: 'devices',
+      collectionName: 'Flagship devices',
+      productName: 'iPhone 15 Pro Max',
+      productTwo: 'Galaxy S24 Ultra',
+      productThree: 'Pixel 8 Pro',
+      productFour: 'FastCharge 65W Kit',
+      variant: 'Natural Titanium / 256GB',
+      detail: 'Factory-unlocked flagship smartphone with pro camera system, all-day battery life, and warranty-backed support.',
+      price: '$1,199',
+      subtotal: '$1,199.00',
+      shipping: '$18.00',
+      total: '$1,217.00',
+      promo: 'TECH10',
+      cartTitle: 'Your selected tech',
+      cartAlt: 'Premium smartphone in cart',
+      checkoutAlt: 'Smartphone checkout item',
+      image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&auto=format&q=85',
+      checkoutImage: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=300&auto=format&q=85',
+    };
+  }
+
+  if (/\b(perfume|fragrance|cologne|scent)\b/.test(p)) {
+    return {
+      brandName,
+      hero: 'Signature fragrances crafted for lasting presence.',
+      categoryPlural: 'scents',
+      collectionName: 'Fragrance edits',
+      productName: 'Noir Amber Eau de Parfum',
+      productTwo: 'Velvet Musk',
+      productThree: 'Citrus Cedar',
+      productFour: 'Discovery Set',
+      variant: '100ml / Eau de Parfum',
+      detail: 'A layered scent with amber warmth, clean musk, and a refined dry-down built for daily wear.',
+      price: '$128',
+      subtotal: '$128.00',
+      shipping: '$8.00',
+      total: '$136.00',
+      promo: 'SCENT10',
+      cartTitle: 'Your fragrance edit',
+      cartAlt: 'Luxury perfume bottle in cart',
+      checkoutAlt: 'Perfume checkout item',
+      image: 'https://images.unsplash.com/photo-1541643600914-78b084683702?w=500&auto=format&q=85',
+      checkoutImage: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=300&auto=format&q=85',
+    };
+  }
+
+  return {
+    brandName,
+    hero: 'Premium products selected for confident everyday style.',
+    categoryPlural: 'pieces',
+    collectionName: 'New arrivals',
+    productName: 'Signature Drop Hoodie',
+    productTwo: 'Boxy Graphic Tee',
+    productThree: 'Utility Cargo Jogger',
+    productFour: 'Logo Cap',
+    variant: 'Black / Large / heavyweight cotton fleece',
+    detail: 'Oversized heavyweight fleece cut for cold nights, loud entrances, and street culture in motion.',
+    price: '$96',
+    subtotal: '$96.00',
+    shipping: '$8.00',
+    total: '$104.00',
+    promo: 'DROP10',
+    cartTitle: 'Your selected pieces',
+    cartAlt: 'Premium streetwear hoodie in cart',
+    checkoutAlt: 'Checkout hoodie order item',
+    image: 'https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=500&auto=format&q=85',
+    checkoutImage: 'https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=300&auto=format&q=85',
+  };
+}
+
+function scrubIndustryMismatches(html: string, prompt: string, brandName: string) {
+  const profile = ecommerceProfile(prompt, brandName);
+  if (profile.productName === 'Signature Drop Hoodie') return html;
+
+  const replacements: Array<[RegExp, string]> = [
+    [/\bBaddo World\b/g, profile.brandName],
+    [/\bUrban luxury streetwear\b/gi, profile.hero],
+    [/\bWear the culture\. Own the streets\.\b/gi, profile.hero],
+    [/\bYour selected pieces\b/gi, profile.cartTitle],
+    [/\bSignature Drop Hoodie\b/g, profile.productName],
+    [/\bCulture Heavy Hoodie\b/g, profile.productName],
+    [/\bOwn The Streets Tee\b/g, profile.productTwo],
+    [/\bBaddo Cargo Jogger\b/g, profile.productThree],
+    [/\bWorld Logo Cap\b/g, profile.productFour],
+    [/\bPremium heavy hoodie\b/gi, profile.productName],
+    [/\bSignature boxy tee\b/gi, profile.productTwo],
+    [/\bRetro strapback cap\b/gi, profile.productFour],
+    [/\bHoodies\b/g, 'Phones'],
+    [/\bT-shirts\b/g, 'Accessories'],
+    [/\bPants\b/g, 'Tablets'],
+    [/\bCaps\b/g, 'Audio'],
+    [/\bhoodies\b/gi, profile.categoryPlural],
+    [/\bhoodie\b/gi, profile.productName],
+    [/\btee\b/gi, profile.productTwo],
+    [/\bjoggers\b/gi, 'accessories'],
+    [/\bjogger\b/gi, profile.productThree],
+    [/\bcaps\b/gi, 'accessories'],
+    [/\bcap\b/gi, profile.productFour],
+    [/\bstreetwear\b/gi, 'consumer tech'],
+    [/\bdrop\b/gi, 'release'],
+    [/\bBlack \/ Large \/ heavyweight cotton fleece\b/g, profile.variant],
+    [/\bOversized heavyweight fleece cut for cold nights, loud entrances, and street culture in motion\.\b/g, profile.detail],
+    [/\$96\.00/g, profile.subtotal],
+    [/\$96\b/g, profile.price],
+    [/\$104\.00/g, profile.total],
+    [/\$8\.00/g, profile.shipping],
+    [/\bDROP10\b/g, profile.promo],
+    [/\bculture-heavy-hoodie\b/g, 'iphone-15-pro-max'],
+    [/\bown-the-streets-tee\b/g, 'galaxy-s24-ultra'],
+    [/\bbaddo-cargo-jogger\b/g, 'pixel-8-pro'],
+    [/\bworld-logo-cap\b/g, 'fastcharge-65w-kit'],
+    [/Premium streetwear hoodie in cart/gi, profile.cartAlt],
+    [/Checkout hoodie order item/gi, profile.checkoutAlt],
+    [/https:\/\/images\.unsplash\.com\/photo-1523398002811-999ca8dec234\?w=500&auto=format&q=85/g, profile.image],
+    [/https:\/\/images\.unsplash\.com\/photo-1523398002811-999ca8dec234\?w=300&auto=format&q=85/g, profile.checkoutImage],
+    [/https:\/\/images\.unsplash\.com\/photo-1556821840-3a63f95609a7\?w=\d+&auto=format&q=85/g, 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=900&auto=format&q=85'],
+    [/https:\/\/images\.unsplash\.com\/photo-1521572163474-6864f9cf17ab\?w=\d+&auto=format&q=85/g, 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=900&auto=format&q=85'],
+    [/https:\/\/images\.unsplash\.com\/photo-1515886657613-9f3515b0c78f\?w=\d+&auto=format&q=85/g, 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900&auto=format&q=85'],
+    [/https:\/\/images\.unsplash\.com\/photo-1521369909029-2afed882baee\?w=\d+&auto=format&q=85/g, 'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=900&auto=format&q=85'],
+  ];
+
+  return replacements.reduce((out, [pattern, value]) => out.replace(pattern, value), html);
 }
 
 function buildCustomLoginPage(brandName: string, tagline: string) {

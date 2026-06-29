@@ -183,12 +183,22 @@ function extractBrandName(prompt: string, siteType: SiteType) {
   const called = prompt.match(/\b(?:called|named|brand called|brand named|for)\s+([A-Z][A-Za-z0-9&'. -]{2,60})/)?.[1];
   if (called) return called.replace(/\b(that|which|with|and)\b.*$/i, '').trim();
 
-  return siteType === 'ecommerce' ? 'Baddo World' : 'QAY Studio';
+  if (siteType === 'ecommerce') {
+    if (/\b(phone|smartphone|mobile|iphone|android|gadget|charger|earbuds|device)\b/i.test(prompt)) return 'Volt Mobile';
+    if (/\b(perfume|fragrance|cologne|scent)\b/i.test(prompt)) return 'Maison Scent';
+    if (/\b(skincare|beauty|cosmetic)\b/i.test(prompt)) return 'Luma Skin';
+    if (/\b(jewelry|jewellery|watch|watches)\b/i.test(prompt)) return 'Aurum Atelier';
+    return 'QAY Store';
+  }
+
+  return 'QAY Studio';
 }
 
 function extractTagline(prompt: string, brandName: string, siteType: SiteType) {
   const quotedTagline = prompt.match(/\b(?:tagline|subtext|slogan)\s*:\s*["“”']?([^"\n“”']{4,120})/i)?.[1];
   if (quotedTagline) return quotedTagline.trim();
+  if (siteType === 'ecommerce' && /\b(phone|smartphone|mobile|iphone|android|gadget|charger|earbuds|device)\b/i.test(prompt)) return 'Flagship devices, trusted accessories, and support that keeps you connected.';
+  if (siteType === 'ecommerce' && /\b(perfume|fragrance|cologne|scent)\b/i.test(prompt)) return 'Layered scents made for everyday presence.';
   if (siteType === 'ecommerce' && /streetwear|clothing|fashion/i.test(prompt)) return 'Wear the culture. Own the streets.';
   return `${brandName} built with clarity, taste, and momentum.`;
 }
@@ -378,6 +388,8 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     };
   }
 
+  mergedColors = ensureReadableDecisionColors(mergedColors, siteType);
+
   // Enforce auth pages if auth keywords are present
   let pages = decision.pages?.length ? decision.pages : defaultPages(siteType, navMode, prompt);
   const hasAuth = /\b(auth|login|register|signup|signin|sign-in|sign-up|protect|member|membership|dashboard)\b/i.test(prompt);
@@ -450,6 +462,24 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     },
     textContent,
     notes: decision.notes || [],
+  };
+}
+
+function ensureReadableDecisionColors(
+  colors: SiteDecision['brand']['colors'],
+  siteType: SiteType
+): SiteDecision['brand']['colors'] {
+  const background = safeColor(colors.background, defaultColors[siteType].background);
+  const accent = safeColor(colors.accent, defaultColors[siteType].accent);
+  const darkBg = isDark(background);
+
+  return {
+    ...colors,
+    background,
+    accent,
+    primary: darkBg ? '#f8fafc' : '#111111',
+    secondary: darkBg ? 'rgba(248,250,252,0.72)' : 'rgba(17,17,17,0.64)',
+    isUserSupplied: Boolean(colors.isUserSupplied),
   };
 }
 
