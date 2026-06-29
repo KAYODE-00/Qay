@@ -64,6 +64,69 @@ export const themes: QmTheme[] = [
     is_dark: false,
     rank: 90,
   },
+  {
+    id: 'ecommerce-theme-luxury-light',
+    site_type: 'ecommerce',
+    theme_id: 'luxury-light',
+    label: 'Luxury Light',
+    keywords: ['luxury', 'premium', 'light', 'cream', 'editorial', 'fashion', 'couture', 'elegant', 'white', 'gold', 'jewellery', 'perfume', 'beauty'],
+    css_variables: {
+      '--qm-bg': '#faf9f6',
+      '--qm-surface': '#f2f0eb',
+      '--qm-text': '#1a1814',
+      '--qm-text-muted': '#8a8278',
+      '--qm-accent': '#b8922a',
+      '--qm-accent-text': '#ffffff',
+      '--qm-border': 'rgba(26,24,20,0.1)',
+      '--qm-heading-font': '"Cormorant Garamond", serif',
+      '--qm-body-font': '"DM Sans", sans-serif',
+    },
+    google_fonts: ['Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400', 'DM+Sans:wght@300;400;500'],
+    is_dark: false,
+    rank: 97,
+  },
+  {
+    id: 'ecommerce-theme-bold-color',
+    site_type: 'ecommerce',
+    theme_id: 'bold-color',
+    label: 'Bold Color',
+    keywords: ['bold', 'colorful', 'vibrant', 'playful', 'fun', 'gen-z', 'sport', 'pop', 'bright', 'energetic', 'youth', 'lifestyle'],
+    css_variables: {
+      '--qm-bg': '#ffffff',
+      '--qm-surface': '#f5f5f5',
+      '--qm-text': '#0a0a0a',
+      '--qm-text-muted': '#666666',
+      '--qm-accent': '#ff3d3d',
+      '--qm-accent-text': '#ffffff',
+      '--qm-border': 'rgba(0,0,0,0.08)',
+      '--qm-heading-font': '"Barlow Condensed", sans-serif',
+      '--qm-body-font': '"Barlow", sans-serif',
+    },
+    google_fonts: ['Barlow+Condensed:wght@500;600;700;800;900', 'Barlow:wght@400;500;600'],
+    is_dark: false,
+    rank: 93,
+  },
+  {
+    id: 'ecommerce-theme-editorial-minimal',
+    site_type: 'ecommerce',
+    theme_id: 'editorial-minimal',
+    label: 'Editorial Minimal',
+    keywords: ['editorial', 'minimal', 'clean', 'modern', 'magazine', 'sophisticated', 'neutral', 'monochrome', 'contemporary'],
+    css_variables: {
+      '--qm-bg': '#ffffff',
+      '--qm-surface': '#f9f9f7',
+      '--qm-text': '#111111',
+      '--qm-text-muted': '#888888',
+      '--qm-accent': '#111111',
+      '--qm-accent-text': '#ffffff',
+      '--qm-border': 'rgba(0,0,0,0.07)',
+      '--qm-heading-font': '"Playfair Display", serif',
+      '--qm-body-font': '"Inter", sans-serif',
+    },
+    google_fonts: ['Playfair+Display:ital,wght@0,400;0,700;1,400', 'Inter:wght@300;400;500'],
+    is_dark: false,
+    rank: 91,
+  },
 ];
 
 const cartDrawer = `<aside data-qay-commerce="cart-drawer" class="hidden fixed right-4 top-24 z-50 w-[min(420px,calc(100vw-32px))] rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)]/95 backdrop-blur-xl p-6 text-[var(--qm-text)] shadow-2xl transition-all duration-300">
@@ -608,6 +671,247 @@ export const sections: QmSection[] = [
   <div class="mx-auto max-w-7xl border-t border-[var(--qm-border)] mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] uppercase tracking-wider">
     <p data-qm="ecommerce-footer-luxe-p-2">&copy; 2026 QAY STUDIO. ALL RIGHTS RESERVED.</p>
     <p data-qm="ecommerce-footer-luxe-p-3">MEDUSA CORED HEADLESS COMMERCE</p>
+  </div>
+</footer>`,
+  },
+  {
+    id: 'ecommerce-nav-luxury-light-centered',
+    site_type: 'ecommerce',
+    section_type: 'nav',
+    theme_id: 'luxury-light',
+    keywords: ['nav', 'centered', 'luxury', 'serif', 'minimal', 'light', 'elegant', 'fashion', 'premium'],
+    preview_description: 'Two-tier luxury nav with centered serif logo, utility strip, mobile drawer, and cart hooks.',
+    rank: 97,
+    html: `<header class="sticky top-0 z-40 border-b border-[var(--qm-border)] bg-[var(--qm-bg)] text-[var(--qm-text)]">
+  <div class="hidden items-center justify-between border-b border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--qm-text-muted)] md:flex">
+    <p data-qm="nav-offer">Complimentary shipping on orders over $150</p>
+    <div class="flex gap-6">
+      <a href="/account" class="transition hover:text-[var(--qm-text)]" data-qm="nav-account">Account</a>
+      <a href="/wishlist" class="transition hover:text-[var(--qm-text)]" data-qm="nav-wishlist">Wishlist</a>
+    </div>
+  </div>
+  <nav class="px-6 py-5">
+    <div class="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-5">
+      <div class="hidden gap-8 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--qm-text-muted)] md:flex">
+        <a href="/shop" class="transition hover:text-[var(--qm-accent)]" data-qm="nav-link-1">New Arrivals</a>
+        <a href="/collections" class="transition hover:text-[var(--qm-accent)]" data-qm="nav-link-2">Collections</a>
+        <a href="/sale" class="text-[var(--qm-accent)] transition hover:opacity-80" data-qm="nav-link-3">Sale</a>
+      </div>
+      <a href="/" class="text-center text-3xl font-normal uppercase tracking-[0.16em] md:text-4xl" style="font-family:var(--qm-heading-font)" data-qm="brand-name">MAISON</a>
+      <div class="flex items-center justify-end gap-3">
+        <div class="hidden gap-6 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--qm-text-muted)] md:flex">
+          <a href="/about" class="transition hover:text-[var(--qm-accent)]" data-qm="nav-link-4">About</a>
+          <a href="/contact" class="transition hover:text-[var(--qm-accent)]" data-qm="nav-link-5">Contact</a>
+        </div>
+        <button type="button" data-qay-commerce="cart-button" data-qay-cart-label="Bag" class="rounded-full border border-[var(--qm-border)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition hover:border-[var(--qm-accent)]" data-qm="cart-label">Bag (0)</button>
+        <button type="button" class="rounded-full border border-[var(--qm-border)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] md:hidden" data-qay-click="toggle" data-qay-target="#luxury-light-menu" data-qay-class="hidden" aria-controls="luxury-light-menu" aria-expanded="false" data-qm="mobile-menu-label">Menu</button>
+      </div>
+    </div>
+  </nav>
+  <div id="luxury-light-menu" class="hidden fixed inset-x-4 top-24 z-50 flex flex-col gap-3 rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-5 text-sm shadow-2xl md:hidden">
+    <a href="/shop" class="rounded-xl border border-[var(--qm-border)] px-4 py-3" data-qm="mobile-nav-link-1">New Arrivals</a>
+    <a href="/collections" class="rounded-xl border border-[var(--qm-border)] px-4 py-3" data-qm="mobile-nav-link-2">Collections</a>
+    <a href="/sale" class="rounded-xl bg-[var(--qm-accent)] px-4 py-3 text-[var(--qm-accent-text)]" data-qm="mobile-nav-link-3">Sale</a>
+    <a href="/about" class="rounded-xl border border-[var(--qm-border)] px-4 py-3" data-qm="mobile-nav-link-4">About</a>
+  </div>
+  ${cartDrawer}
+</header>`,
+  },
+  {
+    id: 'ecommerce-hero-luxury-light-editorial',
+    site_type: 'ecommerce',
+    section_type: 'hero',
+    theme_id: 'luxury-light',
+    keywords: ['hero', 'split', 'editorial', 'luxury', 'light', 'image-left', 'serif', 'premium', 'fashion'],
+    preview_description: 'Split-screen luxury hero with full-bleed image, serif headline, and restrained gold CTA.',
+    rank: 98,
+    html: `<section class="grid min-h-[88vh] bg-[var(--qm-bg)] text-[var(--qm-text)] lg:grid-cols-2" data-qay-animate="fade-in">
+  <div class="relative min-h-[520px] overflow-hidden" data-qay-hover="img-zoom">
+    <img src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=1400&q=85&auto=format&fit=crop" alt="Editorial fashion collection" class="h-full w-full object-cover" data-qm="hero-image" />
+    <div class="absolute left-6 top-6 bg-[var(--qm-accent)] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--qm-accent-text)]" data-qm="hero-badge">New Season</div>
+  </div>
+  <div class="flex flex-col justify-center px-6 py-20 md:px-14 lg:px-20" data-qay-animate="slide-right" data-qay-duration="0.9">
+    <p class="text-[11px] font-bold uppercase tracking-[0.35em] text-[var(--qm-text-muted)]" data-qm="hero-eyebrow">SS 2026 Collection</p>
+    <h1 class="mt-7 text-6xl font-light leading-[0.98] md:text-7xl" style="font-family:var(--qm-heading-font)" data-qm="hero-title">The art of considered dressing.</h1>
+    <div class="mt-8 h-px w-16 bg-[var(--qm-accent)]"></div>
+    <p class="mt-8 max-w-md text-base leading-8 text-[var(--qm-text-muted)]" data-qm="hero-subtitle">Rare materials, deliberate construction, and silhouettes that endure beyond seasons.</p>
+    <div class="mt-10 flex flex-wrap gap-4">
+      <a href="/shop" class="bg-[var(--qm-text)] px-8 py-4 text-xs font-bold uppercase tracking-[0.2em] text-[var(--qm-bg)] transition hover:opacity-85" data-qm="hero-cta-primary" data-qay-hover="scale-btn">Explore Collection</a>
+      <a href="/about" class="border border-[var(--qm-border)] px-8 py-4 text-xs font-bold uppercase tracking-[0.2em] text-[var(--qm-text-muted)] transition hover:border-[var(--qm-accent)] hover:text-[var(--qm-text)]" data-qm="hero-cta-secondary">Our Story</a>
+    </div>
+  </div>
+</section>`,
+  },
+  {
+    id: 'ecommerce-hero-bold-color-kinetic',
+    site_type: 'ecommerce',
+    section_type: 'hero',
+    theme_id: 'bold-color',
+    keywords: ['hero', 'bold', 'typographic', 'oversized', 'sport', 'lifestyle', 'energy', 'vibrant', 'colorful'],
+    preview_description: 'High-energy ecommerce hero with diagonal product image, huge type, and bold CTA.',
+    rank: 96,
+    html: `<section class="relative flex min-h-[88vh] items-center overflow-hidden bg-[var(--qm-bg)] text-[var(--qm-text)]" data-qay-animate="fade-in">
+  <div class="absolute right-0 top-0 hidden h-full w-[58%] overflow-hidden [clip-path:polygon(18%_0,100%_0,100%_100%,0_100%)] md:block" data-qay-hover="img-zoom">
+    <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1400&q=85&auto=format&fit=crop" alt="Bold performance product" class="h-full w-full object-cover" data-qm="hero-image" />
+    <div class="absolute inset-0 bg-gradient-to-r from-[var(--qm-bg)] via-transparent to-transparent"></div>
+  </div>
+  <div class="relative z-10 max-w-3xl px-6 py-20 md:px-12" data-qay-animate="slide-up" data-qay-duration="0.8">
+    <div class="inline-flex items-center gap-2 bg-[var(--qm-accent)] px-4 py-2 text-[var(--qm-accent-text)]">
+      <span class="size-2 rounded-full bg-white animate-pulse"></span>
+      <span class="text-[11px] font-black uppercase tracking-[0.18em]" data-qm="hero-eyebrow">Drop live now</span>
+    </div>
+    <h1 class="mt-7 text-7xl font-black uppercase leading-[0.82] tracking-tight md:text-9xl" style="font-family:var(--qm-heading-font)" data-qm="hero-title">Move different.</h1>
+    <p class="mt-7 max-w-md text-base leading-7 text-[var(--qm-text-muted)]" data-qm="hero-subtitle">Engineered for the bold. Worn by people who refuse average.</p>
+    <div class="mt-10 flex flex-wrap gap-3">
+      <a href="/shop" class="bg-[var(--qm-accent)] px-9 py-4 text-sm font-black uppercase tracking-[0.12em] text-[var(--qm-accent-text)]" data-qm="hero-cta-primary" data-qay-hover="scale-btn">Shop Now</a>
+      <a href="/collections" class="border-2 border-[var(--qm-text)] px-9 py-4 text-sm font-black uppercase tracking-[0.12em] text-[var(--qm-text)]" data-qm="hero-cta-secondary">View Lookbook</a>
+    </div>
+  </div>
+</section>`,
+  },
+  {
+    id: 'ecommerce-products-luxury-light-runway',
+    site_type: 'ecommerce',
+    section_type: 'products',
+    theme_id: 'luxury-light',
+    keywords: ['products', 'luxury', 'fashion', 'editorial', 'asymmetric', 'add-to-cart', 'premium'],
+    preview_description: 'Editorial luxury product grid with QAY commerce hooks and hover image zoom.',
+    rank: 94,
+    html: `<section class="bg-[var(--qm-bg)] px-6 py-24 text-[var(--qm-text)]">
+  <div class="mx-auto max-w-7xl">
+    <div class="mb-12 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-[0.32em] text-[var(--qm-text-muted)]" data-qm="section-eyebrow">The Edit</p>
+        <h2 class="mt-4 text-5xl font-light md:text-6xl" style="font-family:var(--qm-heading-font)" data-qm="section-title">Pieces with a quieter kind of power.</h2>
+      </div>
+      <p class="max-w-sm text-sm leading-7 text-[var(--qm-text-muted)]" data-qm="section-subtitle">A curated capsule of tailored textures, soft structure, and accessories built to outlast the season.</p>
+    </div>
+    <div class="grid gap-8 md:grid-cols-4" data-qay-commerce="product-grid" data-qay-animate="stagger-children">
+      <article class="group md:col-span-2" data-qay-commerce="product-card" data-qay-product-id="sample-product-1" data-qay-product-handle="tailored-wool-coat">
+        <div class="overflow-hidden bg-[var(--qm-surface)]" data-qay-hover="img-zoom">
+          <img data-qay-commerce="product-image" src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1000&q=85&auto=format&fit=crop" alt="Tailored wool coat" class="aspect-[4/5] w-full object-cover" data-qm="product-image-1" />
+        </div>
+        <div class="mt-5 flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-2xl font-normal" style="font-family:var(--qm-heading-font)" data-qay-commerce="product-title" data-qm="product-title-1">Tailored Wool Coat</h3>
+            <p class="mt-2 text-sm text-[var(--qm-text-muted)]" data-qay-commerce="product-description" data-qm="product-description-1">Brushed wool, sculptural collar, fully lined.</p>
+            <p class="mt-3 text-sm text-[var(--qm-text)]" data-qay-commerce="product-price" data-qm="product-price-1">$485</p>
+          </div>
+          <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-1" class="border border-[var(--qm-border)] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] transition hover:bg-[var(--qm-text)] hover:text-[var(--qm-bg)]" data-qm="add-to-cart-1">Add to Bag</button>
+        </div>
+      </article>
+      <article data-qay-commerce="product-card" data-qay-product-id="sample-product-2" data-qay-product-handle="silk-midi-dress">
+        <div class="overflow-hidden bg-[var(--qm-surface)]" data-qay-hover="img-zoom">
+          <img data-qay-commerce="product-image" src="https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&q=85&auto=format&fit=crop" alt="Silk midi dress" class="aspect-[3/4] w-full object-cover" data-qm="product-image-2" />
+        </div>
+        <h3 class="mt-4 text-xl font-normal" style="font-family:var(--qm-heading-font)" data-qay-commerce="product-title" data-qm="product-title-2">Silk Midi Dress</h3>
+        <p class="mt-1 text-sm text-[var(--qm-text-muted)]" data-qay-commerce="product-description" data-qm="product-description-2">Fluid silk with a soft column drape.</p>
+        <div class="mt-4 flex items-center justify-between gap-3">
+          <span class="text-sm" data-qay-commerce="product-price" data-qm="product-price-2">$320</span>
+          <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-2" class="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--qm-accent)]" data-qm="add-to-cart-2">Add</button>
+        </div>
+      </article>
+      <article data-qay-commerce="product-card" data-qay-product-id="sample-product-3" data-qay-product-handle="cashmere-knit">
+        <div class="overflow-hidden bg-[var(--qm-surface)]" data-qay-hover="img-zoom">
+          <img data-qay-commerce="product-image" src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&q=85&auto=format&fit=crop" alt="Cashmere knit" class="aspect-[3/4] w-full object-cover" data-qm="product-image-3" />
+        </div>
+        <h3 class="mt-4 text-xl font-normal" style="font-family:var(--qm-heading-font)" data-qay-commerce="product-title" data-qm="product-title-3">Cashmere Knit</h3>
+        <p class="mt-1 text-sm text-[var(--qm-text-muted)]" data-qay-commerce="product-description" data-qm="product-description-3">Featherweight warmth in a relaxed shape.</p>
+        <div class="mt-4 flex items-center justify-between gap-3">
+          <span class="text-sm" data-qay-commerce="product-price" data-qm="product-price-3">$280</span>
+          <button type="button" data-qay-commerce="add-to-cart" data-qay-product-id="sample-product-3" class="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--qm-accent)]" data-qm="add-to-cart-3">Add</button>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>`,
+  },
+  {
+    id: 'ecommerce-about-luxury-light-founder',
+    site_type: 'ecommerce',
+    section_type: 'about',
+    theme_id: 'luxury-light',
+    keywords: ['about', 'founder', 'story', 'luxury', 'serif', 'image', 'heritage', 'craftsmanship'],
+    preview_description: 'Luxury founder story split with portrait, pull quote, and slow editorial reveal.',
+    rank: 93,
+    html: `<section class="grid bg-[var(--qm-bg)] text-[var(--qm-text)] lg:grid-cols-2">
+  <div class="min-h-[560px] overflow-hidden" data-qay-hover="img-zoom">
+    <img src="https://images.unsplash.com/photo-1590736704728-f4730bb30770?w=1000&q=85&auto=format&fit=crop" alt="Founder portrait in studio" class="h-full w-full object-cover" data-qm="about-image" />
+  </div>
+  <div class="flex flex-col justify-center px-6 py-20 md:px-14 lg:px-20" data-qay-animate="slide-right" data-qay-duration="0.9">
+    <p class="text-[10px] font-bold uppercase tracking-[0.35em] text-[var(--qm-text-muted)]" data-qm="about-eyebrow">The House</p>
+    <blockquote class="mt-8 text-3xl font-light italic leading-snug md:text-5xl" style="font-family:var(--qm-heading-font)" data-qm="about-title">We do not follow seasons. We follow what endures.</blockquote>
+    <div class="mt-8 h-px w-14 bg-[var(--qm-accent)]"></div>
+    <p class="mt-8 text-sm leading-8 text-[var(--qm-text-muted)]" data-qm="about-text">Founded from a conviction that true luxury is not in the label, but in the quiet confidence of something made with genuine care.</p>
+    <p class="mt-5 text-sm leading-8 text-[var(--qm-text-muted)]" data-qm="about-text-secondary">Every piece moves through careful material selection, deliberate construction, and a final edit before it reaches the customer.</p>
+    <div class="mt-10">
+      <p class="text-sm text-[var(--qm-text)]" data-qm="founder-name">Amara Maison</p>
+      <p class="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--qm-text-muted)]" data-qm="founder-role">Founder and Creative Director</p>
+    </div>
+  </div>
+</section>`,
+  },
+  {
+    id: 'ecommerce-testimonials-luxury-light-editorial',
+    site_type: 'ecommerce',
+    section_type: 'testimonials',
+    theme_id: 'luxury-light',
+    keywords: ['testimonials', 'quote', 'luxury', 'large', 'single', 'elegant', 'editorial'],
+    preview_description: 'Editorial single-quote testimonial with large serif typography and customer detail.',
+    rank: 92,
+    html: `<section class="bg-[var(--qm-surface)] px-6 py-24 text-center text-[var(--qm-text)]" data-qay-animate="scroll-reveal">
+  <div class="mx-auto max-w-4xl">
+    <p class="text-[10px] font-bold uppercase tracking-[0.35em] text-[var(--qm-text-muted)]" data-qm="testimonials-eyebrow">What clients say</p>
+    <div class="mt-10 text-7xl leading-none text-[var(--qm-accent)]" style="font-family:var(--qm-heading-font)">"</div>
+    <blockquote class="mx-auto mt-2 max-w-3xl text-3xl font-light italic leading-snug md:text-5xl" style="font-family:var(--qm-heading-font)" data-qm="testimonial-1-text">The quality is unlike anything I have owned. Three seasons later, it still looks new.</blockquote>
+    <div class="mt-10 flex items-center justify-center gap-4">
+      <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&q=85&auto=format&fit=crop" alt="Customer portrait" class="size-12 rounded-full object-cover" data-qm="testimonial-1-image" />
+      <div class="text-left">
+        <p class="text-sm font-medium" data-qm="testimonial-1-author">Amara Okonkwo</p>
+        <p class="text-xs text-[var(--qm-text-muted)]" data-qm="testimonial-1-role">Lagos, Nigeria</p>
+      </div>
+    </div>
+  </div>
+</section>`,
+  },
+  {
+    id: 'ecommerce-footer-luxury-light-editorial',
+    site_type: 'ecommerce',
+    section_type: 'footer',
+    theme_id: 'luxury-light',
+    keywords: ['footer', 'luxury', 'light', 'minimal', 'serif', 'elegant', 'newsletter', 'premium'],
+    preview_description: 'Elegant light footer with oversized brand name, newsletter, and support links.',
+    rank: 94,
+    html: `<footer class="border-t border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-16 text-[var(--qm-text)]">
+  <div class="mx-auto max-w-7xl">
+    <h2 class="text-6xl font-light uppercase tracking-tight opacity-20 md:text-9xl" style="font-family:var(--qm-heading-font)" data-qm="footer-brand-name">MAISON</h2>
+    <div class="mt-12 grid gap-10 border-b border-[var(--qm-border)] pb-12 md:grid-cols-[1fr_1fr_1fr_1.4fr]">
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--qm-text-muted)]" data-qm="footer-column-1-title">Navigate</p>
+        <div class="mt-5 flex flex-col gap-3 text-sm"><a href="/shop" data-qm="footer-link-1">New Arrivals</a><a href="/collections" data-qm="footer-link-2">Collections</a><a href="/sale" data-qm="footer-link-3">Sale</a></div>
+      </div>
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--qm-text-muted)]" data-qm="footer-column-2-title">Information</p>
+        <div class="mt-5 flex flex-col gap-3 text-sm"><a href="/about" data-qm="footer-link-4">Our Story</a><a href="/contact" data-qm="footer-link-5">Contact</a><a href="/returns" data-qm="footer-link-6">Returns</a></div>
+      </div>
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--qm-text-muted)]" data-qm="footer-location-label">Location</p>
+        <p class="mt-5 text-sm leading-7 text-[var(--qm-text-muted)]" data-qm="footer-location">Lagos studio. Shipping worldwide.</p>
+        <p class="mt-3 text-sm text-[var(--qm-text-muted)]" data-qm="footer-email">hello@maison.com</p>
+      </div>
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--qm-text-muted)]" data-qm="footer-newsletter-label">The Edit</p>
+        <p class="mt-5 text-sm leading-7 text-[var(--qm-text-muted)]" data-qm="footer-tagline">Rare pieces and considered stories, delivered with restraint.</p>
+        <form class="mt-5 flex border-b border-[var(--qm-text)]">
+          <input type="email" name="email" placeholder="Your email" class="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none" />
+          <button type="submit" class="py-3 text-[10px] font-bold uppercase tracking-[0.2em]" data-qm="footer-subscribe">Subscribe</button>
+        </form>
+      </div>
+    </div>
+    <div class="flex flex-col justify-between gap-3 pt-8 text-xs text-[var(--qm-text-muted)] md:flex-row">
+      <p data-qm="footer-copyright">&copy; 2026 All rights reserved.</p>
+      <div class="flex gap-5"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+    </div>
   </div>
 </footer>`,
   },
