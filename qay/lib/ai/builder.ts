@@ -65,7 +65,20 @@ Rules:
 - Treat QAY's supported attributes as a compatibility contract, not as a design template. The generated site must not look like the reference examples.
 - Generate the exact site type requested. A law firm, fashion store, school portal, restaurant, AI SaaS, logistics company, wedding site, gallery, gym, hotel, creator portfolio, marketplace, course, directory, church, nonprofit, clinic, real estate site, or community must all look and read differently.
 - Use at least one real image for normal websites and ecommerce pages unless the user explicitly asks for a text-only/internal tool.
-- Use varied Tailwind utilities: responsive classes, max-width containers, generous spacing, borders/shadows/rounded corners when appropriate, and exact arbitrary colors.
+- Use varied Tailwind utilities: responsive classes, max-width containers, generous spacing, borders/shadows/rounded corners when appropriate, and the assigned QAY color variables.
+- COLORS - CRITICAL RULE:
+  You have been given a 5-color palette via CSS variables. Use ONLY these variables for ALL colors. No exceptions.
+  --qm-bg is the page background.
+  --qm-surface is card and section background.
+  --qm-text is main text.
+  --qm-text-muted is secondary text.
+  --qm-accent is CTA buttons, links, highlights, and active states.
+  --qm-accent-text is text on top of accent.
+  --qm-border is borders and dividers.
+  Correct Tailwind usage: bg-[var(--qm-bg)], bg-[var(--qm-surface)], text-[var(--qm-text)], text-[var(--qm-text-muted)], text-[var(--qm-accent)], text-[var(--qm-accent-text)], border-[var(--qm-border)].
+  Never use hardcoded hex colors, Tailwind color classes like bg-gray-900/bg-slate-800/text-zinc-400, or inline color styles.
+- FONTS - CRITICAL RULE:
+  Use ONLY --qm-heading-font and --qm-body-font. Headings should use font-[var(--qm-heading-font)]. Body, links, buttons, inputs, and labels should use font-[var(--qm-body-font)] or inherit from body.
 - Infer the website type from the user's request and stay in that lane. Do not mix unrelated site types unless the user explicitly asks for a hybrid.
 - Do not reuse one fixed layout. Choose the layout architecture to fit the prompt: editorial, dashboard-like, bento, split-screen, magazine, sidebar, grid, product-led, event schedule, portfolio case-study, restaurant menu, service business, community, auth/membership, or another suitable structure.
 - Before writing HTML, silently choose a distinct design direction for this exact request. Vary section order, grid rhythm, hero composition, card shapes, navigation pattern, palette, imagery, and motion values. The QAY reference is only a compatibility contract, not a visual template.
@@ -186,6 +199,7 @@ Do not copy these examples. Use them to understand what "specific" means.`;
 const QAY_AI_HTML_COMPACT_SYSTEM_PROMPT = `You are QAY's AI website designer.
 Return only HTML. No markdown, no explanations, no repeated prompt text.
 Use semantic HTML and Tailwind classes. Do not use JavaScript, onclick, external scripts, GSAP, or custom animation CSS.
+Colors and fonts are locked: use only bg-[var(--qm-bg)], bg-[var(--qm-surface)], text-[var(--qm-text)], text-[var(--qm-text-muted)], text-[var(--qm-accent)], text-[var(--qm-accent-text)], border-[var(--qm-border)], font-[var(--qm-heading-font)], and font-[var(--qm-body-font)]. Never use hardcoded hex colors, Tailwind color palettes like bg-gray-900/text-zinc-400, or inline hex color styles.
 Create raw HTML that could pass for an expensive agency build: confident art direction, deliberate spacing, real hierarchy, strong image choices, responsive navigation, conversion-focused CTAs, and details that match the exact site category.
 Use real, niche-specific copy. Avoid lorem ipsum, Feature 1, Service 1, placeholder boxes, and generic phrases like "transform your vision" or "unlock your potential".
 Use meaningful absolute image URLs, preferably Unsplash with w/auto/q params, plus descriptive alt text. Every image must visibly belong to the section and site type: food for restaurants, garments/products for fashion, dashboards for SaaS, interiors/listings for real estate, practitioner/clinic imagery for health, venue/crowd imagery for events. Never use random office, abstract, blurred, or atmospheric images unless the prompt specifically asks for that.
@@ -243,10 +257,10 @@ Design quality rules:
 - Never generate a plain stack of generic gray boxes, bare grids, or boilerplate cards unless the user explicitly asks for that.
 - Use strong composition: max-width containers, asymmetric grids, editorial whitespace, subtle borders, layered sections, and varied card sizes.
 - Use real hierarchy and art direction: oversized hero type, precise max-widths, purposeful negative space, alternating section rhythms, and cards that differ in span/scale.
-- Prefer premium palettes with exact arbitrary Tailwind colors such as bg-[#11141A], text-[#F6F3ED], border-white/10, and bg-white/5 when requested.
+- Prefer cohesive, restrained palettes with one clear accent. Keep colors consistent across the whole page.
 - Use high-quality spacing: generous section padding, consistent gaps, and responsive constraints. Avoid viewport-scaled font sizes.
-- Use high-contrast text/background pairs. If the user specifies colors, use those exact hex values in Tailwind arbitrary values, for example bg-[#11141A].
-- For premium dark/light sites, avoid default blue links. Use black, white, bone, charcoal, or the user's requested accent colors.
+- Use high-contrast text/background pairs. If the user specifies colors, keep the whole page balanced around those colors instead of mixing unrelated Tailwind palettes.
+- For premium dark/light sites, avoid default blue links. Use the selected brand palette consistently.
 - Use headings with "name": "heading" and text with "name": "text" so QAY can edit them.
 - Every text-like layer must have variables.text content; buttons and links should also have editable text.
 - Buttons/links should include settings.href or variables.link where relevant, but keep internal routes relative.
@@ -824,7 +838,7 @@ function ensureQayCommerceBasics(html: string, prompt: string) {
   const requiredHooks = ['product-card', 'add-to-cart', 'cart-button', 'cart-drawer', 'cart-items', 'checkout-button'];
   if (requiredHooks.every((hook) => hasQayCommerceHook(html, hook))) return html;
 
-  const commerceScaffold = `<section class="bg-white px-6 py-16 text-black dark:bg-[#0D0D0D] dark:text-white" data-qay-commerce="product-grid" data-qay-animate="scroll-reveal">
+  const commerceScaffold = `<section class="bg-white px-6 py-16 text-black dark:bg-[#000000] dark:text-white" data-qay-commerce="product-grid" data-qay-animate="scroll-reveal">
   <div class="mx-auto max-w-6xl">
     <div class="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
@@ -1444,7 +1458,7 @@ function localFallbackHtml(input: GenerateAiLayersInput) {
   }
 
   if (isCommercePrompt(input.prompt)) {
-    return `<main class="min-h-screen bg-[#0D0D0D] text-[#F8F4EC]">
+    return `<main class="min-h-screen bg-[#000000] text-[#F8F4EC]">
   <nav class="mx-auto flex max-w-7xl items-center justify-between px-6 py-6" data-qay-animate="fade-in">
     <a href="/" class="text-sm font-semibold uppercase tracking-[0.28em]">${title}</a>
     <div class="hidden items-center gap-6 text-sm text-white/65 md:flex">
