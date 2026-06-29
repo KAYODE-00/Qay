@@ -428,6 +428,95 @@ function replaceTextZones(html: string, replacements: Record<string, string>) {
   return updated;
 }
 
+function withSemanticZoneAliases(replacements: Record<string, string>, prompt: string, siteType: SiteType) {
+  const name = extractBusinessName(prompt);
+  const brand = replacements['brand-name'] || name || 'QAY Studio';
+  const title = replacements['hero-title'] || `${brand} is ready for launch.`;
+  const subtitle = replacements['hero-subtitle'] || 'A polished, responsive website with strong copy, useful sections, and a clear next step.';
+  const about = replacements['about-copy'] || replacements['about-text'] || `${brand} combines a clear story, trusted details, and practical reasons to take action.`;
+  const sectionTitle = replacements['features-title'] || replacements['menu-title'] || `What ${brand} does best`;
+
+  const typeEyebrow: Record<SiteType, string> = {
+    ecommerce: 'Featured collection',
+    restaurant: 'Signature experience',
+    portfolio: 'Selected work',
+    agency: 'Core services',
+    saas: 'Product highlights',
+    blog: 'Latest thinking',
+    law: 'Practice focus',
+    medical: 'Care services',
+    beauty: 'Treatment menu',
+    education: 'Learning paths',
+    event: 'Event highlights',
+    fitness: 'Training focus',
+    hotel: 'Stay experience',
+    church: 'Community life',
+    nonprofit: 'Mission work',
+    photography: 'Featured sessions',
+    music: 'Latest releases',
+    'real-estate': 'Featured properties',
+    construction: 'Project highlights',
+    'tech-startup': 'Product momentum',
+  };
+
+  return {
+    ...replacements,
+    'footer-brand-name': replacements['footer-brand-name'] || replacements['footer-brand'] || brand,
+    'footer-brand': replacements['footer-brand'] || replacements['footer-brand-name'] || brand,
+    'footer-tagline': replacements['footer-tagline'] || subtitle,
+    'footer-email': replacements['footer-email'] || `hello@${slugify(brand)}.com`,
+    'footer-location': replacements['footer-location'] || 'Serving clients worldwide',
+    'about-text': replacements['about-text'] || about,
+    'about-copy': replacements['about-copy'] || about,
+    'section-title': replacements['section-title'] || sectionTitle,
+    'section-subtitle': replacements['section-subtitle'] || subtitle,
+    'section-eyebrow': replacements['section-eyebrow'] || typeEyebrow[siteType] || 'Featured',
+    'gallery-title': replacements['gallery-title'] || 'Selected releases',
+    'gallery-eyebrow': replacements['gallery-eyebrow'] || 'Work highlights',
+    'hero-eyebrow': replacements['hero-eyebrow'] || typeEyebrow[siteType] || 'Now live',
+    'hero-cta-primary': replacements['hero-cta-primary'] || primaryCtaForSiteType(siteType),
+    'hero-cta-secondary': replacements['hero-cta-secondary'] || secondaryCtaForSiteType(siteType),
+    'testimonial-1-text': replacements['testimonial-1-text'] || `"${brand} gave the project the clarity, polish, and confidence we needed."`,
+    'testimonial-1-author': replacements['testimonial-1-author'] || 'Client partner',
+    'testimonial-2-text': replacements['testimonial-2-text'] || `"Every section feels intentional, fast, and easy for visitors to understand."`,
+    'testimonial-2-author': replacements['testimonial-2-author'] || 'Project lead',
+    'testimonial-3-text': replacements['testimonial-3-text'] || `"The final site feels tailored to the brand instead of dropped from a template."`,
+    'testimonial-3-author': replacements['testimonial-3-author'] || 'Founder',
+    'hero-title': title,
+    'hero-subtitle': subtitle,
+  };
+}
+
+function primaryCtaForSiteType(siteType: SiteType) {
+  if (siteType === 'ecommerce') return 'Shop now';
+  if (siteType === 'restaurant') return 'Book a table';
+  if (siteType === 'portfolio') return 'See the work';
+  if (siteType === 'blog') return 'Start reading';
+  if (siteType === 'event') return 'Reserve a spot';
+  if (siteType === 'hotel') return 'Book a stay';
+  if (siteType === 'nonprofit') return 'Donate now';
+  return 'Get started';
+}
+
+function secondaryCtaForSiteType(siteType: SiteType) {
+  if (siteType === 'ecommerce') return 'Explore collection';
+  if (siteType === 'restaurant') return 'View menu';
+  if (siteType === 'portfolio') return 'Start a project';
+  if (siteType === 'blog') return 'Subscribe';
+  if (siteType === 'event') return 'View schedule';
+  if (siteType === 'hotel') return 'Explore rooms';
+  if (siteType === 'nonprofit') return 'See our impact';
+  return 'Learn more';
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'brand';
+}
+
 async function aiCopyOverrides(html: string, prompt: string, siteType: SiteType) {
   const zones: Record<string, string> = {};
   for (const match of html.matchAll(/data-qm="([^"]+)"[^>]*>([^<]*)</g)) {
@@ -450,7 +539,7 @@ async function aiCopyOverrides(html: string, prompt: string, siteType: SiteType)
 }
 
 async function personalizeSections(html: string, prompt: string, siteType: SiteType, theme: QmTheme) {
-  const deterministic = deterministicCopy(prompt, siteType);
+  const deterministic = withSemanticZoneAliases(deterministicCopy(prompt, siteType), prompt, siteType);
   const aiOverrides = await aiCopyOverrides(html, prompt, siteType);
   const finalCssVariables = buildBrandCssVariables(prompt, siteType, theme);
 
