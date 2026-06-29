@@ -13,7 +13,7 @@ type Props = {
 };
 
 function getTemplateId(parts: string[] | undefined) {
-  const rawId = (parts || []).join('/').trim();
+  const rawId = (parts || [])[0]?.trim() || '';
   if (!rawId) return '';
 
   try {
@@ -21,6 +21,27 @@ function getTemplateId(parts: string[] | undefined) {
   } catch {
     return rawId;
   }
+}
+
+function getSlugPath(parts: string[] | undefined) {
+  return (parts || [])
+    .slice(1)
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    })
+    .filter(Boolean)
+    .join('/');
+}
+
+function appendPreviewSlug(previewUrl: string, slugPath: string) {
+  if (!slugPath) return previewUrl;
+  const normalizedBase = previewUrl.replace(/\/$/, '');
+  const normalizedSlug = slugPath.replace(/^\/+/, '');
+  return `${normalizedBase}/${normalizedSlug}`;
 }
 
 async function getOrigin() {
@@ -40,14 +61,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function QayTemplateLivePage({ params }: Props) {
   const { id } = await params;
   const templateId = getTemplateId(id);
+  const slugPath = getSlugPath(id);
   const ownerId = (process.env.QAY_TEMPLATE_MIRROR_OWNER_ID || process.env.QAY_ADMIN_USER_ID || '').trim();
   let previewUrl: string | null = null;
 
-  if (templateId && ownerId) {
+  if (templateId) {
     try {
       const result = await ensureQayTemplateMirror({
         templateId,
-        ownerId,
+        ownerId: ownerId || null,
         origin: await getOrigin(),
       });
       previewUrl = result.previewUrl;
@@ -57,11 +79,11 @@ export default async function QayTemplateLivePage({ params }: Props) {
   }
 
   if (previewUrl) {
-    redirect(previewUrl);
+    redirect(appendPreviewSlug(previewUrl, slugPath));
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#050505] px-6 py-16 text-white">
+    <main className="flex min-h-screen items-center justify-center bg-black px-6 py-16 text-white">
       <section className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-white/[0.045] p-8 text-center shadow-2xl shadow-black/40 md:p-12">
         <QayLogo theme="light" imageClassName="mx-auto h-9 w-auto" />
         <p className="mt-8 text-xs font-semibold uppercase tracking-[0.24em] text-white/40">

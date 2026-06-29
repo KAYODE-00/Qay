@@ -47,13 +47,17 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
     const pool = lib[slot] as SectionDesign[] | undefined;
     if (!pool?.length) return '';
     const rawIndex = decision.sectionPicks[slot] ?? decision.sectionPicks[sectionType];
-    // If AI picked a specific index, try to use it
+    // Use the AI-picked index as a starting point, then rotate within the correct
+    // site-type pool by prompt seed so different briefs do not collapse into one design.
     if (rawIndex !== undefined && rawIndex !== null) {
       const index = Number.isFinite(Number(rawIndex)) ? Number(rawIndex) : 0;
-      const exact = pool.find((item) => item.index === index);
-      if (exact) {
-        if (cacheKey) sharedChrome.set(cacheKey, exact.html);
-        return exact.html;
+      const sortedPool = [...pool].sort((a, b) => a.index - b.index);
+      const exactPosition = Math.max(0, sortedPool.findIndex((item) => item.index === index));
+      const seed = `${prompt || ''}:${decision.siteType}:${decision.brand.name}:${slot}:${context}`;
+      const rotated = sortedPool[(exactPosition + stableHash(seed)) % sortedPool.length] || sortedPool[exactPosition] || sortedPool[0];
+      if (rotated) {
+        if (cacheKey) sharedChrome.set(cacheKey, rotated.html);
+        return rotated.html;
       }
     }
     // Random fallback — ensures different layouts when regenerating
@@ -158,9 +162,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
 
   const personalizedBody = bodyHtml;
   
-  // Materialize variables directly in the body HTML to fix Tailwind opacity compiling issues
-  const materializedBody = materializeThemeVariables(personalizedBody, colors, fonts);
-  const html = `${themeCss}\n${materializedBody}`;
+  const html = `${themeCss}\n${personalizedBody}`;
 
   return { html, pages: pageNames, stats };
 }
@@ -523,26 +525,6 @@ function buildCustomCheckoutPage(brandName: string) {
     <p class="text-[10px] uppercase tracking-wider">&copy; 2026 ${brandName}. ALL RIGHTS RESERVED.</p>
   </div>
 </footer>`;
-}
-
-function materializeThemeVariables(html: string, colors: SiteDecision['brand']['colors'], fonts: SiteDecision['brand']['fonts']) {
-  const cssVariables: Record<string, string> = {
-    '--qm-bg': safeColor(colors.background, '#ffffff'),
-    '--qm-surface': isDark(colors.background) ? '#111111' : '#ffffff',
-    '--qm-primary': safeColor(colors.primary, '#111111'),
-    '--qm-secondary': safeColor(colors.secondary, '#555555'),
-    '--qm-accent': safeColor(colors.accent, '#111111'),
-    '--qm-accent-text': isDark(colors.accent) ? '#ffffff' : '#111111',
-    '--qm-border': isDark(colors.background) ? 'rgba(255,255,255,0.14)' : 'rgba(17,17,17,0.14)',
-    '--qm-text': isDark(colors.background) ? '#f5f5f0' : '#111111',
-    '--qm-text-muted': isDark(colors.background) ? 'rgba(245,245,240,0.68)' : 'rgba(17,17,17,0.62)',
-    '--qm-heading-font': `'${escapeCssString(fonts.heading || 'Inter')}', sans-serif`,
-    '--qm-body-font': `'${escapeCssString(fonts.body || 'Inter')}', sans-serif`,
-  };
-
-  return Object.entries(cssVariables).reduce((current, [key, value]) => (
-    current.replaceAll(`var(${key})`, value)
-  ), html);
 }
 
 async function personalizePageHtml(html: string, pageName: string, decision: SiteDecision, prompt: string): Promise<string> {

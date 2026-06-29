@@ -224,17 +224,108 @@ function pickFont(prompt: string) {
   return FONT_PAIRINGS.modern;
 }
 
+const PROMPT_COLOR_NAMES: Record<string, string> = {
+  'neon green': '#39ff14',
+  'neon pink': '#ff6ec7',
+  'neon blue': '#3b82ff',
+  'deep grey': '#171717',
+  'deep gray': '#171717',
+  charcoal: '#111111',
+  black: '#050505',
+  white: '#ffffff',
+  cream: '#fff7ed',
+  ivory: '#fffaf0',
+  gold: '#d4af37',
+  champagne: '#f7e7ce',
+  amber: '#f59e0b',
+  yellow: '#eab308',
+  green: '#22c55e',
+  emerald: '#10b981',
+  forest: '#14532d',
+  blue: '#2563eb',
+  navy: '#0f172a',
+  indigo: '#4f46e5',
+  purple: '#7c3aed',
+  violet: '#8b5cf6',
+  red: '#ef4444',
+  crimson: '#dc143c',
+  pink: '#ec4899',
+  orange: '#f97316',
+  teal: '#14b8a6',
+  cyan: '#06b6d4',
+  gray: '#6b7280',
+  grey: '#6b7280',
+  slate: '#475569',
+  beige: '#f5f5dc',
+  brown: '#92400e',
+  burgundy: '#800020',
+};
+
+function findNamedColor(value: string) {
+  const lower = value.toLowerCase();
+  const hex = lower.match(/#[0-9a-f]{3,8}/i)?.[0];
+  if (hex) return hex;
+  const name = Object.keys(PROMPT_COLOR_NAMES)
+    .sort((a, b) => b.length - a.length)
+    .find((item) => new RegExp(`\\b${item.replace(/\s+/g, '\\s+')}\\b`, 'i').test(lower));
+  return name ? PROMPT_COLOR_NAMES[name] : undefined;
+}
+
+function promptAllowsLightDarkSupport(prompt: string) {
+  return /\b(white\s*\/\s*dark|light\s*\/\s*dark|dark mode toggle|dark mode support|both light and dark|light and dark mode)\b/i.test(prompt);
+}
+
+function extractPromptPaletteColors(prompt: string) {
+  const colors: { primary?: string; accent?: string; bg?: string } = {};
+  const primary = prompt.match(/\bprimary\s*:\s*([^\n.;]+)/i)?.[1];
+  const accent = prompt.match(/\baccent\s*:\s*([^\n.;]+)/i)?.[1];
+  const background = prompt.match(/\b(?:background|bg)\s*:\s*([^\n.;]+)/i)?.[1];
+  const paletteLine = prompt.match(/\b(?:palette|colors?|colour palette)\s*:\s*([^\n]+)/i)?.[1] || '';
+
+  colors.primary = primary ? findNamedColor(primary) : undefined;
+  colors.accent = accent ? findNamedColor(accent) : undefined;
+  colors.bg = background ? findNamedColor(background) : undefined;
+
+  if (!colors.accent) {
+    const colorPhrase = prompt.match(/\b(neon green|neon pink|neon blue|gold|burgundy|crimson|emerald|purple|violet|orange|teal|cyan|red|blue|green|pink|amber)\b/i)?.[1];
+    colors.accent = colorPhrase ? findNamedColor(colorPhrase) : findNamedColor(paletteLine);
+  }
+
+  if (!colors.bg && /\b(black|dark|midnight|obsidian|noir|deep grey|deep gray)\b/i.test(prompt) && !promptAllowsLightDarkSupport(prompt)) {
+    colors.bg = findNamedColor(/\b(deep grey|deep gray)\b/i.test(prompt) ? 'deep grey' : 'black');
+  }
+
+  if (!colors.primary && paletteLine) {
+    colors.primary = findNamedColor(paletteLine);
+  }
+
+  return colors.primary || colors.accent || colors.bg ? colors : null;
+}
+
+function softenSurface(accent: string, dark: boolean) {
+  if (dark) return '#141414';
+  const lower = accent.toLowerCase();
+  if (lower === '#39ff14' || lower === '#22c55e' || lower === '#10b981') return '#f3fff0';
+  if (lower === '#d4af37' || lower === '#f59e0b' || lower === '#eab308') return '#fff9e8';
+  if (lower === '#ef4444' || lower === '#dc143c') return '#fff5f5';
+  if (lower === '#7c3aed' || lower === '#8b5cf6') return '#faf5ff';
+  if (lower === '#2563eb' || lower === '#3b82ff') return '#f0f6ff';
+  return '#f8f8f6';
+}
+
 export function pickPalette(prompt: string, userColors?: { primary?: string; accent?: string; bg?: string }): PaletteChoice {
   const p = prompt.toLowerCase();
-  const isDark = /dark|black|obsidian|midnight|noir|moody|shadow/.test(p);
+  const extractedColors = extractPromptPaletteColors(prompt);
+  const explicitColors = { ...(extractedColors || {}), ...(userColors || {}) };
+  const isDark = /dark|black|obsidian|midnight|noir|moody|shadow|deep grey|deep gray/.test(p) && !promptAllowsLightDarkSupport(prompt);
 
-  if (userColors?.accent || userColors?.primary || userColors?.bg) {
-    const accent = userColors.accent || userColors.primary || '#111111';
-    const bg = userColors.bg || (isDark ? '#0a0a0a' : '#ffffff');
+  if (explicitColors.accent || explicitColors.primary || explicitColors.bg) {
+    const accent = explicitColors.accent || explicitColors.primary || '#111111';
+    const bg = explicitColors.bg || (isDark ? '#0a0a0a' : '#ffffff');
     const dark = isColorDark(bg);
     const custom: ColorPalette = {
       bg,
-      surface: dark ? '#141414' : '#f8f8f6',
+      surface: softenSurface(accent, dark),
       text: dark ? '#f0f0f0' : '#111111',
       textMuted: dark ? '#888888' : '#666666',
       accent,
@@ -339,17 +430,25 @@ function normalizeColorClasses(className: string) {
     .replace(/\s(?:dark:)?bg-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\d+)?\b/g, ' bg-[var(--qm-bg)]')
     .replace(/\s(?:dark:)?text-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\d+)?\b/g, ' text-[var(--qm-text)]')
     .replace(/\s(?:dark:)?border-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\d+)?\b/g, ' border-[var(--qm-border)]')
+    .replace(/\s(?:dark:)?bg-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\[[^\]]+\])?\b/g, ' bg-[var(--qm-bg)]')
+    .replace(/\s(?:dark:)?text-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\[[^\]]+\])?\b/g, ' text-[var(--qm-text)]')
+    .replace(/\s(?:dark:)?border-\[#(?:[0-9a-fA-F]{3,8})\](?:\/\[[^\]]+\])?\b/g, ' border-[var(--qm-border)]')
     .replace(/\s(?:dark:)?bg-(?:white|black|zinc|neutral|slate|gray|stone)-(?:50|100|200|800|900|950)\b/g, ' bg-[var(--qm-bg)]')
-    .replace(/\s(?:dark:)?bg-(?:white|black)(?:\/\d+)?\b/g, ' bg-[var(--qm-bg)]')
+    .replace(/\s(?:dark:)?bg-(?:white|black|zinc|neutral|slate|gray|stone)(?:-(?:50|100|200|300|400|500|600|700|800|900|950))?(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' bg-[var(--qm-surface)]')
+    .replace(/\s(?:dark:)?from-(?:white|black|zinc|neutral|slate|gray|stone)(?:-(?:50|100|200|300|400|500|600|700|800|900|950))?(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' from-[var(--qm-bg)]')
+    .replace(/\s(?:dark:)?via-(?:white|black|zinc|neutral|slate|gray|stone)(?:-(?:50|100|200|300|400|500|600|700|800|900|950))?(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' via-[var(--qm-surface)]')
+    .replace(/\s(?:dark:)?to-(?:white|black|zinc|neutral|slate|gray|stone)(?:-(?:50|100|200|300|400|500|600|700|800|900|950))?(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' to-[var(--qm-bg)]')
     .replace(/\s(?:dark:)?text-(?:white|black|zinc|neutral|slate|gray|stone)-(?:50|100|200|800|900|950)\b/g, ' text-[var(--qm-text)]')
-    .replace(/\s(?:dark:)?text-(?:white|black)(?:\/\d+)?\b/g, ' text-[var(--qm-text)]')
-    .replace(/\stext-(?:zinc|neutral|slate|gray|stone)-(?:300|400|500|600|700)\b/g, ' text-[var(--qm-text-muted)]')
-    .replace(/\sdark:text-(?:zinc|neutral|slate|gray|stone)-(?:100|200|300|400|500)\b/g, ' text-[var(--qm-text-muted)]')
-    .replace(/\sborder-(?:zinc|neutral|slate|gray|stone|black|white)(?:-\d{2,3})?(?:\/\d+)?\b/g, ' border-[var(--qm-border)]')
-    .replace(/\stext-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}\b/g, ' text-[var(--qm-accent)]')
-    .replace(/\sdark:text-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}\b/g, ' text-[var(--qm-accent)]')
-    .replace(/\sbg-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}(?:\/\d+)?\b/g, ' bg-[var(--qm-accent)]')
+    .replace(/\s(?:dark:)?text-(?:white|black)(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' text-[var(--qm-text)]')
+    .replace(/\s(?:dark:)?text-(?:zinc|neutral|slate|gray|stone)-(?:300|400|500|600|700)(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' text-[var(--qm-text-muted)]')
+    .replace(/\s(?:dark:)?border-(?:zinc|neutral|slate|gray|stone|black|white)(?:-\d{2,3})?(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' border-[var(--qm-border)]')
+    .replace(/\s(?:dark:)?text-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' text-[var(--qm-accent)]')
+    .replace(/\s(?:dark:)?bg-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' bg-[var(--qm-accent)]')
+    .replace(/\s(?:dark:)?from-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' from-[var(--qm-accent)]')
+    .replace(/\s(?:dark:)?via-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' via-[var(--qm-surface)]')
+    .replace(/\s(?:dark:)?to-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}(?:\/(?:\d+|\[[^\]]+\]))?\b/g, ' to-[var(--qm-bg)]')
     .replace(/\sring-(?:indigo|emerald|rose|cyan|blue|purple|amber|orange|green|pink|red|yellow)-\d{3}\b/g, ' ring-[var(--qm-accent)]')
+    .replace(/\sprose-(?:neutral|zinc|slate|gray|stone|invert)\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
