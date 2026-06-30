@@ -25,6 +25,13 @@ type HistoryEntry = {
   createdAt: string;
 };
 
+type GenerateCapabilities = {
+  auth?: boolean;
+  commerce?: boolean;
+  cms?: boolean;
+  utilityPages?: boolean;
+};
+
 type GenerateResponse = {
   data?: {
     layers?: Layer[];
@@ -48,6 +55,7 @@ type GenerateResponse = {
       fromLibrary?: number;
       generated?: number;
     };
+    capabilities?: GenerateCapabilities;
   };
   error?: string;
   details?: string;
@@ -185,6 +193,29 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
     });
   };
 
+  const activateGeneratedSiteCapabilities = async (capabilities?: GenerateCapabilities) => {
+    if (!siteId || !capabilities || typeof capabilities !== 'object') return;
+
+    const caps = capabilities as NonNullable<GenerateResponse['data']>['capabilities'];
+    if (!caps?.auth) return;
+
+    const response = await fetch(`/api/qay/sites/${siteId}/auth`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        enabled: true,
+        allowSignup: true,
+        provider: 'qay',
+        socialLogin: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.error || 'AI built auth pages, but QAY could not enable site auth settings.');
+    }
+  };
+
   const generate = async () => {
     const trimmedPrompt = prompt.trim();
     if (!trimmedPrompt) {
@@ -205,7 +236,7 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
           prompt: trimmedPrompt,
           promptTemplateId: promptTemplateId || undefined,
           mode,
-          output: 'html',
+          output: mode === 'selected' ? 'layers' : 'html',
           selectedLayers: mode === 'selected' ? selectedLayers : [],
         }),
       });
@@ -257,11 +288,14 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
           throw new Error(importPayload?.error || 'AI generated pages, but QAY could not create them.');
         }
 
+        await activateGeneratedSiteCapabilities(body.data.capabilities);
         await loadPages();
-        setStatus(generatedPages.length === 1 ? 'Imported 1 AI-generated page.' : `Imported ${generatedPages.length} AI-generated pages.`);
-      setPrompt('');
-      setPromptTemplateId('');
-      setGenerationMeta(body.data);
+        setStatus(body.data.capabilities?.auth
+          ? `${generatedPages.length === 1 ? 'Imported 1 AI-generated page' : `Imported ${generatedPages.length} AI-generated pages`} and enabled site auth.`
+          : generatedPages.length === 1 ? 'Imported 1 AI-generated page.' : `Imported ${generatedPages.length} AI-generated pages.`);
+        setPrompt('');
+        setPromptTemplateId('');
+        setGenerationMeta(body.data);
         addHistory({
           prompt: trimmedPrompt,
           mode,
@@ -343,17 +377,6 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
           </button>
         </div>
 
-        <label className="block space-y-2">
-          <span className="text-xs font-medium text-muted-foreground">Prompt</span>
-          <textarea
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            rows={6}
-            placeholder={mode === 'selected' ? 'Make the selected hero more premium and conversion-focused...' : 'Create a clean SaaS homepage for project management...'}
-            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-0 transition placeholder:text-muted-foreground focus:border-foreground"
-          />
-        </label>
-
         <div className="rounded-lg border border-border bg-muted/30 p-3">
           <button
             type="button"
@@ -399,6 +422,14 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
                   </button>
                 );
               })}
+              <a
+                href="/prompts"
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-border px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+              >
+                View all prompt templates
+              </a>
               {promptTemplateId ? (
                 <button
                   type="button"
@@ -411,6 +442,17 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
             </div>
           ) : null}
         </div>
+
+        <label className="block space-y-2">
+          <span className="text-xs font-medium text-muted-foreground">Prompt</span>
+          <textarea
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            rows={6}
+            placeholder={mode === 'selected' ? 'Make the selected hero more premium and conversion-focused...' : 'Create a clean SaaS homepage for project management...'}
+            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none ring-0 transition placeholder:text-muted-foreground focus:border-foreground"
+          />
+        </label>
 
         {error ? (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">

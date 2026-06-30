@@ -22,6 +22,20 @@ type GenerateRequestBody = {
   promptTemplateId?: string;
 };
 
+function detectGenerationCapabilities(prompt: string) {
+  const p = prompt.toLowerCase();
+  const auth = /\b(auth|login|register|signup|signin|sign-in|sign-up|protect|protected|member|membership|portal|dashboard|account)\b/i.test(p);
+  const commerce = /\b(ecommerce|e-commerce|shop|store|cart|checkout|product|sell|commerce)\b/i.test(p);
+  const cms = /\b(cms|blog|article|articles|author|authors|category|categories|post|posts|directory|listing|listings|collection|collections)\b/i.test(p);
+
+  return {
+    auth,
+    commerce,
+    cms,
+    utilityPages: true,
+  };
+}
+
 function shouldUseContentPages(prompt: string, siteType?: string) {
   if (siteType === 'blog') return true;
   if (siteType === 'real-estate') return false;
@@ -149,6 +163,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as GenerateRequestBody;
     const rawPrompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
     const prompt = enhancePromptForQay(buildQayPromptFromTemplate(body.promptTemplateId || '', rawPrompt));
+    const capabilities = detectGenerationCapabilities(prompt);
 
     if (rawPrompt.length < 4 && !body.promptTemplateId) {
       return NextResponse.json({ error: 'Describe the design you want.' }, { status: 400 });
@@ -178,6 +193,7 @@ export async function POST(request: Request) {
               ...templateResult,
               html,
               palette: paletteChoice.paletteKey,
+              capabilities,
             },
           });
         }
@@ -201,6 +217,7 @@ export async function POST(request: Request) {
             navMode: decision.navMode,
             sectionPicks: decision.sectionPicks,
             stats,
+            capabilities,
             provider: 'hybrid-section-assembler',
             model: 'prompt-translator',
           },
@@ -217,8 +234,10 @@ export async function POST(request: Request) {
     if (body.output === 'html' && 'html' in result) {
       result.html = enforcePaletteOnHtml(sanitizeGeneratedHtmlPages(result.html, prompt), paletteChoice);
       (result as typeof result & { palette?: string }).palette = paletteChoice.paletteKey;
+      (result as typeof result & { capabilities?: ReturnType<typeof detectGenerationCapabilities> }).capabilities = capabilities;
       console.log('[QAY AI generate] Generated HTML:', result.html);
     } else if ('layers' in result) {
+      (result as typeof result & { capabilities?: ReturnType<typeof detectGenerationCapabilities> }).capabilities = capabilities;
       console.log('[QAY AI generate] Generated layer JSON:', JSON.stringify(result.layers, null, 2));
     }
 
