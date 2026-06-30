@@ -100,6 +100,9 @@ export async function detectSiteTypeWithAi(prompt: string): Promise<SiteType> {
     return 'ecommerce';
   }
   const localType = detectSiteTypeFast(prompt);
+  if (hasAuthoritativeSiteTypeSignal(p, localType)) {
+    return localType;
+  }
   try {
     const response = await callWithFallback(
       `User prompt: "${prompt}"\n\nChoose the single most appropriate SiteType from this list:\n${JSON.stringify(Object.keys(SECTION_ORDER))}\n\nReturn only the lowercase string matching one of the options. No explanation, no punctuation.`,
@@ -113,6 +116,21 @@ export async function detectSiteTypeWithAi(prompt: string): Promise<SiteType> {
     console.warn('[AI Classifier] Site classification failed, using fast local match:', err);
   }
   return localType;
+}
+
+function hasAuthoritativeSiteTypeSignal(prompt: string, siteType: SiteType) {
+  const strongSignals: Partial<Record<SiteType, RegExp>> = {
+    'real-estate': /\b(real estate|realty|realtor|property company|property agency|property developer|estate agency|homes?|apartments?|housing|mortgage|property listings?)\b/i,
+    ecommerce: /\b(ecommerce|e-commerce|online store|shop|shopping cart|checkout|product catalogue|product catalog)\b/i,
+    restaurant: /\b(restaurant|cafe|bistro|eatery|dining|menu|chef|cuisine)\b/i,
+    blog: /\b(blog|publication|magazine|newsletter|articles?|authors?|editorial)\b/i,
+    hotel: /\b(hotel|resort|lodge|rooms?|accommodation|hospitality)\b/i,
+    law: /\b(law firm|attorney|lawyer|legal|litigation|solicitor|barrister)\b/i,
+    medical: /\b(clinic|hospital|doctor|medical|dentist|health center|pharmacy)\b/i,
+    saas: /\b(saas|software|dashboard|platform|workflow|automation)\b/i,
+  };
+
+  return Boolean(strongSignals[siteType]?.test(prompt));
 }
 
 export async function translatePromptToDecision(
@@ -241,7 +259,7 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode'], prom
       ...authPages
     ];
   }
-  if (siteType === 'blog' || /\b(cms|article|articles|author|authors|category|categories|post|posts|publication|newsletter)\b/i.test(prompt || '')) {
+  if (siteType === 'blog' || (siteType !== 'real-estate' && /\b(cms|article|articles|author|authors|category|categories|post|posts|publication|newsletter|directory)\b/i.test(prompt || ''))) {
     return [
       { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'features', 'testimonials', 'cta', 'footer'] },
       { name: 'Blog', slug: 'blog', sectionSlots: ['navbar', 'features', 'cta', 'footer'] },

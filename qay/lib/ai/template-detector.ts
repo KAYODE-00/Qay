@@ -24,6 +24,7 @@ const SITE_SIGNALS: Record<string, string[]> = {
   beauty: ['salon', 'spa', 'barber', 'makeup', 'nail', 'lash', 'beauty', 'hair'],
   education: ['course', 'academy', 'school', 'bootcamp', 'training', 'tutor', 'learn', 'coaching'],
   event: ['event', 'wedding', 'conference', 'concert', 'rsvp', 'tickets', 'festival', 'ceremony'],
+  'real-estate': ['real estate', 'property', 'properties', 'listing', 'listings', 'homes', 'realty', 'realtor', 'apartment', 'housing', 'mortgage'],
   fitness: ['gym', 'fitness', 'yoga', 'crossfit', 'trainer', 'workout', 'sports club'],
   hotel: ['hotel', 'resort', 'lodge', 'accommodation', 'rooms', 'booking'],
   church: ['church', 'ministry', 'worship', 'congregation', 'gospel', 'mosque', 'temple'],
