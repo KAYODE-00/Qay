@@ -124,7 +124,6 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
   const [mode, setMode] = useState<AiMode>('selected');
   const [prompt, setPrompt] = useState('');
   const [promptTemplateId, setPromptTemplateId] = useState('');
-  const [isTemplateLibraryOpen, setIsTemplateLibraryOpen] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -146,6 +145,11 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       .map((id) => findLayerById(draft.layers, id))
       .filter((layer): layer is Layer => Boolean(layer));
   }, [draft, selectedIds]);
+
+  const selectedPromptTemplate = useMemo(
+    () => qayPromptTemplates.find((template) => template.id === promptTemplateId) || null,
+    [promptTemplateId]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -377,68 +381,49 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
           </button>
         </div>
 
-        <div className="rounded-lg border border-border bg-muted/30 p-3">
-          <button
-            type="button"
-            onClick={() => setIsTemplateLibraryOpen((current) => !current)}
-            className="flex w-full items-center justify-between gap-3 text-left"
+        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <label htmlFor="qay-prompt-template" className="block text-xs font-semibold text-foreground">
+                Prompt template
+              </label>
+              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                Helps QAY plan pages, sections, colors, routes, auth, CMS, and commerce.
+              </p>
+            </div>
+            <a
+              href="/prompts"
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+            >
+              Browse
+            </a>
+          </div>
+          <select
+            id="qay-prompt-template"
+            value={promptTemplateId}
+            onChange={(event) => {
+              const nextId = event.target.value;
+              const nextTemplate = qayPromptTemplates.find((template) => template.id === nextId);
+              setPromptTemplateId(nextId);
+              if (nextTemplate) {
+                setPrompt((current) => current.trim() || `Brand name: ${nextTemplate.exampleBusiness.split(',')[0]}\nColors: \nAudience: \nTone: \nExtra details: `);
+              }
+            }}
+            className="h-10 w-full rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground outline-none transition focus:border-foreground"
           >
-            <span>
-              <span className="block text-xs font-semibold text-foreground">Use QAY prompt template</span>
-              <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">
-                Templates help QAY choose the right pages, routes, sections, colors, copy, auth, CMS, and commerce hooks.
-              </span>
-            </span>
-            <Icon name={isTemplateLibraryOpen ? 'chevronUp' : 'chevronDown'} className="size-4 text-muted-foreground" />
-          </button>
-
-          {isTemplateLibraryOpen ? (
-            <div className="mt-3 grid gap-2">
-              {qayPromptTemplates.map((template) => {
-                const selected = promptTemplateId === template.id;
-                return (
-                  <button
-                    type="button"
-                    key={template.id}
-                    onClick={() => {
-                      setPromptTemplateId(template.id);
-                      setPrompt((current) => current.trim() || `Brand name: ${template.exampleBusiness.split(',')[0]}\nColors: \nAudience: \nTone: \nExtra details: `);
-                    }}
-                    className={`rounded-lg border px-3 py-2 text-left transition ${
-                      selected
-                        ? 'border-primary/50 bg-primary/10 text-foreground'
-                        : 'border-border bg-background hover:border-foreground/30'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold">{template.title}</p>
-                        <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{template.description}</p>
-                      </div>
-                      <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-                        {template.category}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-              <a
-                href="/prompts"
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-border px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
-              >
-                View all prompt templates
-              </a>
-              {promptTemplateId ? (
-                <button
-                  type="button"
-                  onClick={() => setPromptTemplateId('')}
-                  className="rounded-lg border border-border px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
-                >
-                  Clear template and use my prompt only
-                </button>
-              ) : null}
+            <option value="">No template - use my prompt only</option>
+            {qayPromptTemplates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.category} - {template.title}
+              </option>
+            ))}
+          </select>
+          {selectedPromptTemplate ? (
+            <div className="rounded-lg border border-border bg-background px-3 py-2 text-[11px] leading-4 text-muted-foreground">
+              <span className="font-semibold text-foreground">{selectedPromptTemplate.title}: </span>
+              {selectedPromptTemplate.description}
             </div>
           ) : null}
         </div>

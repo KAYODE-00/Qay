@@ -522,7 +522,7 @@ function ensureReadableDecisionColors(
 function shouldUseCmsPageSet(siteType: SiteType, prompt: string) {
   if (siteType === 'blog') return true;
   if (siteType === 'real-estate') return false;
-  return /\b(cms|article|articles|author|authors|category|categories|post|posts|publication|newsletter|directory)\b/i.test(prompt);
+  return /\b(cms|blog|article|articles|author|authors|post|posts|publication|newsletter|editorial|magazine|directory)\b/i.test(prompt);
 }
 
 function sanitizePagesForSiteType(

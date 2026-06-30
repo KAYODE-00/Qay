@@ -39,7 +39,7 @@ function detectGenerationCapabilities(prompt: string) {
 function shouldUseContentPages(prompt: string, siteType?: string) {
   if (siteType === 'blog') return true;
   if (siteType === 'real-estate') return false;
-  return /\b(cms|blog|article|articles|author|authors|category|categories|post|posts|publication|newsletter|directory)\b/i.test(prompt);
+  return /\b(cms|blog|article|articles|author|authors|post|posts|publication|newsletter|editorial|magazine|directory)\b/i.test(prompt);
 }
 
 function shouldKeepGeneratedPage(pageName: string, pageSlug: string, prompt: string, siteType?: string) {
@@ -183,25 +183,6 @@ export async function POST(request: Request) {
 
     if (body.output === 'html' && mode === 'page') {
       try {
-        const templateResult = await generateFromAiTemplate(prompt, body.variation);
-        if (templateResult) {
-          const sanitized = sanitizeGeneratedHtmlPages(templateResult.html, prompt, templateResult.siteType);
-          const html = enforcePaletteOnHtml(sanitized, paletteChoice);
-          console.log('[QAY AI generate] Generated template-modifier HTML:', html);
-          return NextResponse.json({
-            data: {
-              ...templateResult,
-              html,
-              palette: paletteChoice.paletteKey,
-              capabilities,
-            },
-          });
-        }
-      } catch (templateError) {
-        console.warn('[QAY AI generate] Template modifier unavailable, falling back:', templateError);
-      }
-
-      try {
         const decision = await translatePromptToDecision(prompt);
         const { html: rawHtml, pages, stats } = await assembleFromDecision(decision, prompt);
         const sanitized = sanitizeGeneratedHtmlPages(rawHtml, prompt, decision.siteType);
@@ -223,7 +204,26 @@ export async function POST(request: Request) {
           },
         });
       } catch (err) {
-        console.warn('[AI Generate] Falling back to free-form generation:', err);
+        console.warn('[AI Generate] Section planner failed, falling back to template/free-form generation:', err);
+      }
+
+      try {
+        const templateResult = await generateFromAiTemplate(prompt, body.variation);
+        if (templateResult) {
+          const sanitized = sanitizeGeneratedHtmlPages(templateResult.html, prompt, templateResult.siteType);
+          const html = enforcePaletteOnHtml(sanitized, paletteChoice);
+          console.log('[QAY AI generate] Generated template-modifier HTML:', html);
+          return NextResponse.json({
+            data: {
+              ...templateResult,
+              html,
+              palette: paletteChoice.paletteKey,
+              capabilities,
+            },
+          });
+        }
+      } catch (templateError) {
+        console.warn('[QAY AI generate] Template modifier unavailable, falling back:', templateError);
       }
     }
 
