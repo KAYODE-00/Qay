@@ -259,7 +259,7 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode'], prom
       ...authPages
     ];
   }
-  if (siteType === 'blog' || (siteType !== 'real-estate' && /\b(cms|article|articles|author|authors|category|categories|post|posts|publication|newsletter|directory)\b/i.test(prompt || ''))) {
+  if (siteType === 'blog' || shouldUseCmsPageSet(siteType, prompt || '')) {
     return [
       { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'features', 'testimonials', 'cta', 'footer'] },
       { name: 'Blog', slug: 'blog', sectionSlots: ['navbar', 'features', 'cta', 'footer'] },
@@ -447,14 +447,9 @@ function normalizeDecision(decision: Partial<SiteDecision>, prompt: string, site
     }
   }
 
-  const ecommerceOnlyPageSlugs = new Set(['shop', 'product', 'cart', 'checkout', 'collections']);
   const ecommerceOnlySlots = new Set(['productGrid', 'collectionsLanding', 'productDetail', 'cart', 'checkout']);
 
-  // Remove whole ecommerce pages from non-ecommerce prompts, then normalize each page.
-  pages = pages.filter((page) => {
-    const slug = String(page.slug || '').replace(/^\/+/, '').toLowerCase();
-    return siteType === 'ecommerce' || !ecommerceOnlyPageSlugs.has(slug);
-  });
+  pages = sanitizePagesForSiteType(pages, siteType, prompt, navMode, hasAuth);
 
   // Enforce navbar/footer present on all pages and strip sections that do not belong to this site type.
   pages = pages.map((page) => {
@@ -522,6 +517,59 @@ function ensureReadableDecisionColors(
     secondary: darkBg ? 'rgba(248,250,252,0.72)' : 'rgba(17,17,17,0.64)',
     isUserSupplied: Boolean(colors.isUserSupplied),
   };
+}
+
+function shouldUseCmsPageSet(siteType: SiteType, prompt: string) {
+  if (siteType === 'blog') return true;
+  if (siteType === 'real-estate') return false;
+  return /\b(cms|article|articles|author|authors|category|categories|post|posts|publication|newsletter|directory)\b/i.test(prompt);
+}
+
+function sanitizePagesForSiteType(
+  pages: SiteDecision['pages'],
+  siteType: SiteType,
+  prompt: string,
+  navMode: SiteDecision['navMode'],
+  hasAuth: boolean
+) {
+  const wantsContentPages = shouldUseCmsPageSet(siteType, prompt);
+  const explicitlyRequestedPolicy = /\b(privacy policy|terms of service|legal pages?|policy pages?)\b/i.test(prompt);
+  const utilitySlugs = new Set(['404', 'not-found', 'error-404']);
+  const contentSlugs = new Set(['blog', 'article', 'articles', 'categories', 'authors', 'author', 'posts', 'post']);
+  const policySlugs = new Set(['privacy', 'privacy-policy', 'terms', 'terms-of-service']);
+  const ecommerceOnlyPageSlugs = new Set(['shop', 'product', 'cart', 'checkout', 'collections']);
+
+  let filtered = pages.filter((page) => {
+    const slug = String(page.slug || '').replace(/^\/+/, '').toLowerCase();
+    const name = String(page.name || '').toLowerCase();
+
+    if (utilitySlugs.has(slug) || /\b404\b|not found/.test(name)) return false;
+    if (siteType !== 'ecommerce' && ecommerceOnlyPageSlugs.has(slug)) return false;
+    if (!wantsContentPages && (contentSlugs.has(slug) || /\b(blog|article|author|categories|posts)\b/.test(name))) return false;
+    if (!explicitlyRequestedPolicy && (policySlugs.has(slug) || /\b(privacy|terms)\b/.test(name))) return false;
+    return true;
+  });
+
+  if (!filtered.some((page) => String(page.slug || '') === '/')) {
+    filtered = [
+      { name: 'Homepage', slug: '/', sectionSlots: (SECTION_ORDER[siteType] || SECTION_ORDER.agency).map((slot) => slot === 'nav' ? 'navbar' : slot) },
+      ...filtered,
+    ];
+  }
+
+  const hasUsefulSupportingPage = filtered.some((page) => !['/', 'homepage', 'home'].includes(String(page.slug || '').toLowerCase()));
+  if (!hasUsefulSupportingPage && navMode === 'multi-page') {
+    const fallback = defaultPages(siteType, navMode, prompt).filter((page) => {
+      const slug = String(page.slug || '').replace(/^\/+/, '').toLowerCase();
+      if (!hasAuth && ['login', 'register', 'forgot-password', 'reset-password', 'dashboard'].includes(slug)) return false;
+      if (utilitySlugs.has(slug)) return false;
+      if (!explicitlyRequestedPolicy && policySlugs.has(slug)) return false;
+      return true;
+    });
+    filtered = fallback;
+  }
+
+  return filtered;
 }
 
 function safeColor(value: string | undefined, fallback: string) {

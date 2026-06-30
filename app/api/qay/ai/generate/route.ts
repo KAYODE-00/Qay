@@ -22,6 +22,70 @@ type GenerateRequestBody = {
   promptTemplateId?: string;
 };
 
+function shouldUseContentPages(prompt: string, siteType?: string) {
+  if (siteType === 'blog') return true;
+  if (siteType === 'real-estate') return false;
+  return /\b(cms|blog|article|articles|author|authors|category|categories|post|posts|publication|newsletter|directory)\b/i.test(prompt);
+}
+
+function shouldKeepGeneratedPage(pageName: string, pageSlug: string, prompt: string, siteType?: string) {
+  const slug = pageSlug.replace(/^\/+/, '').toLowerCase();
+  const name = pageName.toLowerCase();
+  const wantsContentPages = shouldUseContentPages(prompt, siteType);
+  const wantsPolicyPages = /\b(privacy policy|terms of service|legal pages?|policy pages?)\b/i.test(prompt);
+
+  if (['404', 'not-found', 'error-404'].includes(slug) || /\b404\b|not found/.test(name)) return false;
+  if (!wantsContentPages && (['blog', 'article', 'articles', 'categories', 'authors', 'author', 'posts', 'post'].includes(slug) || /\b(blog|article|author|categories|posts)\b/.test(name))) return false;
+  if (!wantsPolicyPages && (['privacy', 'privacy-policy', 'terms', 'terms-of-service'].includes(slug) || /\b(privacy|terms)\b/.test(name))) return false;
+  if (siteType !== 'ecommerce' && ['shop', 'product', 'cart', 'checkout', 'collections'].includes(slug)) return false;
+  return true;
+}
+
+function findPageWrapperEnd(html: string, startIndex: number) {
+  const tagRegex = /<\/?div\b[^>]*>/gi;
+  tagRegex.lastIndex = startIndex;
+  let depth = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = tagRegex.exec(html)) !== null) {
+    const tag = match[0];
+    if (tag.startsWith('</')) {
+      depth -= 1;
+      if (depth === 0) return tagRegex.lastIndex;
+    } else if (!tag.endsWith('/>')) {
+      depth += 1;
+    }
+  }
+
+  return -1;
+}
+
+function sanitizeGeneratedHtmlPages(html: string, prompt: string, siteType?: string) {
+  const wrapperRegex = /<div\b[^>]*data-qay-page=["']([^"']+)["'][^>]*data-qay-slug=["']([^"']*)["'][^>]*>/gi;
+  let result = '';
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  let removedAny = false;
+
+  while ((match = wrapperRegex.exec(html)) !== null) {
+    const start = match.index;
+    const end = findPageWrapperEnd(html, start);
+    if (end === -1) continue;
+
+    result += html.slice(cursor, start);
+    if (shouldKeepGeneratedPage(match[1], match[2], prompt, siteType)) {
+      result += html.slice(start, end);
+    } else {
+      removedAny = true;
+    }
+    cursor = end;
+    wrapperRegex.lastIndex = end;
+  }
+
+  if (!removedAny) return html;
+  return `${result}${html.slice(cursor)}`.trim();
+}
+
 function isAiQualityError(message: string) {
   const normalized = message.toLowerCase();
   return (
@@ -106,7 +170,8 @@ export async function POST(request: Request) {
       try {
         const templateResult = await generateFromAiTemplate(prompt, body.variation);
         if (templateResult) {
-          const html = enforcePaletteOnHtml(templateResult.html, paletteChoice);
+          const sanitized = sanitizeGeneratedHtmlPages(templateResult.html, prompt, templateResult.siteType);
+          const html = enforcePaletteOnHtml(sanitized, paletteChoice);
           console.log('[QAY AI generate] Generated template-modifier HTML:', html);
           return NextResponse.json({
             data: {
@@ -123,7 +188,8 @@ export async function POST(request: Request) {
       try {
         const decision = await translatePromptToDecision(prompt);
         const { html: rawHtml, pages, stats } = await assembleFromDecision(decision, prompt);
-        const html = enforcePaletteOnHtml(rawHtml, paletteChoice);
+        const sanitized = sanitizeGeneratedHtmlPages(rawHtml, prompt, decision.siteType);
+        const html = enforcePaletteOnHtml(sanitized, paletteChoice);
         console.log('[QAY AI generate] Generated section-library-v2 HTML:', html);
 
         return NextResponse.json({
@@ -149,7 +215,7 @@ export async function POST(request: Request) {
       : await generateQayAiLayers({ prompt, mode, selectedLayers });
 
     if (body.output === 'html' && 'html' in result) {
-      result.html = enforcePaletteOnHtml(result.html, paletteChoice);
+      result.html = enforcePaletteOnHtml(sanitizeGeneratedHtmlPages(result.html, prompt), paletteChoice);
       (result as typeof result & { palette?: string }).palette = paletteChoice.paletteKey;
       console.log('[QAY AI generate] Generated HTML:', result.html);
     } else if ('layers' in result) {
