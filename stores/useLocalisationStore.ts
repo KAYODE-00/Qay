@@ -107,6 +107,14 @@ const initialLoadingState: LoadingState = {
   deleteTranslation: false,
 };
 
+function shouldLoadTranslationsForLocale(
+  localeId: string | null,
+  defaultLocale: Locale | null,
+  translations: Record<string, Record<string, Translation>>
+) {
+  return Boolean(localeId && defaultLocale?.id !== localeId && !translations[localeId]);
+}
+
 export const useLocalisationStore = create<LocalisationStore>((set, get) => ({
   // Initial state
   locales: [],
@@ -126,6 +134,10 @@ export const useLocalisationStore = create<LocalisationStore>((set, get) => ({
     const newSelectedLocaleId = selectedLocaleId || (sortedLocales.length > 0 ? sortedLocales[0].id : null);
 
     set({ locales: sortedLocales, defaultLocale, selectedLocaleId: newSelectedLocaleId });
+
+    if (shouldLoadTranslationsForLocale(newSelectedLocaleId, defaultLocale, get().translations)) {
+      void get().loadTranslations(newSelectedLocaleId!);
+    }
   },
 
   // Load all locales
@@ -146,6 +158,10 @@ export const useLocalisationStore = create<LocalisationStore>((set, get) => ({
       const newSelectedLocaleId = selectedLocaleId || (locales.length > 0 ? locales[0].id : null);
 
       set({ locales, defaultLocale, selectedLocaleId: newSelectedLocaleId, isLoading: initialLoadingState });
+
+      if (shouldLoadTranslationsForLocale(newSelectedLocaleId, defaultLocale, get().translations)) {
+        void get().loadTranslations(newSelectedLocaleId!);
+      }
     } catch (error) {
       console.error('Failed to load locales:', error);
       set({ error: 'Failed to load locales', isLoading: initialLoadingState });
@@ -176,6 +192,10 @@ export const useLocalisationStore = create<LocalisationStore>((set, get) => ({
         selectedLocaleId: newSelectedLocaleId,
         isLoading: initialLoadingState,
       });
+
+      if (shouldLoadTranslationsForLocale(newSelectedLocaleId, defaultLocale, get().translations)) {
+        void get().loadTranslations(newSelectedLocaleId!);
+      }
 
       return locale;
     } catch (error) {
@@ -284,6 +304,10 @@ export const useLocalisationStore = create<LocalisationStore>((set, get) => ({
   // Set selected locale
   setSelectedLocaleId: (id) => {
     set({ selectedLocaleId: id });
+
+    if (shouldLoadTranslationsForLocale(id, get().defaultLocale, get().translations)) {
+      void get().loadTranslations(id!);
+    }
   },
 
   // Get selected locale
