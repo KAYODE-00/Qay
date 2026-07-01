@@ -14,6 +14,7 @@ import { PlanRestrictionDialog } from '@/qay/components/billing/PlanRestrictionD
 import { htmlToPageImports } from '@/lib/html-layer-converter';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { qayPromptTemplates } from '@/qay/lib/ai/prompt-library';
 
 type DashboardProps = {
   initialSites: QaySite[];
@@ -96,6 +97,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
   const [creationMode, setCreationMode] = useState<'blank' | 'ai'>('blank');
   const [siteName, setSiteName] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
+  const [promptTemplateId, setPromptTemplateId] = useState('');
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isImportNameOpen, setIsImportNameOpen] = useState(false);
   const [importSiteName, setImportSiteName] = useState('');
@@ -221,7 +223,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
         const aiResponse = await fetch('/api/qay/ai/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, mode: 'page', output: 'html' }),
+          body: JSON.stringify({ prompt, promptTemplateId: promptTemplateId || undefined, mode: 'page', output: 'html' }),
         });
         const aiPayload = await aiResponse.json();
         const generatedPages = aiPayload.data?.html
@@ -689,17 +691,44 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
               </label>
 
               {creationMode === 'ai' && (
-                <label className="block space-y-2 text-sm text-muted-foreground">
-                  <span>What should we build?</span>
-                  <textarea
-                    value={aiPrompt}
-                    onChange={(event) => setAiPrompt(event.target.value)}
-                    required={creationMode === 'ai'}
-                    rows={5}
-                    placeholder="A premium landing page for a fitness coach with booking, testimonials, pricing, and a bold hero..."
-                    className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-foreground outline-none transition focus:border-ring"
-                  />
-                </label>
+                <div className="space-y-3">
+                  <label className="block space-y-2 text-sm text-muted-foreground">
+                    <span>Prompt template</span>
+                    <select
+                      value={promptTemplateId}
+                      onChange={(event) => {
+                        const nextId = event.target.value;
+                        const nextTemplate = qayPromptTemplates.find((template) => template.id === nextId);
+                        setPromptTemplateId(nextId);
+                        if (nextTemplate) {
+                          setAiPrompt((current) => current.trim() || `Brand name: ${nextTemplate.exampleBusiness.split(',')[0]}\nColors: \nAudience: \nTone: \nExtra details: `);
+                        }
+                      }}
+                      className="h-11 w-full rounded-md border border-input bg-background px-3 text-foreground outline-none transition focus:border-ring"
+                    >
+                      <option value="">No template - use my prompt only</option>
+                      {qayPromptTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.category} - {template.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block space-y-2 text-sm text-muted-foreground">
+                    <span>What should we build?</span>
+                    <textarea
+                      value={aiPrompt}
+                      onChange={(event) => setAiPrompt(event.target.value)}
+                      required={creationMode === 'ai'}
+                      rows={5}
+                      placeholder="A luxurious school site for Chistapillar with blue backgrounds, yellow accents, admissions, programs, faculty, and contact pages..."
+                      className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-foreground outline-none transition focus:border-ring"
+                    />
+                  </label>
+                  <a href="/prompts" target="_blank" rel="noreferrer" className="inline-flex text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground">
+                    Browse QAY prompt templates
+                  </a>
+                </div>
               )}
 
               <p className="text-sm text-muted-foreground">

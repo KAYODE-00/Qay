@@ -618,7 +618,7 @@ export default function FileManagerDialog({
   // Stock image library state
   const [stockImages, setStockImages] = useState<StockImage[]>([]);
   const [stockProvider, setStockProvider] = useState<StockProvider>('all');
-  const [stockProviders, setStockProviders] = useState<{ unsplash: boolean; istock: boolean }>({ unsplash: false, istock: false });
+  const [stockProviders, setStockProviders] = useState<{ unsplash: boolean; istock: boolean }>({ unsplash: true, istock: false });
   const [isLoadingStockImages, setIsLoadingStockImages] = useState(false);
   const [importingStockImageId, setImportingStockImageId] = useState<string | null>(null);
 
@@ -814,6 +814,7 @@ export default function FileManagerDialog({
       console.error('Failed to search stock images:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to search stock images');
       setStockImages([]);
+      setStockProviders({ unsplash: true, istock: false });
     } finally {
       setIsLoadingStockImages(false);
     }

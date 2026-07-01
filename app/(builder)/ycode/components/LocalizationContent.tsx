@@ -502,6 +502,7 @@ export default function LocalizationContent({ children }: LocalizationContentPro
                     className="hidden group-hover:flex"
                     onClick={(e) => {
                       e.stopPropagation();
+                      e.currentTarget.blur();
                       handleOpenEditDialog(locale);
                     }}
                   >

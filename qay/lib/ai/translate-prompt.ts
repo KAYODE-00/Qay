@@ -124,6 +124,7 @@ function hasAuthoritativeSiteTypeSignal(prompt: string, siteType: SiteType) {
     ecommerce: /\b(ecommerce|e-commerce|online store|shop|shopping cart|checkout|product catalogue|product catalog)\b/i,
     restaurant: /\b(restaurant|cafe|bistro|eatery|dining|menu|chef|cuisine)\b/i,
     blog: /\b(blog|publication|magazine|newsletter|articles?|authors?|editorial)\b/i,
+    education: /\b(school|academy|university|college|course|courses|learning|education|training|tutor|students?|admissions?|curriculum|campus)\b/i,
     hotel: /\b(hotel|resort|lodge|rooms?|accommodation|hospitality)\b/i,
     law: /\b(law firm|attorney|lawyer|legal|litigation|solicitor|barrister)\b/i,
     medical: /\b(clinic|hospital|doctor|medical|dentist|health center|pharmacy)\b/i,
@@ -198,7 +199,7 @@ function extractBrandName(prompt: string, siteType: SiteType) {
   const quoted = prompt.match(/["“”']([^"“”']{2,80})["“”']/)?.[1];
   if (quoted) return quoted.trim();
 
-  const called = prompt.match(/\b(?:called|named|brand called|brand named|for)\s+([A-Z][A-Za-z0-9&'. -]{2,60})/)?.[1];
+  const called = prompt.match(/\b(?:called|named|brand called|brand named|for)\s+([A-Za-z][A-Za-z0-9&'. -]{1,60})/i)?.[1];
   if (called) return called.replace(/\b(that|which|with|and)\b.*$/i, '').trim();
 
   if (siteType === 'ecommerce') {
@@ -255,6 +256,26 @@ function defaultPages(siteType: SiteType, navMode: SiteDecision['navMode'], prom
       { name: 'Cart', slug: 'cart', sectionSlots: ['navbar', 'cart', 'footer'] },
       { name: 'Checkout', slug: 'checkout', sectionSlots: ['navbar', 'checkout', 'footer'] },
       { name: 'About', slug: 'about', sectionSlots: ['navbar', 'about', 'footer'] },
+      { name: 'Contact', slug: 'contact', sectionSlots: ['navbar', 'contact', 'footer'] },
+      ...authPages
+    ];
+  }
+  if (siteType === 'education') {
+    return [
+      { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'features', 'team', 'testimonials', 'faq', 'cta', 'footer'] },
+      { name: 'Programs', slug: 'programs', sectionSlots: ['navbar', 'features', 'pricing', 'faq', 'footer'] },
+      { name: 'Admissions', slug: 'admissions', sectionSlots: ['navbar', 'features', 'cta', 'faq', 'footer'] },
+      { name: 'About', slug: 'about', sectionSlots: ['navbar', 'about', 'team', 'footer'] },
+      { name: 'Contact', slug: 'contact', sectionSlots: ['navbar', 'contact', 'footer'] },
+      ...authPages
+    ];
+  }
+  if (siteType === 'real-estate') {
+    return [
+      { name: 'Homepage', slug: '/', sectionSlots: ['navbar', 'hero', 'features', 'gallery', 'team', 'testimonials', 'contact', 'footer'] },
+      { name: 'Listings', slug: 'listings', sectionSlots: ['navbar', 'features', 'gallery', 'contact', 'footer'] },
+      { name: 'Agents', slug: 'agents', sectionSlots: ['navbar', 'team', 'testimonials', 'footer'] },
+      { name: 'About', slug: 'about', sectionSlots: ['navbar', 'about', 'stats', 'footer'] },
       { name: 'Contact', slug: 'contact', sectionSlots: ['navbar', 'contact', 'footer'] },
       ...authPages
     ];
@@ -317,8 +338,28 @@ export function extractUserColors(prompt: string): Partial<SiteDecision['brand']
   };
 
   const lower = prompt.toLowerCase();
+  const orderedMentions: Array<{ name: string; hex: string; index: number }> = [];
   for (const [name, hex] of Object.entries(colorMap)) {
-    if (lower.includes(name)) {
+    const regex = new RegExp(`\\b${name.replace(/\s+/g, '\\s+')}\\b`, 'gi');
+    for (const match of lower.matchAll(regex)) {
+      orderedMentions.push({ name, hex, index: match.index || 0 });
+    }
+  }
+  orderedMentions.sort((a, b) => a.index - b.index);
+
+  const backgroundIntent = lower.match(/\b([a-z ]{3,24})\s+(?:for|as)\s+(?:the\s+)?(?:background|bg)\b/i)
+    || lower.match(/\b(?:background|bg)\s+(?:should\s+be|is|as|with|use)?\s*([a-z ]{3,24})\b/i);
+  if (backgroundIntent) {
+    const target = backgroundIntent[1].trim();
+    const bgMention = orderedMentions.find((mention) => target.includes(mention.name) || mention.name.includes(target));
+    if (bgMention) {
+      found = true;
+      colors.background = bgMention.hex;
+    }
+  }
+
+  for (const { name, hex } of orderedMentions) {
+    if (hex) {
       found = true;
       // Treat as accent color primarily; "dark mode/theme" sets background
       if (name === 'dark mode' || name === 'dark theme') {
@@ -329,6 +370,9 @@ export function extractUserColors(prompt: string): Partial<SiteDecision['brand']
       } else if (name === 'white' && /\b(background|bg)\b/i.test(lower)) {
         colors.background = hex;
       } else {
+        if (colors.background?.toLowerCase() === hex.toLowerCase()) {
+          continue;
+        }
         if (!colors.accent) colors.accent = hex;
         else if (!colors.primary) colors.primary = hex;
       }
@@ -336,10 +380,11 @@ export function extractUserColors(prompt: string): Partial<SiteDecision['brand']
   }
 
   if (found) {
-    if (colors.accent && !colors.primary) {
-      colors.primary = colors.accent;
-    } else if (colors.primary && !colors.accent) {
+    if (colors.primary && !colors.accent && colors.primary.toLowerCase() !== colors.background?.toLowerCase()) {
       colors.accent = colors.primary;
+    }
+    if (colors.background) {
+      colors.primary = isDark(colors.background) ? '#ffffff' : '#111111';
     }
   }
 

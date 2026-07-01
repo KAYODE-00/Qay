@@ -304,6 +304,22 @@ function extractPromptPaletteColors(prompt: string) {
   colors.accent = accent ? findNamedColor(accent) : undefined;
   colors.bg = background ? findNamedColor(background) : undefined;
 
+  if (!colors.bg) {
+    const lower = prompt.toLowerCase();
+    const backgroundIntent = lower.match(/\b([a-z ]{3,24})\s+(?:for|as)\s+(?:the\s+)?(?:background|bg)\b/i)
+      || lower.match(/\b(?:background|bg)\s+(?:should\s+be|is|as|with|use)?\s*([a-z ]{3,24})\b/i);
+    const target = backgroundIntent?.[1]?.trim();
+    if (target) {
+      const bgMention = mentions.find((mention) => {
+        const colorName = Object.entries(PROMPT_COLOR_NAMES).find(([, value]) => value.toLowerCase() === mention.color.toLowerCase())?.[0] || '';
+        return target.includes(colorName) || colorName.includes(target);
+      });
+      if (bgMention) {
+        colors.bg = bgMention.color;
+      }
+    }
+  }
+
   if (!colors.bg && mentions.length >= 2) {
     const darkMention = mentions.find((item) => isColorDark(item.color));
     if (darkMention && !promptAllowsLightDarkSupport(prompt)) {
@@ -316,6 +332,10 @@ function extractPromptPaletteColors(prompt: string) {
     colors.accent = colorPhrase
       ? findNamedColor(colorPhrase)
       : mentions.find((item) => item.color.toLowerCase() !== colors.bg?.toLowerCase())?.color || findNamedColor(paletteLine);
+  }
+
+  if (colors.bg && colors.accent?.toLowerCase() === colors.bg.toLowerCase()) {
+    colors.accent = mentions.find((item) => item.color.toLowerCase() !== colors.bg?.toLowerCase())?.color || colors.primary;
   }
 
   if (!colors.bg && /\b(black|dark|midnight|obsidian|noir|deep grey|deep gray)\b/i.test(prompt) && !promptAllowsLightDarkSupport(prompt)) {
