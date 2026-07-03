@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { getKnexClient } from '@/lib/knex-client';
 
 export const runtime = 'nodejs';
 
@@ -9,15 +9,14 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const admin = getQayAdmin() as any;
-  const { data: template, error } = await admin
-    .from('qay_ai_templates')
-    .select('html, label, is_active')
-    .eq('id', id)
-    .eq('is_active', true)
-    .single();
+  const knex = await getKnexClient();
+  const template = await knex('qay_ai_templates')
+    .select('html', 'label', 'is_active')
+    .where('id', id)
+    .where('is_active', true)
+    .first();
 
-  if (error || !template?.html) {
+  if (!template?.html) {
     return new NextResponse('Template not found', { status: 404 });
   }
 

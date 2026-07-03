@@ -3,7 +3,7 @@ import Link from 'next/link';
 import type { Template } from '@/lib/services/templateService';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { listPublicUserTemplates } from '@/qay/lib/user-templates';
-import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { getKnexClient } from '@/lib/knex-client';
 import { PublicTemplatesList } from './PublicTemplatesList';
 
 export const dynamic = 'force-dynamic';
@@ -22,16 +22,15 @@ type PublicTemplate = Template & {
 // Fetch AI builder templates from qay_ai_templates
 async function getAiTemplates(): Promise<PublicTemplate[]> {
   try {
-    const admin = getQayAdmin() as any;
-    const { data, error } = await admin
-      .from('qay_ai_templates')
-      .select('id, label, industry, color_mood, tags, features')
-      .eq('is_active', true)
-      .eq('is_approved', true)
-      .order('rank', { ascending: false })
+    const knex = await getKnexClient();
+    const data = await knex('qay_ai_templates')
+      .select('id', 'label', 'industry', 'color_mood', 'tags', 'features')
+      .where('is_active', true)
+      .where('is_approved', true)
+      .orderBy('rank', 'desc')
       .limit(24);
 
-    if (error || !Array.isArray(data)) return [];
+    if (!Array.isArray(data)) return [];
 
     return data.map((t: any) => {
       const industryLabel = (t.industry as string)
@@ -63,7 +62,8 @@ async function getAiTemplates(): Promise<PublicTemplate[]> {
         source: 'QAY AI',
       } satisfies PublicTemplate;
     });
-  } catch {
+  } catch (error) {
+    console.error('[getAiTemplates] Failed to fetch templates:', error);
     return [];
   }
 }

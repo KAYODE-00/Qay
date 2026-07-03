@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { Layer } from '@/types';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
+import { getKnexClient } from '@/lib/knex-client';
 import { generateQayAiHtml, generateQayAiLayers, type AiBuilderMode } from '@/qay/lib/ai/builder';
 import { AiProviderFailureError, AiProviderLimitsError } from '@/qay/lib/ai/providers';
 import { buildPalettePrompt, enforcePaletteOnHtml, pickPalette } from '@/qay/lib/ai/pick-palette';
@@ -492,18 +493,20 @@ function appendMissingCapabilityPageList(pages: unknown, capabilities: Generatio
 async function generateFromAiTemplate(prompt: string, variation?: number, capabilities?: GenerationCapabilities) {
   const decision = detectTemplateChoice(prompt, variation);
   const requestedCapabilities = capabilities || detectGenerationCapabilities(prompt);
-  const admin = getQayAdmin() as any;
-  const { data, error } = await admin
-    .from('qay_ai_templates')
-    .select('id, site_type, theme, label, html, pages, rank, industry, color_mood, tags, features, zones, pages_meta, cms_hints')
-    .eq('is_active', true)
-    .eq('is_approved', true)
-    .or(`site_type.eq.${decision.siteType},industry.eq.${decision.siteType}`)
-    .order('rank', { ascending: false })
-    .limit(12);
-
-  if (error) {
-    console.warn('[QAY AI generate] Template lookup failed, falling back:', error.message || error);
+  let data: any[] = [];
+  try {
+    const knex = await getKnexClient();
+    data = await knex('qay_ai_templates')
+      .select('id', 'site_type', 'theme', 'label', 'html', 'pages', 'rank', 'industry', 'color_mood', 'tags', 'features', 'zones', 'pages_meta', 'cms_hints')
+      .where('is_active', true)
+      .where('is_approved', true)
+      .andWhere(function() {
+        this.where('site_type', decision.siteType).orWhere('industry', decision.siteType);
+      })
+      .orderBy('rank', 'desc')
+      .limit(12);
+  } catch (err) {
+    console.warn('[QAY AI generate] Template lookup failed:', err);
     return null;
   }
 
@@ -593,10 +596,33 @@ export async function POST(request: Request) {
             },
           });
         }
+        throw new Error('No matching template found for your prompt. Try including tags like "streetwear shop", "gym", "restaurant", "saas", "law firm", "creative agency", or "beauty studio".');
       } catch (templateError) {
-        console.warn('[QAY AI generate] Template modifier unavailable, falling back:', templateError);
+        console.error('[QAY AI generate] Template builder error:', templateError);
+        return NextResponse.json({
+          error: templateError instanceof Error ? templateError.message : 'We could not generate this template-based design.'
+        }, { status: 422 });
       }
     }
+
+    // SECTION ASSEMBLER COMMENTS (NOT DELETED, JUST HIDDEN AWAY FOR PAGE GENERATION FALLBACK)
+    /*
+    const result = body.output === 'html'
+      ? await generateQayAiHtml({ prompt: enhancedPrompt, mode, selectedLayers })
+      : await generateQayAiLayers({ prompt, mode, selectedLayers });
+
+    if (body.output === 'html' && 'html' in result) {
+      result.html = enforcePaletteOnHtml(sanitizeGeneratedHtmlPages(result.html, prompt), paletteChoice);
+      (result as typeof result & { palette?: string }).palette = paletteChoice.paletteKey;
+      (result as typeof result & { capabilities?: ReturnType<typeof detectGenerationCapabilities> }).capabilities = capabilities;
+      console.log('[QAY AI generate] Generated HTML:', result.html);
+    } else if ('layers' in result) {
+      (result as typeof result & { capabilities?: ReturnType<typeof detectGenerationCapabilities> }).capabilities = capabilities;
+      console.log('[QAY AI generate] Generated layer JSON:', JSON.stringify(result.layers, null, 2));
+    }
+
+    return NextResponse.json({ data: result });
+    */
 
     const result = body.output === 'html'
       ? await generateQayAiHtml({ prompt: enhancedPrompt, mode, selectedLayers })
