@@ -14,7 +14,7 @@ type PreviewFramePageProps = {
 
 function PreviewFrameMessage({ title, message }: { title: string; message: string }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
+    <main className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
       <section className="max-w-sm text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/45">QAY Preview</p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">{title}</h1>

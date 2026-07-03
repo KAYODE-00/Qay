@@ -88,18 +88,83 @@ async function createMirrorSite(input: {
 async function publishMirrorSite(siteId: string) {
   const supabase = getQayAdmin() as any;
   const siteSettings = { qay_site_id: siteId };
+  const now = new Date().toISOString();
 
-  await supabase
+  // 1. Fetch all draft pages for this site
+  const { data: draftPages } = await supabase
     .from('pages')
-    .update({ is_published: true, updated_at: new Date().toISOString() })
+    .select('*')
     .contains('settings', siteSettings)
-    .eq('is_published', false);
+    .eq('is_published', false)
+    .is('deleted_at', null);
 
+  // 2. Fetch all draft page_folders for this site
+  const { data: draftFolders } = await supabase
+    .from('page_folders')
+    .select('*')
+    .contains('settings', siteSettings)
+    .eq('is_published', false)
+    .is('deleted_at', null);
+
+  // 3. Publish folders first (pages may reference them)
+  if (draftFolders && draftFolders.length > 0) {
+    const publishedFolders = draftFolders.map((folder: any) => ({
+      ...folder,
+      is_published: true,
+      updated_at: now,
+    }));
+    for (const f of publishedFolders) {
+      delete f.created_at;
+    }
+    await supabase
+      .from('page_folders')
+      .upsert(publishedFolders, { onConflict: 'id,is_published' });
+  }
+
+  // 4. Publish pages (create published copies via upsert)
+  if (draftPages && draftPages.length > 0) {
+    const publishedPages = draftPages.map((page: any) => ({
+      ...page,
+      is_published: true,
+      updated_at: now,
+    }));
+    for (const p of publishedPages) {
+      delete p.created_at;
+    }
+    await supabase
+      .from('pages')
+      .upsert(publishedPages, { onConflict: 'id,is_published' });
+
+    // 5. Publish page_layers for each page
+    const pageIds = draftPages.map((p: any) => p.id);
+    const { data: draftLayers } = await supabase
+      .from('page_layers')
+      .select('*')
+      .in('page_id', pageIds)
+      .eq('is_published', false)
+      .is('deleted_at', null);
+
+    if (draftLayers && draftLayers.length > 0) {
+      const publishedLayers = draftLayers.map((layer: any) => ({
+        ...layer,
+        is_published: true,
+        updated_at: now,
+      }));
+      for (const l of publishedLayers) {
+        delete l.created_at;
+      }
+      await supabase
+        .from('page_layers')
+        .upsert(publishedLayers, { onConflict: 'id,is_published' });
+    }
+  }
+
+  // 6. Update site publish status
   const { data: site, error } = await supabase
     .from('qay_sites')
     .update({
       publish_status: 'published',
-      updated_at: new Date().toISOString(),
+      updated_at: now,
     })
     .eq('id', siteId)
     .select('id, slug, custom_domain, domain_verified, publish_status, live_url')
@@ -116,7 +181,7 @@ async function publishMirrorSite(siteId: string) {
   if (liveUrl && liveUrl !== site.live_url) {
     await supabase
       .from('qay_sites')
-      .update({ live_url: liveUrl, updated_at: new Date().toISOString() })
+      .update({ live_url: liveUrl, updated_at: now })
       .eq('id', siteId);
   }
 

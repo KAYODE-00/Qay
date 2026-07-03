@@ -2,14 +2,12 @@ import { NextResponse } from 'next/server';
 import type { Layer } from '@/types';
 import { getQayAuthUser } from '@/qay/lib/auth-guard';
 import { getQayAdmin } from '@/qay/lib/supabase-admin';
-import { assembleFromDecision } from '@/qay/lib/ai/assemble-from-decision';
 import { generateQayAiHtml, generateQayAiLayers, type AiBuilderMode } from '@/qay/lib/ai/builder';
 import { AiProviderFailureError, AiProviderLimitsError } from '@/qay/lib/ai/providers';
 import { buildPalettePrompt, enforcePaletteOnHtml, pickPalette } from '@/qay/lib/ai/pick-palette';
 import { buildQayPromptFromTemplate, enhancePromptForQay } from '@/qay/lib/ai/prompt-library';
 import { detectTemplateChoice } from '@/qay/lib/ai/template-detector';
 import { modifyTemplate } from '@/qay/lib/ai/template-modifier';
-import { translatePromptToDecision } from '@/qay/lib/ai/translate-prompt';
 
 export const runtime = 'nodejs';
 
@@ -189,6 +187,10 @@ function templateHasAuth(html: string) {
   return /data-qay-site-auth-form=|data-qay-site-auth=|login|sign\s*up|signup|account/i.test(html);
 }
 
+function templateHasAuthHooks(html: string) {
+  return /data-qay-site-auth-form=|data-qay-site-auth=/i.test(html);
+}
+
 function templateHasCms(html: string) {
   return /data-qay-cms|data-qay-collection|blog|article|author|category|post|listing/i.test(html);
 }
@@ -281,9 +283,148 @@ function authPagesHtml(decision: ReturnType<typeof detectTemplateChoice>) {
 </div>`;
 }
 
-function appendMissingCapabilityPages(html: string, capabilities: GenerationCapabilities, decision: ReturnType<typeof detectTemplateChoice>) {
+function htmlHasPageSlug(html: string, slug: string) {
+  const normalized = slug.replace(/^\/+/, '').toLowerCase() || '/';
+  const escaped = normalized === '/' ? '\\/' : normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`data-qay-slug=["']${escaped}["']`, 'i').test(html);
+}
+
+function titleFromSlug(slug: string) {
+  const clean = slug.replace(/^\/+/, '').replace(/-/g, ' ') || 'Home';
+  return clean.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function pageShell(slug: string, title: string, body: string, decision: ReturnType<typeof detectTemplateChoice>) {
+  const brand = decision.businessName || 'QAY Site';
+  return `
+<div data-qay-page="${title}" data-qay-slug="${slug}">
+  <main class="min-h-screen bg-[var(--qm-bg)] text-[var(--qm-text)]">
+    <nav class="sticky top-0 z-40 flex items-center justify-between border-b border-[var(--qm-border)] bg-[var(--qm-bg)]/90 px-6 py-4 backdrop-blur md:px-10" data-qay-animate="fade-in">
+      <a href="/" class="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--qm-text)]" data-qm="brand-name">${brand}</a>
+      <div class="hidden items-center gap-7 text-sm text-[var(--qm-text-muted)] md:flex">
+        <a href="/" class="hover:text-[var(--qm-text)]">Home</a>
+        <a href="/about" class="hover:text-[var(--qm-text)]">About</a>
+        <a href="/contact" class="hover:text-[var(--qm-text)]">Contact</a>
+      </div>
+      <button type="button" class="md:hidden" data-qay-click="toggle" data-qay-target="#${slug || 'home'}-menu" data-qay-class="hidden">Menu</button>
+    </nav>
+    <div id="${slug || 'home'}-menu" class="hidden border-b border-[var(--qm-border)] bg-[var(--qm-surface)] px-6 py-5 md:hidden">
+      <a href="/" class="block py-2 text-[var(--qm-text)]">Home</a>
+      <a href="/about" class="block py-2 text-[var(--qm-text)]">About</a>
+      <a href="/contact" class="block py-2 text-[var(--qm-text)]">Contact</a>
+    </div>
+    ${body}
+    <footer class="border-t border-[var(--qm-border)] px-6 py-10 text-sm text-[var(--qm-text-muted)] md:px-10">
+      <div class="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+        <p data-qm="footer-brand">${brand}</p>
+        <div class="flex gap-5">
+          <a href="/about" class="hover:text-[var(--qm-text)]">About</a>
+          <a href="/contact" class="hover:text-[var(--qm-text)]">Contact</a>
+          <a href="/" class="hover:text-[var(--qm-text)]">Home</a>
+        </div>
+      </div>
+    </footer>
+  </main>
+</div>`;
+}
+
+function builtPageBody(slug: string, title: string, decision: ReturnType<typeof detectTemplateChoice>) {
+  const brand = decision.businessName || 'this brand';
+  if (slug === 'shop' || slug === 'products' || slug === 'collection' || slug === 'collections') {
+    return `
+    <section class="px-6 py-16 md:px-10" data-qay-animate="slide-up">
+      <p class="text-sm uppercase tracking-[0.22em] text-[var(--qm-accent)]" data-qm="shop-eyebrow">Curated collection</p>
+      <h1 class="mt-4 max-w-3xl text-5xl font-semibold tracking-tight md:text-7xl" data-qm="shop-title">${brand} Shop</h1>
+      <p class="mt-5 max-w-2xl text-lg leading-8 text-[var(--qm-text-muted)]" data-qm="shop-subtitle">Browse signature products selected for quality, clarity, and everyday use.</p>
+      <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" data-qay-commerce="product-grid" data-qay-animate="stagger-children">
+        ${[1, 2, 3].map((item) => `
+        <article class="overflow-hidden rounded-2xl border border-[var(--qm-border)] bg-[var(--qm-surface)]" data-qay-commerce="product-card" data-qay-product-id="template-product-${item}" data-qay-product-handle="template-product-${item}">
+          <div class="aspect-[4/5] overflow-hidden" data-qay-commerce="product-image" data-qay-hover="img-zoom">
+            <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=900&q=85&auto=format&fit=crop" alt="Featured product ${item}" class="h-full w-full object-cover" data-qm="shop-product-image-${item}" />
+          </div>
+          <div class="space-y-3 p-5">
+            <h2 class="text-xl font-semibold" data-qay-commerce="product-title" data-qm="shop-product-title-${item}">Signature Product ${item}</h2>
+            <p class="text-sm leading-6 text-[var(--qm-text-muted)]" data-qay-commerce="product-description" data-qm="shop-product-description-${item}">A refined item tailored to the brand promise.</p>
+            <div class="flex items-center justify-between gap-4">
+              <span class="font-semibold text-[var(--qm-accent)]" data-qay-commerce="product-price" data-qm="shop-product-price-${item}">$${item * 35 + 40}</span>
+              <button type="button" class="rounded-full bg-[var(--qm-accent)] px-4 py-2 text-sm font-semibold text-[var(--qm-accent-text)]" data-qay-commerce="add-to-cart" data-qay-product-id="template-product-${item}">Add</button>
+            </div>
+          </div>
+        </article>`).join('')}
+      </div>
+    </section>`;
+  }
+
+  if (slug === 'contact') {
+    return `
+    <section class="grid min-h-[72vh] gap-10 px-6 py-16 md:grid-cols-[0.8fr_1fr] md:px-10" data-qay-animate="scroll-reveal">
+      <div>
+        <p class="text-sm uppercase tracking-[0.22em] text-[var(--qm-accent)]" data-qm="contact-eyebrow">Contact</p>
+        <h1 class="mt-4 text-5xl font-semibold tracking-tight md:text-7xl" data-qm="contact-title">Talk to ${brand}.</h1>
+        <p class="mt-5 max-w-xl text-lg leading-8 text-[var(--qm-text-muted)]" data-qm="contact-copy">Send a message, ask a question, or start a conversation about working together.</p>
+      </div>
+      <form class="space-y-4 rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 md:p-8">
+        <input name="name" placeholder="Name" class="w-full rounded-xl border border-[var(--qm-border)] bg-[var(--qm-bg)] px-4 py-3 text-[var(--qm-text)]" />
+        <input name="email" type="email" placeholder="Email" class="w-full rounded-xl border border-[var(--qm-border)] bg-[var(--qm-bg)] px-4 py-3 text-[var(--qm-text)]" />
+        <textarea name="message" placeholder="Message" rows="5" class="w-full rounded-xl border border-[var(--qm-border)] bg-[var(--qm-bg)] px-4 py-3 text-[var(--qm-text)]"></textarea>
+        <button type="submit" class="rounded-xl bg-[var(--qm-accent)] px-6 py-3 font-semibold text-[var(--qm-accent-text)]">Send message</button>
+      </form>
+    </section>`;
+  }
+
+  if (slug === 'pricing') {
+    return `
+    <section class="px-6 py-16 md:px-10" data-qay-animate="slide-up">
+      <p class="text-sm uppercase tracking-[0.22em] text-[var(--qm-accent)]" data-qm="pricing-eyebrow">Pricing</p>
+      <h1 class="mt-4 max-w-3xl text-5xl font-semibold tracking-tight md:text-7xl" data-qm="pricing-title">Simple plans for ${brand} customers.</h1>
+      <div class="mt-10 grid gap-5 md:grid-cols-3">
+        ${['Starter', 'Growth', 'Scale'].map((plan, index) => `
+        <article class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6" data-qay-hover="lift">
+          <h2 class="text-2xl font-semibold">${plan}</h2>
+          <p class="mt-3 text-sm text-[var(--qm-text-muted)]">A focused package for clear next steps.</p>
+          <p class="mt-6 text-4xl font-semibold text-[var(--qm-accent)]">$${[19, 49, 99][index]}</p>
+          <a href="/signup" class="mt-6 inline-flex rounded-xl bg-[var(--qm-accent)] px-5 py-3 text-sm font-semibold text-[var(--qm-accent-text)]">Choose plan</a>
+        </article>`).join('')}
+      </div>
+    </section>`;
+  }
+
+  return `
+    <section class="grid min-h-[72vh] gap-10 px-6 py-16 md:grid-cols-[0.9fr_1.1fr] md:px-10" data-qay-animate="scroll-reveal">
+      <div>
+        <p class="text-sm uppercase tracking-[0.22em] text-[var(--qm-accent)]" data-qm="${slug}-eyebrow">${title}</p>
+        <h1 class="mt-4 text-5xl font-semibold tracking-tight md:text-7xl" data-qm="${slug}-title">${title} for ${brand}.</h1>
+      </div>
+      <div class="rounded-3xl border border-[var(--qm-border)] bg-[var(--qm-surface)] p-6 md:p-8">
+        <p class="text-lg leading-8 text-[var(--qm-text-muted)]" data-qm="${slug}-copy">A focused page shaped for this site, ready for QAY editing and AI personalization.</p>
+      </div>
+    </section>`;
+}
+
+function appendMissingRegularPages(html: string, pages: unknown, capabilities: GenerationCapabilities, decision: ReturnType<typeof detectTemplateChoice>) {
+  const required = new Map<string, string>();
+  for (const page of normalizeTemplatePages(pages) as Array<{ slug?: unknown; name?: unknown }>) {
+    const slug = typeof page.slug === 'string' ? page.slug.replace(/^\/+/, '').toLowerCase() : '';
+    const name = typeof page.name === 'string' ? page.name : titleFromSlug(slug);
+    if (slug && slug !== '/') required.set(slug, name);
+  }
+  if (capabilities.auth) {
+    required.delete('login');
+    required.delete('signup');
+  }
+
   let next = html;
-  if (capabilities.auth && !templateHasAuth(next)) {
+  for (const [slug, name] of required.entries()) {
+    if (!htmlHasPageSlug(next, slug)) {
+      next = `${next.trim()}\n${pageShell(slug, name, builtPageBody(slug, name, decision), decision)}`;
+    }
+  }
+  return next;
+}
+
+function extendTemplateHtml(html: string, pages: unknown, capabilities: GenerationCapabilities, decision: ReturnType<typeof detectTemplateChoice>) {
+  let next = appendMissingRegularPages(html, pages, capabilities, decision);
+  if (capabilities.auth && !templateHasAuthHooks(next)) {
     next = `${next.trim()}\n${authPagesHtml(decision)}`;
   }
   return next;
@@ -292,7 +433,7 @@ function appendMissingCapabilityPages(html: string, capabilities: GenerationCapa
 function appendMissingCapabilityPageList(pages: unknown, capabilities: GenerationCapabilities, html: string) {
   const next = [...normalizeTemplatePages(pages)];
   const slugs = pageSlugSet(next);
-  if (capabilities.auth && templateHasAuth(html)) {
+  if (capabilities.auth && templateHasAuthHooks(html)) {
     if (!slugs.has('login')) next.push({ name: 'Login', slug: 'login' });
     if (!slugs.has('signup')) next.push({ name: 'Sign up', slug: 'signup' });
   }
@@ -329,7 +470,7 @@ async function generateFromAiTemplate(prompt: string, variation?: number, capabi
   }
 
   const modifiedHtml = await modifyTemplate(String(template.html), prompt, decision);
-  const html = appendMissingCapabilityPages(modifiedHtml, requestedCapabilities, decision);
+  const html = extendTemplateHtml(modifiedHtml, template.pages, requestedCapabilities, decision);
   const pages = appendMissingCapabilityPageList(template.pages, requestedCapabilities, html);
   return {
     html,
@@ -389,32 +530,6 @@ export async function POST(request: Request) {
         }
       } catch (templateError) {
         console.warn('[QAY AI generate] Template modifier unavailable, falling back:', templateError);
-      }
-
-      try {
-        const decision = await translatePromptToDecision(prompt);
-        const { html: rawHtml, pages, stats } = await assembleFromDecision(decision, prompt);
-        const sanitized = sanitizeGeneratedHtmlPages(rawHtml, prompt, decision.siteType);
-        const sanitizedPages = sanitizeGeneratedPageList(pages, prompt, decision.siteType);
-        const html = enforcePaletteOnHtml(sanitized, paletteChoice);
-        console.log('[QAY AI generate] Generated section-library-v2 HTML:', html);
-
-        return NextResponse.json({
-          data: {
-            html,
-            pages: sanitizedPages,
-            palette: paletteChoice.paletteKey,
-            siteType: decision.siteType,
-            navMode: decision.navMode,
-            sectionPicks: decision.sectionPicks,
-            stats,
-            capabilities,
-            provider: 'hybrid-section-assembler',
-            model: 'prompt-translator',
-          },
-        });
-      } catch (err) {
-        console.warn('[AI Generate] Section planner failed, falling back to template/free-form generation:', err);
       }
     }
 

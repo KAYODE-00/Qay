@@ -40,30 +40,39 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
 <link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(fonts.heading || 'Inter')}:wght@400;600;700;800;900&family=${encodeURIComponent(fonts.body || 'Inter')}:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 `;
 
-  function pickSection(sectionType: string, context = ''): string {
+  function pickSection(sectionType: string, _context = ''): string {
     const slot = normalizeRenderableSlot(sectionType);
+
+    // Use cached chrome (nav/footer) for consistency across pages
     const cacheKey = slot === 'navbar' || slot === 'footer' ? slot : '';
     if (cacheKey && sharedChrome.has(cacheKey)) return sharedChrome.get(cacheKey) || '';
+
     const pool = lib[slot] as SectionDesign[] | undefined;
     if (!pool?.length) return '';
+
+    // Use AI-picked index from decision if available
     const rawIndex = decision.sectionPicks[slot] ?? decision.sectionPicks[sectionType];
-    // Use the AI-picked index as a starting point, then rotate within the correct
-    // site-type pool by prompt seed so different briefs do not collapse into one design.
+
     if (rawIndex !== undefined && rawIndex !== null) {
       const index = Number.isFinite(Number(rawIndex)) ? Number(rawIndex) : 0;
       const sortedPool = [...pool].sort((a, b) => a.index - b.index);
-      const exactPosition = Math.max(0, sortedPool.findIndex((item) => item.index === index));
-      const seed = `${prompt || ''}:${decision.siteType}:${decision.brand.name}:${slot}:${context}`;
-      const rotated = sortedPool[(exactPosition + stableHash(seed)) % sortedPool.length] || sortedPool[exactPosition] || sortedPool[0];
-      if (rotated) {
-        if (cacheKey) sharedChrome.set(cacheKey, rotated.html);
-        return rotated.html;
+      // Find exact index match first
+      const exact = sortedPool.find((item) => item.index === index);
+      if (exact) {
+        if (cacheKey) sharedChrome.set(cacheKey, exact.html);
+        return exact.html;
+      }
+      // Fallback to first (lowest-index) section
+      const fallback = sortedPool[0];
+      if (fallback) {
+        if (cacheKey) sharedChrome.set(cacheKey, fallback.html);
+        return fallback.html;
       }
     }
-    // Random fallback — ensures different layouts when regenerating
-    const seed = `${prompt || ''}:${decision.siteType}:${decision.brand.name}:${slot}:${context}`;
-    const deterministicIndex = stableHash(seed) % pool.length;
-    const html = pool[deterministicIndex]?.html || pool[0].html;
+
+    // No AI pick — use highest ranked section (deterministic: rank DESC, index ASC)
+    const sorted = [...pool].sort((a, b) => (b.rank ?? 0) - (a.rank ?? 0) || a.index - b.index);
+    const html = sorted[0]?.html || pool[0].html;
     if (cacheKey) sharedChrome.set(cacheKey, html);
     return html;
   }
@@ -149,7 +158,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
         }
 
         if (prompt && prompt.length > 5 && !isFunctionalPageSlug(p.slug)) {
-          content = await personalizePageHtml(content, p.name, decision, prompt);
+          content = await personalizeZones(content, p.name, decision, prompt);
         }
         return { name: p.name, slug: p.slug, content };
       });
@@ -164,7 +173,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
       bodyHtml = pageBlocks.join('\n\n');
     } else {
       if (prompt && prompt.length > 5) {
-        homepageHtml = await personalizePageHtml(homepageHtml, page.name, decision, prompt);
+        homepageHtml = await personalizeZones(homepageHtml, page.name, decision, prompt);
       }
       bodyHtml = homepageHtml;
     }
@@ -176,7 +185,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--qm-heading-font); }
       content = injectContentAndImages(sectionsHtml);
 
       if (prompt && prompt.length > 5 && !isFunctionalPageSlug(page.slug)) {
-        content = await personalizePageHtml(content, page.name, decision, prompt);
+        content = await personalizeZones(content, page.name, decision, prompt);
       }
       return { name: page.name, slug: page.slug, content };
     });
@@ -826,80 +835,90 @@ function buildCustomCheckoutPage(brandName: string) {
 </footer>`;
 }
 
-async function personalizePageHtml(html: string, pageName: string, decision: SiteDecision, prompt: string): Promise<string> {
-  try {
-    const protectedChrome: Record<string, string> = {};
-    const htmlForAi = html
-      .replace(/<nav\b[\s\S]*?<\/nav>/i, (match) => {
-        protectedChrome.__QAY_NAV__ = match;
-        return '<div data-qay-protected-chrome="nav">__QAY_NAV__</div>';
-      })
-      .replace(/<footer\b[\s\S]*?<\/footer>/i, (match) => {
-        protectedChrome.__QAY_FOOTER__ = match;
-        return '<div data-qay-protected-chrome="footer">__QAY_FOOTER__</div>';
-      });
+async function personalizeZones(
+  html: string,
+  pageName: string,
+  decision: SiteDecision,
+  prompt: string
+): Promise<string> {
+  // Step 1: Extract ALL data-qm zones from the HTML
+  // These are the ONLY things AI is allowed to change
+  const zones: Record<string, string> = {};
+  const zoneRegex = /data-qm="([^"]+)"[^>]*?>([^<]{0,300})</g;
+  let m: RegExpExecArray | null;
+  while ((m = zoneRegex.exec(html)) !== null) {
+    const zoneName = m[1];
+    const currentText = m[2].trim();
+    // Skip image zones (handled separately) and empty zones
+    if (!zoneName.includes('image') && !zoneName.includes('img') && currentText) {
+      zones[zoneName] = currentText;
+    }
+  }
 
-    const systemPrompt = `You are an expert copywriter and content personalization engine for the QAY website builder.
-You will receive the user's original website prompt, the site type, brand details, page name ("${pageName}"), and a fully styled HTML page template.
-Your ONLY job is to rewrite ALL visible text content and image URLs on this page to make them hyper-specific to the user's brand, industry, and the page's purpose.
+  if (Object.keys(zones).length === 0) return html;
 
-## What to Personalize
-- ALL headings (h1-h6): Make them compelling, specific, and on-brand.
-- ALL paragraphs: Write real, detailed copy — no placeholder text.
-- ALL button/link text: Use action-oriented, industry-specific CTAs.
-- ALL list items, table cells, card titles, card descriptions.
-- ALL prices: Use realistic prices for the industry/brand.
-- ALL product/service names: Use specific, believable names (e.g. for a phone store, use actual smartphone models, charger models, wireless accessories, etc.).
-- ALL testimonial quotes and attribution: Write believable, specific reviews.
-- ALL image alt attributes: Make them descriptive and relevant.
-- Copyright year and company references: Use the brand name.
+  // Step 2: Send ONLY the zone names + current values to AI
+  // Never send layout HTML to AI
+  const systemPrompt = `You are a professional copywriter for websites.
+You receive a list of text zones from a website section and a business description.
+You rewrite ONLY the text values to match the business.
+Respond with ONLY a valid JSON object. No markdown. No explanation.
+Keys are zone names. Values are replacement text strings.
+Keep text concise — similar length to the original.
+Write real, specific copy for this exact business and page.
+Never use lorem ipsum or generic filler like "your tagline here".
+For the brand name zone: use the exact business name from the prompt if given.
+For CTA zones: use action-oriented text specific to the industry.
+For testimonial zones: write believable, specific customer reviews.
+For stats: use realistic numbers for this business type.`;
 
-## Image Personalization Guidelines
-- Rewrite the \`src\` attribute of any \`<img>\` tags to use highly relevant, professional, high-quality Unsplash image URLs that match the brand and page.
-- For a phone/mobile store: use images of modern smartphones, mobile screens, smart accessories, phone store interior, or people using phones.
-- Example high-quality Unsplash image IDs you can use or adapt (format: \`https://images.unsplash.com/photo-<id>?w=800&auto=format&q=85\`):
-  * Smartphones/accessories: photo-1511707171634-5f897ff02aa9, photo-1598327105666-5b89351aff97, photo-1565849906663-bd23445e2b20, photo-1573148195900-7845dcb9b127, photo-1512941937669-90a1b58e7e9c, photo-1580910051074-3eb694886505, photo-1517336714731-489689fd1ca8
-  * Tech store/retail: photo-1468495244123-6c6c332eeece, photo-1607082348824-0a96f2a4b9da, photo-1511512578047-dfb367046420, photo-1519389950473-47ba0277781c
-- Ensure all rewritten image src URLs are valid Unsplash image URLs.
-
-## STRICT Rules
-- NEVER change ANY HTML tags, CSS classes, inline styles, IDs, or data-* attributes.
-- NEVER alter any data-qay-*, data-qm, data-qay-commerce, or structural attributes.
-- NEVER alter or remove placeholders named __QAY_NAV__ or __QAY_FOOTER__. Leave protected chrome placeholders exactly as received.
-- Keep text length roughly similar to the template to preserve layout.
-- Return ONLY the final HTML. No markdown code fences, no explanations, no commentary.`;
-
-    const userMessage = `User prompt: "${prompt}"
+  const userMessage = `Business prompt: "${prompt}"
+Business name: ${decision.brand.name || 'detect from prompt'}
 Site type: ${decision.siteType}
-Brand name: ${decision.brand.name}
-Tagline: ${decision.brand.tagline}
-Page name: ${pageName}
+Page: ${pageName}
+Mood: ${decision.brand.colors.isUserSupplied ? 'user-specified colors' : 'auto-generated'}
 
-HTML template to personalize:
-"""
-${htmlForAi}
-"""`;
+Rewrite these text zones for this business:
+${JSON.stringify(zones, null, 2)}
 
-    const result = await callWithFallbackDetailed<string>(
+Return ONLY a JSON object with zone keys and new text values.`;
+
+  try {
+    const result = await callWithFallbackDetailed<Record<string, string>>(
       userMessage,
       systemPrompt,
       (text) => {
-        const cleaned = text.trim().replace(/^```html\n?/i, '').replace(/\n?```$/i, '').trim();
-        if (!/<[a-z][\s\S]*>/i.test(cleaned)) {
-          throw new Error('Invalid HTML returned');
+        const cleaned = text.trim()
+          .replace(/^```json\n?/, '')
+          .replace(/^```\n?/, '')
+          .replace(/\n?```$/, '')
+          .trim();
+        const parsed = JSON.parse(cleaned);
+        if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw new Error('Expected JSON object');
         }
-        return cleaned
-          .replace(/<div data-qay-protected-chrome="nav">__QAY_NAV__<\/div>/g, protectedChrome.__QAY_NAV__ || '')
-          .replace(/<div data-qay-protected-chrome="footer">__QAY_FOOTER__<\/div>/g, protectedChrome.__QAY_FOOTER__ || '')
-          .replace(/__QAY_NAV__/g, protectedChrome.__QAY_NAV__ || '')
-          .replace(/__QAY_FOOTER__/g, protectedChrome.__QAY_FOOTER__ || '');
+        return parsed;
       }
     );
 
-    return result.value || html;
+    if (!result.value) return html;
+
+    // Step 3: Inject replacements back into HTML
+    // ONLY replace text content of data-qm zones
+    // NEVER touch classes, attributes, or structure
+    let out = html;
+    for (const [zone, newText] of Object.entries(result.value)) {
+      if (typeof newText !== 'string' || !newText.trim()) continue;
+      out = out.replace(
+        new RegExp(`(data-qm="${escapeRegex(zone)}"[^>]*?>)[^<]*(<?)`, 'g'),
+        `$1${escapeHtml(newText.slice(0, 500))}$2`
+      );
+    }
+    return out;
+
   } catch (err) {
-    console.warn(`[QAY AI] Page "${pageName}" copy personalization failed, using raw template:`, err);
-    return html;
+    console.warn(`[QAY] Zone personalization failed for page "${pageName}":`, err);
+    return html; // Return unchanged — sections still look good with default text
   }
 }
 

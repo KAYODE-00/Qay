@@ -35,24 +35,36 @@ export async function pickTheme(prompt: string, themes: QmTheme[]) {
   return scored[0]?.theme || themes[0];
 }
 
-export function pickSection(prompt: string, sectionType: SectionType, availableSections: QmSection[]) {
-  const normalized = prompt.toLowerCase();
-  const scored = [...availableSections]
-    .map((section) => ({
-      section,
-      score: section.keywords.reduce((total, keyword) => total + (normalized.includes(keyword.toLowerCase()) ? 1 : 0), 0),
-    }))
-    .sort((a, b) => b.score - a.score || b.section.rank - a.section.rank);
+export function pickSection(
+  prompt: string,
+  sectionType: SectionType,
+  availableSections: QmSection[]
+): QmSection | undefined {
+  if (!availableSections.length) return undefined
 
-  if (!scored.length) return undefined;
+  const normalized = prompt.toLowerCase()
 
-  const topScore = scored[0].score;
-  const pool = scored
-    .filter((item) => item.score === topScore)
-    .slice(0, Math.min(20, scored.length));
-  // Random selection from matching pool — ensures different layouts on each generation
-  const randomIndex = Math.floor(Math.random() * pool.length);
-  return pool[randomIndex]?.section;
+  const scored = availableSections.map((section, index) => ({
+    section,
+    index,
+    score: section.keywords.reduce(
+      (total, keyword) =>
+        total + (normalized.includes(keyword.toLowerCase()) ? 1 : 0),
+      0
+    ),
+  }))
+
+  // Sort by: score DESC, then rank DESC, then index ASC
+  // This is fully deterministic — same prompt always picks same section
+  scored.sort((a, b) =>
+    b.score - a.score ||
+    b.section.rank - a.section.rank ||
+    ((a.section as any).index !== undefined && (b.section as any).index !== undefined
+      ? (a.section as any).index - (b.section as any).index
+      : a.index - b.index)
+  )
+
+  return scored[0]?.section
 }
 
 function extractBusinessName(prompt: string) {

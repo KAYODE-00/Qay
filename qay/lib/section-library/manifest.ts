@@ -9,6 +9,8 @@ export interface SectionDesign {
   manifestLine: string;
   navLinkStyle?: 'routes' | 'anchors' | 'none';
   html: string;
+  keywords?: string[];
+  rank?: number;
 }
 
 export interface SiteTypeLibrary {
@@ -29,6 +31,9 @@ type DbSectionDesign = {
   nav_link_style: 'routes' | 'anchors' | 'none' | null;
   html: string;
   is_active: boolean | null;
+  rank: number | null;
+  keywords: string[] | null;
+  is_approved: boolean | null;
 };
 
 const cache = new Map<string, { expiresAt: number; library: SiteTypeLibrary }>();
@@ -77,11 +82,11 @@ async function loadDbDesigns(siteType: SiteType): Promise<DbSectionDesign[]> {
     const admin = getQayAdmin() as any;
     const { data, error } = await admin
       .from('qay_section_designs')
-      .select('id,site_type,section_type,array_index,label,manifest_line,nav_link_style,html,is_active')
+      .select('id,site_type,section_type,array_index,label,manifest_line,nav_link_style,html,is_active,rank,keywords,is_approved')
       .eq('site_type', siteType)
       .eq('is_active', true)
-      .order('section_type', { ascending: true })
-      .order('array_index', { ascending: true });
+      .eq('is_approved', true)
+      .order('rank', { ascending: false });
 
     if (error) return [];
     return (data || []) as DbSectionDesign[];
@@ -128,6 +133,8 @@ export async function loadLibrary(siteType: SiteType | string): Promise<SiteType
       manifestLine: manifestLineFromSection(section, index),
       navLinkStyle: sectionType === 'nav' ? 'routes' : undefined,
       html: section.html,
+      keywords: section.keywords || [],
+      rank: section.rank || 50,
     }));
   }
 
@@ -139,6 +146,8 @@ export async function loadLibrary(siteType: SiteType | string): Promise<SiteType
       manifestLine: design.manifest_line,
       navLinkStyle: design.nav_link_style || undefined,
       html: design.html,
+      keywords: design.keywords || [],
+      rank: design.rank || 50,
     });
   }
 

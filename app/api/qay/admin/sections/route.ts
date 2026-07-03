@@ -36,18 +36,6 @@ async function requireAdmin() {
   return true;
 }
 
-async function nextArrayIndex(admin: any, siteType: string, sectionType: string) {
-  const { data } = await admin
-    .from('qay_section_designs')
-    .select('array_index')
-    .eq('site_type', siteType)
-    .eq('section_type', sectionType)
-    .order('array_index', { ascending: false })
-    .limit(1);
-
-  return Number(data?.[0]?.array_index || -1) + 1;
-}
-
 export async function GET(request: Request) {
   try {
     if (!(await requireAdmin())) {
@@ -57,36 +45,30 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const siteType = cleanString(url.searchParams.get('siteType'), 40);
     const sectionType = normalizeSectionType(url.searchParams.get('sectionType'));
-
-    if (siteType && !siteTypes.has(siteType)) {
-      return NextResponse.json({ error: 'Choose a valid site type.' }, { status: 400 });
-    }
-
-    if (sectionType && !sectionTypes.has(sectionType)) {
-      return NextResponse.json({ error: 'Choose a valid section type.' }, { status: 400 });
-    }
+    const approved = url.searchParams.get('approved');
 
     const admin = getQayAdmin() as any;
     let query = admin
       .from('qay_section_designs')
-      .select('id,site_type,section_type,array_index,label,manifest_line,nav_link_style,html,preview_image_url,is_active,created_at,updated_at')
-      .order('site_type', { ascending: true })
-      .order('section_type', { ascending: true })
-      .order('array_index', { ascending: true });
+      .select('id,site_type,section_type,array_index,label,manifest_line,nav_link_style,html,preview_image_url,is_active,rank,keywords,is_approved,source,created_at,updated_at')
+      .order('rank', { ascending: false })
+      .order('created_at', { ascending: false });
 
     if (siteType) query = query.eq('site_type', siteType);
     if (sectionType) query = query.eq('section_type', sectionType);
+    if (approved === 'true') query = query.eq('is_approved', true);
+    if (approved === 'false') query = query.eq('is_approved', false);
 
     const { data, error } = await query;
     if (error) {
-      console.error('[QAY admin sections] List failed:', error);
-      return NextResponse.json({ error: 'Could not list section designs. Make sure migration 015 is applied.' }, { status: 503 });
+      console.error('[QAY admin sections] GET failed:', error);
+      return NextResponse.json({ error: 'Could not list sections.' }, { status: 503 });
     }
 
     return NextResponse.json({ data: data || [] });
   } catch (error) {
     console.error('[QAY admin sections] GET error:', error);
-    return NextResponse.json({ error: 'Could not list section designs.' }, { status: 500 });
+    return NextResponse.json({ error: 'Could not list sections.' }, { status: 500 });
   }
 }
 
@@ -97,12 +79,15 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const siteType = cleanString(body.siteType, 40) as SiteType;
-    const sectionType = normalizeSectionType(body.sectionType);
-    const label = cleanString(body.label || body.previewDescription, 120);
-    const manifestLine = cleanString(body.manifestLine || body.previewDescription || body.keywords, 300);
+    const siteType = cleanString(body.site_type || body.siteType, 40) as SiteType;
+    const sectionType = normalizeSectionType(body.section_type || body.sectionType);
+    const manifestLine = cleanString(body.manifest_line || body.manifestLine || body.previewDescription, 300);
+    const label = cleanString(body.label || body.manifest_line || body.manifestLine, 120);
     const html = cleanString(body.html, 80000);
-    const navLinkStyle = sectionType === 'navbar' ? cleanString(body.navLinkStyle, 20) || 'routes' : null;
+    const rank = Number.isFinite(Number(body.rank)) ? Number(body.rank) : 50;
+    const keywords = Array.isArray(body.keywords) ? body.keywords.map((k: any) => cleanString(k, 80)).filter(Boolean) : [];
+    const source = cleanString(body.source, 40) || 'qay';
+    const previewImageUrl = cleanString(body.preview_image_url || body.previewImageUrl, 500) || null;
 
     if (!siteTypes.has(siteType)) {
       return NextResponse.json({ error: 'Choose a valid site type.' }, { status: 400 });
@@ -112,45 +97,40 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Choose a valid section type.' }, { status: 400 });
     }
 
-    if (!label || !manifestLine) {
-      return NextResponse.json({ error: 'Add a label and manifest line.' }, { status: 400 });
+    if (!manifestLine) {
+      return NextResponse.json({ error: 'Add a manifest line / description.' }, { status: 400 });
     }
 
     if (html.length < 80 || !/<[a-z][\s\S]*>/i.test(html)) {
       return NextResponse.json({ error: 'Paste a real HTML section before saving.' }, { status: 400 });
     }
 
-    if (navLinkStyle && !['routes', 'anchors', 'none'].includes(navLinkStyle)) {
-      return NextResponse.json({ error: 'Choose a valid nav link style.' }, { status: 400 });
-    }
-
     const admin = getQayAdmin() as any;
-    const arrayIndex = Number.isFinite(Number(body.arrayIndex))
-      ? Number(body.arrayIndex)
-      : await nextArrayIndex(admin, siteType, sectionType);
-
     const { data, error } = await admin
       .from('qay_section_designs')
       .insert({
         site_type: siteType,
         section_type: sectionType,
-        array_index: arrayIndex,
+        array_index: 0, // Fallback for old schema constraint if required
         label,
         manifest_line: manifestLine,
-        nav_link_style: navLinkStyle,
         html,
-        preview_image_url: cleanString(body.previewImageUrl, 500) || null,
+        rank,
+        keywords,
         is_active: true,
+        is_approved: true,
+        source,
+        preview_image_url: previewImageUrl,
       })
-      .select('id,array_index')
+      .select('id')
       .single();
 
     if (error) {
-      console.error('[QAY admin sections] Insert failed:', error);
-      return NextResponse.json({ error: 'Could not save section. Make sure migration 015 is applied.' }, { status: 503 });
+      console.error('[QAY admin sections] POST failed:', error);
+      return NextResponse.json({ error: 'Could not save section.' }, { status: 503 });
     }
 
-    return NextResponse.json({ ok: true, id: data?.id, arrayIndex: data?.array_index });
+    return NextResponse.json({ success: true, id: data?.id });
   } catch (error) {
     console.error('[QAY admin sections] POST error:', error);
     return NextResponse.json({ error: 'Could not save section.' }, { status: 500 });
@@ -167,22 +147,26 @@ export async function PATCH(request: Request) {
     const id = cleanString(body.id, 80);
     if (!id) return NextResponse.json({ error: 'Missing section id.' }, { status: 400 });
 
-    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+    if (body.site_type !== undefined) updates.site_type = cleanString(body.site_type, 40);
+    if (body.section_type !== undefined) updates.section_type = normalizeSectionType(body.section_type);
     if (body.label !== undefined) updates.label = cleanString(body.label, 120);
-    if (body.manifestLine !== undefined) updates.manifest_line = cleanString(body.manifestLine, 300);
+    if (body.manifest_line !== undefined) updates.manifest_line = cleanString(body.manifest_line, 300);
     if (body.html !== undefined) updates.html = cleanString(body.html, 80000);
-    if (body.navLinkStyle !== undefined) updates.nav_link_style = cleanString(body.navLinkStyle, 20) || null;
-    if (body.previewImageUrl !== undefined) updates.preview_image_url = cleanString(body.previewImageUrl, 500) || null;
-    if (body.isActive !== undefined) updates.is_active = Boolean(body.isActive);
+    if (body.rank !== undefined) updates.rank = Number(body.rank);
+    if (body.keywords !== undefined) updates.keywords = Array.isArray(body.keywords) ? body.keywords.map((k: any) => cleanString(k, 80)).filter(Boolean) : [];
+    if (body.is_approved !== undefined) updates.is_approved = Boolean(body.is_approved);
+    if (body.is_active !== undefined) updates.is_active = Boolean(body.is_active);
+    if (body.preview_image_url !== undefined) updates.preview_image_url = cleanString(body.preview_image_url, 500) || null;
 
     const admin = getQayAdmin() as any;
     const { error } = await admin.from('qay_section_designs').update(updates).eq('id', id);
     if (error) {
-      console.error('[QAY admin sections] Patch failed:', error);
+      console.error('[QAY admin sections] PATCH failed:', error);
       return NextResponse.json({ error: 'Could not update section.' }, { status: 503 });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ success: true, ok: true });
   } catch (error) {
     console.error('[QAY admin sections] PATCH error:', error);
     return NextResponse.json({ error: 'Could not update section.' }, { status: 500 });
@@ -206,11 +190,11 @@ export async function DELETE(request: Request) {
       .eq('id', id);
 
     if (error) {
-      console.error('[QAY admin sections] Delete failed:', error);
+      console.error('[QAY admin sections] DELETE failed:', error);
       return NextResponse.json({ error: 'Could not deactivate section.' }, { status: 503 });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ success: true, ok: true });
   } catch (error) {
     console.error('[QAY admin sections] DELETE error:', error);
     return NextResponse.json({ error: 'Could not deactivate section.' }, { status: 500 });
