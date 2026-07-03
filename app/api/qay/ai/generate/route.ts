@@ -7,7 +7,8 @@ import { AiProviderFailureError, AiProviderLimitsError } from '@/qay/lib/ai/prov
 import { buildPalettePrompt, enforcePaletteOnHtml, pickPalette } from '@/qay/lib/ai/pick-palette';
 import { buildQayPromptFromTemplate, enhancePromptForQay } from '@/qay/lib/ai/prompt-library';
 import { detectTemplateChoice } from '@/qay/lib/ai/template-detector';
-import { modifyTemplate } from '@/qay/lib/ai/template-modifier';
+import { cloneAndPersonalize } from '@/qay/lib/ai/template-clone-engine';
+import { type TemplateMeta } from '@/qay/lib/ai/template-ingestor';
 
 export const runtime = 'nodejs';
 
@@ -134,6 +135,20 @@ type AiTemplateRow = {
   html: string;
   pages: unknown;
   rank?: number | null;
+  // New metadata columns (added by migration 025)
+  industry?: string | null;
+  color_mood?: string | null;
+  tags?: string[] | null;
+  features?: {
+    hasCms?: boolean;
+    hasCommerce?: boolean;
+    hasAuth?: boolean;
+    hasMultiPage?: boolean;
+    pageCount?: number;
+  } | null;
+  zones?: Record<string, string> | null;
+  pages_meta?: Array<{ slug: string; name: string; purpose: string }> | null;
+  cms_hints?: unknown;
 };
 
 function pageSlugSet(pages: unknown) {
@@ -204,22 +219,56 @@ function promptKeywordScore(prompt: string, haystack: string) {
   return keywords.reduce((score, word) => score + (haystack.includes(word) ? 2 : 0), 0);
 }
 
-function scoreAiTemplate(template: AiTemplateRow, prompt: string, capabilities: GenerationCapabilities, decision: ReturnType<typeof detectTemplateChoice>) {
+function scoreAiTemplate(
+  template: AiTemplateRow,
+  prompt: string,
+  capabilities: GenerationCapabilities,
+  decision: ReturnType<typeof detectTemplateChoice>
+) {
   const html = String(template.html || '');
-  const haystack = `${template.label || ''} ${template.theme || ''} ${html.slice(0, 8000)}`.toLowerCase();
+  const haystack = `${template.label || ''} ${template.theme || ''} ${(template.tags || []).join(' ')} ${template.industry || ''} ${html.slice(0, 4000)}`.toLowerCase();
   const pages = pageSlugSet(template.pages);
   let score = Number(template.rank || 0);
 
-  if (template.theme === decision.theme) score += 36;
+  // Industry match (high weight — if metadata exists)
+  if (template.industry && template.industry === decision.siteType) score += 60;
+
+  // Color mood match
+  const moodKey = decision.isDark && decision.isLuxury ? 'dark-luxury'
+    : decision.isDark && decision.isBold ? 'dark-bold'
+      : decision.isDark ? 'dark-minimal'
+        : decision.isLuxury ? 'light-luxury'
+          : decision.isBold ? 'bold-vibrant'
+            : decision.theme === 'warm' ? 'warm-classic'
+              : decision.theme === 'minimal' ? 'light-minimal'
+                : 'fresh-modern';
+  if (template.color_mood && template.color_mood === moodKey) score += 30;
+  else if (template.theme === decision.theme) score += 16;
+
+  // Style signals
   if (decision.isLuxury && /luxury|premium|editorial|bespoke|exclusive/.test(haystack)) score += 20;
   if (decision.isBold && /bold|street|urban|hype|vibrant|neon/.test(haystack)) score += 20;
   if (decision.isDark && /dark|black|noir|midnight|obsidian/.test(haystack)) score += 14;
+
+  // Keyword overlap with prompt
   score += promptKeywordScore(prompt, haystack);
 
-  if (capabilities.commerce) score += templateHasCommerce(html) ? 120 : -180;
-  if (capabilities.auth) score += templateHasAuth(html) ? 55 : -18;
-  if (capabilities.cms) score += templateHasCms(html) ? 55 : -30;
+  // Feature match — use metadata features if available, else scan HTML
+  const features = template.features;
+  if (capabilities.commerce) {
+    const has = features ? !!features.hasCommerce : templateHasCommerce(html);
+    score += has ? 120 : -180;
+  }
+  if (capabilities.auth) {
+    const has = features ? !!features.hasAuth : templateHasAuth(html);
+    score += has ? 55 : -18;
+  }
+  if (capabilities.cms) {
+    const has = features ? !!features.hasCms : templateHasCms(html);
+    score += has ? 55 : -30;
+  }
 
+  // Page slug coverage
   for (const slug of requestedTemplateSlugs(prompt, capabilities, decision.siteType)) {
     if (pages.has(slug)) score += 9;
     else if (slug !== '/') score -= 2;
@@ -446,11 +495,12 @@ async function generateFromAiTemplate(prompt: string, variation?: number, capabi
   const admin = getQayAdmin() as any;
   const { data, error } = await admin
     .from('qay_ai_templates')
-    .select('id, site_type, theme, label, html, pages, rank')
-    .eq('site_type', decision.siteType)
+    .select('id, site_type, theme, label, html, pages, rank, industry, color_mood, tags, features, zones, pages_meta, cms_hints')
     .eq('is_active', true)
+    .eq('is_approved', true)
+    .or(`site_type.eq.${decision.siteType},industry.eq.${decision.siteType}`)
     .order('rank', { ascending: false })
-    .limit(8);
+    .limit(12);
 
   if (error) {
     console.warn('[QAY AI generate] Template lookup failed, falling back:', error.message || error);
@@ -461,15 +511,30 @@ async function generateFromAiTemplate(prompt: string, variation?: number, capabi
   const selected = selectBestAiTemplate(templates, prompt, requestedCapabilities, decision);
   const template = selected?.template;
 
-  if (!template?.html) {
-    return null;
-  }
+  if (!template?.html) return null;
 
   if (requestedCapabilities.commerce && !templateHasCommerce(String(template.html))) {
     return null;
   }
 
-  const modifiedHtml = await modifyTemplate(String(template.html), prompt, decision);
+  // Build TemplateMeta from stored metadata columns
+  const templateMeta: TemplateMeta | undefined = template.features ? {
+    industry: template.industry || decision.siteType,
+    colorMood: template.color_mood || 'light-minimal',
+    tags: template.tags || [],
+    features: {
+      hasCms: !!template.features.hasCms,
+      hasCommerce: !!template.features.hasCommerce,
+      hasAuth: !!template.features.hasAuth,
+      hasMultiPage: !!template.features.hasMultiPage,
+      pageCount: template.features.pageCount || 1,
+    },
+    zones: template.zones || {},
+    pagesMeta: template.pages_meta || [],
+    cmsHints: template.cms_hints as TemplateMeta['cmsHints'] || undefined,
+  } : undefined;
+
+  const modifiedHtml = await cloneAndPersonalize(String(template.html), prompt, decision, templateMeta);
   const html = extendTemplateHtml(modifiedHtml, template.pages, requestedCapabilities, decision);
   const pages = appendMissingCapabilityPageList(template.pages, requestedCapabilities, html);
   return {
@@ -480,8 +545,8 @@ async function generateFromAiTemplate(prompt: string, variation?: number, capabi
     templateId: template.id,
     templateLabel: template.label,
     templateScore: selected?.score || 0,
-    provider: 'template-modifier',
-    model: 'qay-ai-template',
+    provider: 'template-clone',
+    model: 'qay-template-clone-engine',
   };
 }
 
