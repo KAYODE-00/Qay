@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { Template } from '@/lib/services/templateService';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { listPublicUserTemplates } from '@/qay/lib/user-templates';
+import { getQayAdmin } from '@/qay/lib/supabase-admin';
 import { PublicTemplatesList } from './PublicTemplatesList';
 
 export const dynamic = 'force-dynamic';
@@ -18,22 +19,75 @@ type PublicTemplate = Template & {
   source: string;
 };
 
-async function getPublicTemplates(): Promise<PublicTemplate[]> {
-  const userTemplates = await listPublicUserTemplates().catch(() => []);
-  const qayTemplates: PublicTemplate[] = userTemplates
-    .map((template) => ({
-      id: `user-${template.id}`,
-      name: template.name,
-      description: template.description,
-      preview: template.thumbnail_url || template.preview_url || '',
-      stats: undefined,
-      categoryId: null,
-      livePreviewUrl: template.preview_url || null,
-      categoryName: template.category || 'Template',
-      source: template.source_label || 'QAY',
-    }));
+// Fetch AI builder templates from qay_ai_templates
+async function getAiTemplates(): Promise<PublicTemplate[]> {
+  try {
+    const admin = getQayAdmin() as any;
+    const { data, error } = await admin
+      .from('qay_ai_templates')
+      .select('id, label, industry, color_mood, tags, features')
+      .eq('is_active', true)
+      .eq('is_approved', true)
+      .order('rank', { ascending: false })
+      .limit(24);
 
-  return qayTemplates;
+    if (error || !Array.isArray(data)) return [];
+
+    return data.map((t: any) => {
+      const industryLabel = (t.industry as string)
+        .split('-')
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+      const moodLabel = (t.color_mood as string || 'Clean')
+        .split('-')
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+      const featureFlags = t.features as Record<string, boolean | number> | null;
+      const featureParts: string[] = [];
+      if (featureFlags?.hasCommerce) featureParts.push('E-commerce');
+      if (featureFlags?.hasAuth) featureParts.push('Auth');
+      if (featureFlags?.hasCms) featureParts.push('CMS');
+      const featureStr = featureParts.length ? ` · ${featureParts.join(', ')}` : '';
+
+      return {
+        id: `ai-${t.id as string}`,
+        name: t.label as string,
+        description: `${industryLabel} · ${moodLabel} design${featureStr}. Multi-page template with AI-ready zones.`,
+        preview: '',
+        stats: undefined,
+        categoryId: null,
+        livePreviewUrl: `/api/qay/ai-templates/preview/${t.id as string}`,
+        categoryName: industryLabel,
+        source: 'QAY AI',
+      } satisfies PublicTemplate;
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function getPublicTemplates(): Promise<PublicTemplate[]> {
+  const [userTemplates, aiTemplates] = await Promise.all([
+    listPublicUserTemplates().catch(() => []),
+    getAiTemplates(),
+  ]);
+
+  const qayUserTemplates: PublicTemplate[] = userTemplates.map((template) => ({
+    id: `user-${template.id}`,
+    name: template.name,
+    description: template.description,
+    preview: template.thumbnail_url || template.preview_url || '',
+    stats: undefined,
+    categoryId: null,
+    livePreviewUrl: template.preview_url || null,
+    categoryName: template.category || 'Template',
+    source: template.source_label || 'QAY',
+  }));
+
+  // AI templates shown first so users see them immediately
+  return [...aiTemplates, ...qayUserTemplates];
 }
 
 export default async function PublicTemplatesPage() {
