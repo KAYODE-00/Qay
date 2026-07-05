@@ -1,6 +1,6 @@
 import type { TemplateDecision } from './template-detector';
 import type { TemplateMeta } from './template-ingestor';
-import { callWithFallbackDetailed } from './providers';
+import { callWithFallback } from './providers';
 
 // ─── Color palettes (matches template-modifier palettes) ──────────────────────
 
@@ -237,19 +237,22 @@ async function personalizeZones(
   ].join('\n');
 
   try {
-    const result = await callWithFallbackDetailed<Record<string, string>>(
-      userPrompt, systemPrompt,
-      (text) => {
-        const cleaned = text.trim().replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim();
-        const parsed = JSON.parse(cleaned);
-        if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Expected object');
-        return parsed;
-      }
-    );
-    if (!result.value) return html;
+    const raw = await callWithFallback(userPrompt, systemPrompt);
+    // callWithFallback returns a string — handle both string and object
+    const text = typeof raw === 'string' ? raw : (raw as any)?.text || JSON.stringify(raw);
+    const cleaned = text
+      .trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+    const parsed = JSON.parse(cleaned);
+    const replacements = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, string>)
+      : zones;
 
     let out = html;
-    for (const [zone, newText] of Object.entries(result.value)) {
+    for (const [zone, newText] of Object.entries(replacements)) {
       if (typeof newText !== 'string' || !newText.trim()) continue;
       out = out.replace(
         new RegExp(`(data-qm="${escapeRegex(zone)}"[^>]*>)[^<]*(<?)`, 'g'),
@@ -257,8 +260,9 @@ async function personalizeZones(
       );
     }
     return out;
-  } catch {
-    return html;
+  } catch (err) {
+    console.warn('[QAY modifier] Text zone fill failed:', err);
+    return html; // Keep placeholder text — still looks good
   }
 }
 
@@ -310,23 +314,123 @@ async function seedCmsContent(
   return out;
 }
 
+// ─── Reference aesthetic extraction ──────────────────────────────────────────
+
+async function extractReferenceAesthetic(
+  prompt: string,
+  currentDecision: TemplateDecision,
+  referenceImageUrl?: string,
+  referenceUrl?: string,
+): Promise<Partial<TemplateDecision>> {
+  // Build the AI message based on what reference type we have
+  let referenceContext = '';
+
+  if (referenceImageUrl) {
+    referenceContext = `Reference image: ${referenceImageUrl}
+Analyze this image and describe its design aesthetic.`;
+  } else if (referenceUrl) {
+    referenceContext = `Reference website: ${referenceUrl}
+The user wants their site to look similar to this website.`;
+  }
+
+  const systemPrompt = `You analyze design references and extract aesthetic information.
+Respond ONLY with a valid JSON object. No markdown. No explanation.`;
+
+  const userMessage = `${referenceContext}
+
+The user wants to build: "${prompt}"
+
+Based on the reference, extract the design aesthetic and return this JSON:
+{
+  "isDark": true or false,
+  "isLuxury": true or false,
+  "isBold": true or false,
+  "primaryColor": "#hexcode or null if unclear",
+  "accentColor": "#hexcode or null if unclear",
+  "backgroundColor": "#hexcode or null if unclear",
+  "mood": "one of: luxury, bold, minimal, warm, editorial, modern, street",
+  "reasoning": "one sentence explaining your analysis"
+}
+
+Only extract colors if you are confident in them.
+Return null for colors you cannot determine.`;
+
+  try {
+    const raw = await callWithFallback(userMessage, systemPrompt);
+    const text = typeof raw === 'string' ? raw : (raw as any)?.text || '';
+    const cleaned = text.trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+    const parsed = JSON.parse(cleaned);
+
+    console.log('[QAY modifier] Reference aesthetic extracted:', parsed.reasoning);
+
+    // Build color override if AI found confident colors
+    const colors = (parsed.primaryColor || parsed.accentColor || parsed.backgroundColor)
+      ? {
+        primary: parsed.primaryColor || undefined,
+        accent: parsed.accentColor || undefined,
+        bg: parsed.backgroundColor || undefined,
+      }
+      : null;
+
+    return {
+      isDark: typeof parsed.isDark === 'boolean' ? parsed.isDark : currentDecision.isDark,
+      isLuxury: typeof parsed.isLuxury === 'boolean' ? parsed.isLuxury : currentDecision.isLuxury,
+      isBold: typeof parsed.isBold === 'boolean' ? parsed.isBold : currentDecision.isBold,
+      colors: colors || currentDecision.colors,
+    };
+  } catch (err) {
+    console.warn('[QAY modifier] Reference extraction failed, using prompt signals:', err);
+    return {}; // Keep original decision unchanged
+  }
+}
+
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 export async function cloneAndPersonalize(
   templateHtml: string,
   prompt: string,
   decision: TemplateDecision,
-  meta?: TemplateMeta
+  meta?: TemplateMeta,
+  referenceImageUrl?: string,
+  referenceUrl?: string,
 ): Promise<string> {
+  // If reference provided — extract aesthetic and override decision
+  let effectiveDecision = decision;
+  if (referenceImageUrl || referenceUrl) {
+    const referenceDecision = await extractReferenceAesthetic(
+      prompt,
+      decision,
+      referenceImageUrl,
+      referenceUrl,
+    );
+    // Override decision colors and mood with reference findings
+    if (referenceDecision.colors) {
+      effectiveDecision = { ...effectiveDecision, colors: referenceDecision.colors };
+    }
+    if (referenceDecision.isDark !== undefined && referenceDecision.isDark !== decision.isDark) {
+      effectiveDecision = { ...effectiveDecision, isDark: referenceDecision.isDark };
+    }
+    if (referenceDecision.isLuxury !== undefined && referenceDecision.isLuxury !== decision.isLuxury) {
+      effectiveDecision = { ...effectiveDecision, isLuxury: referenceDecision.isLuxury };
+    }
+    if (referenceDecision.isBold !== undefined && referenceDecision.isBold !== decision.isBold) {
+      effectiveDecision = { ...effectiveDecision, isBold: referenceDecision.isBold };
+    }
+  }
+
   // 1. Apply color scheme from user prompt / detected mood
-  let html = applyColorScheme(templateHtml, decision);
+  let html = applyColorScheme(templateHtml, effectiveDecision);
 
   // 2. Apply font pairing based on mood
-  html = applyFontPairing(html, decision);
+  html = applyFontPairing(html, effectiveDecision);
 
   // 3. Swap images
-  const industry = meta?.industry || decision.isBold ? 'ecommerce' : 'agency';
-  html = swapImages(html, industry, decision.imageUrls || []);
+  const industry = meta?.industry || effectiveDecision.isBold ? 'ecommerce' : 'agency';
+  html = swapImages(html, industry, effectiveDecision.imageUrls || []);
 
   // 4. Personalize text zones per page
   const pageRegex = /data-qay-page="([^"]+)"/g;
@@ -341,18 +445,18 @@ export async function cloneAndPersonalize(
       pageSections.map((section) => {
         const nameMatch = section.match(/data-qay-page="([^"]+)"/);
         const pageName = nameMatch?.[1] || 'Home';
-        return personalizeZones(section, decision, prompt, pageName);
+        return personalizeZones(section, effectiveDecision, prompt, pageName);
       })
     );
     html = personalized.join('');
   } else {
     // Single-page
-    html = await personalizeZones(html, decision, prompt, 'Homepage');
+    html = await personalizeZones(html, effectiveDecision, prompt, 'Homepage');
   }
 
   // 5. Seed CMS content if available
   if (meta?.features.hasCommerce || meta?.features.hasCms) {
-    html = await seedCmsContent(html, decision, meta);
+    html = await seedCmsContent(html, effectiveDecision, meta);
   }
 
   return html;

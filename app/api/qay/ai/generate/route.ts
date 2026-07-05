@@ -20,6 +20,8 @@ type GenerateRequestBody = {
   selectedLayers?: Layer[];
   variation?: number;
   promptTemplateId?: string;
+  referenceImageUrl?: string;
+  referenceUrl?: string;
 };
 
 function detectGenerationCapabilities(prompt: string) {
@@ -490,7 +492,13 @@ function appendMissingCapabilityPageList(pages: unknown, capabilities: Generatio
   return next;
 }
 
-async function generateFromAiTemplate(prompt: string, variation?: number, capabilities?: GenerationCapabilities) {
+async function generateFromAiTemplate(
+  prompt: string,
+  variation?: number,
+  referenceImageUrl?: string,
+  referenceUrl?: string,
+  capabilities?: GenerationCapabilities,
+) {
   const decision = detectTemplateChoice(prompt, variation);
   const requestedCapabilities = capabilities || detectGenerationCapabilities(prompt);
   let data: any[] = [];
@@ -537,7 +545,10 @@ async function generateFromAiTemplate(prompt: string, variation?: number, capabi
     cmsHints: template.cms_hints as TemplateMeta['cmsHints'] || undefined,
   } : undefined;
 
-  const modifiedHtml = await cloneAndPersonalize(String(template.html), prompt, decision, templateMeta);
+  const modifiedHtml = await cloneAndPersonalize(
+    String(template.html), prompt, decision, templateMeta,
+    referenceImageUrl, referenceUrl,
+  );
   const html = extendTemplateHtml(modifiedHtml, template.pages, requestedCapabilities, decision);
   const pages = appendMissingCapabilityPageList(template.pages, requestedCapabilities, html);
   return {
@@ -579,34 +590,52 @@ export async function POST(request: Request) {
     }
 
     if (body.output === 'html' && mode === 'page') {
-      try {
-        const templateResult = await generateFromAiTemplate(prompt, body.variation, capabilities);
-        if (templateResult) {
-          const sanitized = sanitizeGeneratedHtmlPages(templateResult.html, prompt, templateResult.siteType);
-          const html = enforcePaletteOnHtml(sanitized, paletteChoice);
-          const pages = sanitizeGeneratedPageList(templateResult.pages, prompt, templateResult.siteType);
-          console.log('[QAY AI generate] Generated template-modifier HTML:', html);
-          return NextResponse.json({
-            data: {
-              ...templateResult,
-              html,
-              pages,
-              palette: paletteChoice.paletteKey,
-              capabilities,
-            },
-          });
-        }
-        throw new Error('No matching template found for your prompt. Try including tags like "streetwear shop", "gym", "restaurant", "saas", "law firm", "creative agency", or "beauty studio".');
-      } catch (templateError) {
-        console.error('[QAY AI generate] Template builder error:', templateError);
-        return NextResponse.json({
-          error: templateError instanceof Error ? templateError.message : 'We could not generate this template-based design.'
-        }, { status: 422 });
+      // TEMPLATE SYSTEM — only path, no fallbacks
+      const templateResult = await generateFromAiTemplate(
+        prompt,
+        body.variation,
+        body.referenceImageUrl,
+        body.referenceUrl,
+        capabilities,
+      );
+
+      if (!templateResult) {
+        return NextResponse.json(
+          {
+            error: 'No template found for this type of site yet. ' +
+              'Try describing your site differently, or check back ' +
+              'as we add more templates.',
+            code: 'NO_TEMPLATE_FOUND',
+          },
+          { status: 422 }
+        );
       }
+
+      const html = enforcePaletteOnHtml(
+        sanitizeGeneratedHtmlPages(templateResult.html, prompt, templateResult.siteType),
+        paletteChoice,
+      );
+      const pages = sanitizeGeneratedPageList(templateResult.pages, prompt, templateResult.siteType);
+      console.log('[QAY AI generate] Generated template-modifier HTML:', html);
+      return NextResponse.json({
+        data: {
+          ...templateResult,
+          html,
+          pages,
+          palette: paletteChoice.paletteKey,
+          capabilities,
+        },
+      });
     }
 
-    // SECTION ASSEMBLER COMMENTS (NOT DELETED, JUST HIDDEN AWAY FOR PAGE GENERATION FALLBACK)
-    /*
+    // ─── SECTION ASSEMBLER — COMMENTED OUT, NOT DELETED ──────────────
+    // The section assembler and free-form AI paths below are preserved
+    // for reference but are no longer active for html + page generation.
+    // Only the template system above handles that case.
+    // The code below only runs for mode === 'selected' (inline AI)
+    // or for layers output — both of which still need the AI providers.
+    // ─────────────────────────────────────────────────────────────────
+
     const result = body.output === 'html'
       ? await generateQayAiHtml({ prompt: enhancedPrompt, mode, selectedLayers })
       : await generateQayAiLayers({ prompt, mode, selectedLayers });
@@ -615,24 +644,7 @@ export async function POST(request: Request) {
       result.html = enforcePaletteOnHtml(sanitizeGeneratedHtmlPages(result.html, prompt), paletteChoice);
       (result as typeof result & { palette?: string }).palette = paletteChoice.paletteKey;
       (result as typeof result & { capabilities?: ReturnType<typeof detectGenerationCapabilities> }).capabilities = capabilities;
-      console.log('[QAY AI generate] Generated HTML:', result.html);
-    } else if ('layers' in result) {
-      (result as typeof result & { capabilities?: ReturnType<typeof detectGenerationCapabilities> }).capabilities = capabilities;
-      console.log('[QAY AI generate] Generated layer JSON:', JSON.stringify(result.layers, null, 2));
-    }
-
-    return NextResponse.json({ data: result });
-    */
-
-    const result = body.output === 'html'
-      ? await generateQayAiHtml({ prompt: enhancedPrompt, mode, selectedLayers })
-      : await generateQayAiLayers({ prompt, mode, selectedLayers });
-
-    if (body.output === 'html' && 'html' in result) {
-      result.html = enforcePaletteOnHtml(sanitizeGeneratedHtmlPages(result.html, prompt), paletteChoice);
-      (result as typeof result & { palette?: string }).palette = paletteChoice.paletteKey;
-      (result as typeof result & { capabilities?: ReturnType<typeof detectGenerationCapabilities> }).capabilities = capabilities;
-      console.log('[QAY AI generate] Generated HTML:', result.html);
+      console.log('[QAY AI generate] Generated selected-layer HTML:', result.html);
     } else if ('layers' in result) {
       (result as typeof result & { capabilities?: ReturnType<typeof detectGenerationCapabilities> }).capabilities = capabilities;
       console.log('[QAY AI generate] Generated layer JSON:', JSON.stringify(result.layers, null, 2));
