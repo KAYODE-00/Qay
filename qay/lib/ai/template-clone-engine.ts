@@ -77,6 +77,42 @@ const COLOR_PALETTES: Record<string, Record<string, string>> = {
     '--qm-accent-text': '#ffffff',
     '--qm-border': 'rgba(79,70,229,0.15)',
   },
+  'dark-blue': {
+    '--qm-bg': '#080c14',
+    '--qm-surface': '#0d1220',
+    '--qm-text': '#e0eaff',
+    '--qm-text-muted': '#93a4c8',
+    '--qm-accent': '#3b82f6',
+    '--qm-accent-text': '#ffffff',
+    '--qm-border': 'rgba(59,130,246,0.18)',
+  },
+  'light-blue': {
+    '--qm-bg': '#ffffff',
+    '--qm-surface': '#f0f6ff',
+    '--qm-text': '#111827',
+    '--qm-text-muted': '#62748e',
+    '--qm-accent': '#2563eb',
+    '--qm-accent-text': '#ffffff',
+    '--qm-border': 'rgba(37,99,235,0.14)',
+  },
+  'dark-yellow': {
+    '--qm-bg': '#120f05',
+    '--qm-surface': '#1c1708',
+    '--qm-text': '#fff8dc',
+    '--qm-text-muted': '#b8a76d',
+    '--qm-accent': '#eab308',
+    '--qm-accent-text': '#111111',
+    '--qm-border': 'rgba(234,179,8,0.18)',
+  },
+  'light-yellow': {
+    '--qm-bg': '#fffbeb',
+    '--qm-surface': '#fff7d6',
+    '--qm-text': '#1c1605',
+    '--qm-text-muted': '#75662b',
+    '--qm-accent': '#ca8a04',
+    '--qm-accent-text': '#ffffff',
+    '--qm-border': 'rgba(202,138,4,0.16)',
+  },
 };
 
 const FONT_PAIRINGS: Record<string, { heading: string; body: string; googleUrl: string }> = {
@@ -109,29 +145,64 @@ const INDUSTRY_PHOTOS: Record<string, string[]> = {
 
 // ─── Color & font application ─────────────────────────────────────────────────
 
+function isColorDark(hex: string): boolean {
+  const c = hex.replace('#', '').slice(0, 6);
+  if (!/^[0-9a-f]{6}$/i.test(c)) return false;
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+}
+
+function clampColor(value: number): number {
+  if (Number.isNaN(value)) return 0;
+  return Math.min(255, Math.max(0, value));
+}
+
+function adjustColor(hex: string, amount: number): string {
+  const c = hex.replace('#', '').slice(0, 6);
+  if (!/^[0-9a-f]{6}$/i.test(c)) return hex;
+  const r = clampColor(parseInt(c.slice(0, 2), 16) + amount);
+  const g = clampColor(parseInt(c.slice(2, 4), 16) + amount);
+  const b = clampColor(parseInt(c.slice(4, 6), 16) + amount);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+function buildPromptPalette(decision: TemplateDecision): Record<string, string> {
+  const bg = decision.colors?.bg || (decision.isDark ? '#0a0a0a' : '#ffffff');
+  const accent = decision.colors?.accent || decision.colors?.primary || (isColorDark(bg) ? '#f8fafc' : '#111111');
+  const bgIsDark = isColorDark(bg);
+  const accentIsDark = isColorDark(accent);
+  return {
+    '--qm-bg': bg,
+    '--qm-surface': bgIsDark ? adjustColor(bg, 12) : adjustColor(bg, -8),
+    '--qm-text': bgIsDark ? '#f8fafc' : '#111111',
+    '--qm-text-muted': bgIsDark ? '#cbd5e1' : '#4b5563',
+    '--qm-accent': accent,
+    '--qm-accent-text': accentIsDark ? '#ffffff' : '#111111',
+    '--qm-border': bgIsDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)',
+  };
+}
+
 function pickPalette(decision: TemplateDecision): Record<string, string> {
-  // If user specified explicit colors, build from those
   if (decision.colors) {
-    const isDark = decision.isDark;
-    return {
-      '--qm-bg': decision.colors.bg || (isDark ? '#0a0a0a' : '#ffffff'),
-      '--qm-surface': isDark ? '#111111' : '#f8f8f6',
-      '--qm-text': isDark ? '#f5f5f5' : '#111111',
-      '--qm-text-muted': isDark ? '#a3a3a3' : '#666666',
-      '--qm-accent': decision.colors.accent || decision.colors.primary || '#111111',
-      '--qm-accent-text': isDark ? '#000000' : '#ffffff',
-      '--qm-border': isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)',
-    };
+    return buildPromptPalette(decision);
   }
 
+  const signals = decision.themeSignals || [];
+  const has = (signal: string) => signals.includes(signal);
   const key = decision.isDark && decision.isLuxury ? 'dark-luxury'
     : decision.isDark && decision.isBold ? 'dark-bold'
-      : decision.isDark ? 'dark-minimal'
-        : decision.isLuxury ? 'light-luxury'
-          : decision.isBold ? 'bold-vibrant'
-            : decision.theme === 'warm' ? 'warm-classic'
-              : decision.theme === 'minimal' ? 'light-minimal'
-                : 'fresh-modern';
+      : decision.isDark && has('blue') ? 'dark-blue'
+        : decision.isDark && has('yellow') ? 'dark-yellow'
+          : decision.isDark ? 'dark-minimal'
+            : decision.isLuxury ? 'light-luxury'
+              : decision.isBold ? 'bold-vibrant'
+                : decision.theme === 'warm' ? 'warm-classic'
+                  : decision.theme === 'minimal' ? 'light-minimal'
+                    : has('blue') ? 'light-blue'
+                      : has('yellow') ? 'light-yellow'
+                        : 'fresh-modern';
 
   return COLOR_PALETTES[key] || COLOR_PALETTES['light-minimal'];
 }

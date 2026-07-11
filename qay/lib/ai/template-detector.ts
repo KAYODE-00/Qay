@@ -48,6 +48,7 @@ const THEME_SIGNALS: Record<string, string[]> = {
   blue: ['blue', 'navy', 'indigo', 'ocean'],
   green: ['green', 'emerald', 'forest', 'sage'],
   red: ['red', 'crimson', 'rose'],
+  yellow: ['yellow', 'gold', 'amber'],
 };
 
 function scoreSignals(prompt: string, signals: Record<string, string[]>) {
@@ -155,11 +156,11 @@ function extractPromptColors(prompt: string) {
   const colors: { primary?: string; accent?: string; bg?: string } = {};
   colors.primary = findNamedColor(prompt.match(/\bprimary\s*:\s*([^\n.;]+)/i)?.[1] || '');
   colors.accent = findNamedColor(prompt.match(/\baccent\s*:\s*([^\n.;]+)/i)?.[1] || '');
-  colors.bg = findNamedColor(prompt.match(/\b(?:background|bg)\s*:\s*([^\n.;]+)/i)?.[1] || '');
+  colors.bg = findNamedColor(prompt.match(/\b(?:background|backgound|backgrond|bg)\s*:\s*([^\n.;]+)/i)?.[1] || '');
 
   if (!colors.bg) {
-    const backgroundIntent = prompt.match(/\b([a-z ]{3,32})\s+(?:for|as)\s+(?:the\s+)?(?:background|bg)\b/i)
-      || prompt.match(/\b(?:background|bg)\s+(?:should\s+be|is|as|with|use)?\s*([a-z ]{3,32})\b/i);
+    const backgroundIntent = prompt.match(/\b([a-z ]{3,32})\s+(?:for|as)\s+(?:the\s+)?(?:background|backgound|backgrond|bg)\b/i)
+      || prompt.match(/\b(?:background|backgound|backgrond|bg)\s+(?:should\s+be|is|as|with|use)?\s*([a-z ]{3,32})\b/i);
     const target = backgroundIntent?.[1]?.trim().toLowerCase();
     if (target) {
       colors.bg = mentions.find((mention) => target.includes(mention.name) || mention.name.includes(target))?.color;
