@@ -4,7 +4,10 @@ export interface TemplateDecision {
   businessName: string | null;
   colors: { primary?: string; accent?: string; bg?: string } | null;
   fonts: { heading?: string; body?: string } | null;
+  explicitFonts: { heading?: string; body?: string } | null;
   imageUrls: string[];
+  explicitImageUrls: string[];
+  themeSignals: string[];
   layoutVariant: number;
   isDark: boolean;
   isLuxury: boolean;
@@ -40,6 +43,11 @@ const THEME_SIGNALS: Record<string, string[]> = {
   warm: ['warm', 'cozy', 'rustic', 'traditional', 'homey', 'classic', 'heritage', 'vintage'],
   minimal: ['minimal', 'clean', 'simple', 'airy', 'sleek', 'stripped', 'monochrome', 'whitespace'],
   light: ['light', 'white', 'bright', 'fresh', 'soft', 'pastel', 'open'],
+  editorial: ['editorial', 'magazine', 'publication', 'journal', 'medium', 'notion'],
+  purple: ['purple', 'violet', 'lavender'],
+  blue: ['blue', 'navy', 'indigo', 'ocean'],
+  green: ['green', 'emerald', 'forest', 'sage'],
+  red: ['red', 'crimson', 'rose'],
 };
 
 function scoreSignals(prompt: string, signals: Record<string, string[]>) {
@@ -194,6 +202,9 @@ export function detectTemplateChoice(prompt: string, variationOverride?: number)
   const isDark = (themeScores.dark || 0) > 0;
   const isLuxury = (themeScores.luxury || 0) > 0;
   const isBold = (themeScores.bold || 0) > 0;
+  const themeSignals = Object.entries(themeScores)
+    .filter(([, score]) => score > 0)
+    .map(([signal]) => signal);
   if (isDark && isLuxury) theme = 'luxury';
   if (isBold) theme = 'bold';
 
@@ -237,7 +248,10 @@ export function detectTemplateChoice(prompt: string, variationOverride?: number)
     businessName,
     colors,
     fonts,
+    explicitFonts: fonts,
     imageUrls,
+    explicitImageUrls: imageUrls,
+    themeSignals,
     layoutVariant,
     isDark,
     isLuxury,
