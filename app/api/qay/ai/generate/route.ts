@@ -10,6 +10,7 @@ import { buildQayPromptFromTemplate, enhancePromptForQay } from '@/qay/lib/ai/pr
 import { detectTemplateChoice } from '@/qay/lib/ai/template-detector';
 import { cloneAndPersonalize } from '@/qay/lib/ai/template-clone-engine';
 import { type TemplateMeta } from '@/qay/lib/ai/template-ingestor';
+import { cloneProjectFromTemplate } from '@/qay/lib/projects/clone-from-template';
 
 export const runtime = 'nodejs';
 
@@ -148,7 +149,12 @@ type AiTemplateRow = {
     hasAuth?: boolean;
     hasMultiPage?: boolean;
     pageCount?: number;
-  } | null;
+  } | string[] | null;
+  has_cms?: boolean | null;
+  has_ecommerce?: boolean | null;
+  has_auth?: boolean | null;
+  source_site_id?: string | null;
+  page_count?: number | null;
   zones?: Record<string, string> | null;
   pages_meta?: Array<{ slug: string; name: string; purpose: string }> | null;
   cms_hints?: unknown;
@@ -222,6 +228,35 @@ function promptKeywordScore(prompt: string, haystack: string) {
   return keywords.reduce((score, word) => score + (haystack.includes(word) ? 2 : 0), 0);
 }
 
+function templateFeature(template: AiTemplateRow, key: 'hasCms' | 'hasCommerce' | 'hasAuth' | 'hasMultiPage') {
+  const features = template.features;
+  if (features && !Array.isArray(features) && typeof features === 'object') {
+    return Boolean(features[key]);
+  }
+  if (Array.isArray(features)) {
+    const aliases: Record<typeof key, string[]> = {
+      hasCms: ['cms'],
+      hasCommerce: ['ecommerce', 'commerce'],
+      hasAuth: ['auth', 'auth-protected'],
+      hasMultiPage: ['multi-page', 'multipage'],
+    };
+    return features.some((item) => aliases[key].includes(String(item).toLowerCase()));
+  }
+  if (key === 'hasCms') return Boolean(template.has_cms);
+  if (key === 'hasCommerce') return Boolean(template.has_ecommerce);
+  if (key === 'hasAuth') return Boolean(template.has_auth);
+  if (key === 'hasMultiPage') return Number(template.page_count || 0) > 1;
+  return false;
+}
+
+function templatePageCount(template: AiTemplateRow) {
+  const features = template.features;
+  if (features && !Array.isArray(features) && typeof features === 'object') {
+    return Number(features.pageCount || template.page_count || normalizeTemplatePages(template.pages).length || 1);
+  }
+  return Number(template.page_count || normalizeTemplatePages(template.pages).length || 1);
+}
+
 function scoreAiTemplate(
   template: AiTemplateRow,
   prompt: string,
@@ -257,17 +292,16 @@ function scoreAiTemplate(
   score += promptKeywordScore(prompt, haystack);
 
   // Feature match — use metadata features if available, else scan HTML
-  const features = template.features;
   if (capabilities.commerce) {
-    const has = features ? !!features.hasCommerce : templateHasCommerce(html);
+    const has = templateFeature(template, 'hasCommerce') || templateHasCommerce(html);
     score += has ? 120 : -180;
   }
   if (capabilities.auth) {
-    const has = features ? !!features.hasAuth : templateHasAuth(html);
+    const has = templateFeature(template, 'hasAuth') || templateHasAuth(html);
     score += has ? 55 : -18;
   }
   if (capabilities.cms) {
-    const has = features ? !!features.hasCms : templateHasCms(html);
+    const has = templateFeature(template, 'hasCms') || templateHasCms(html);
     score += has ? 55 : -30;
   }
 
@@ -498,6 +532,7 @@ async function generateFromAiTemplate(
   referenceImageUrl?: string,
   referenceUrl?: string,
   capabilities?: GenerationCapabilities,
+  userId?: string,
 ) {
   const decision = detectTemplateChoice(prompt, variation);
   const requestedCapabilities = capabilities || detectGenerationCapabilities(prompt);
@@ -506,6 +541,7 @@ async function generateFromAiTemplate(
     const knex = await getKnexClient();
     data = await knex('qay_ai_templates')
       .select('id', 'site_type', 'theme', 'label', 'html', 'pages', 'rank', 'industry', 'color_mood', 'tags', 'features', 'zones', 'pages_meta', 'cms_hints')
+      .select('has_cms', 'has_ecommerce', 'has_auth', 'page_count', 'source_site_id')
       .where('is_active', true)
       .where('is_approved', true)
       .andWhere(function() {
@@ -528,17 +564,45 @@ async function generateFromAiTemplate(
     return null;
   }
 
+  const shouldDeepClone = Boolean(userId && template.source_site_id);
+
+  if (userId && shouldDeepClone) {
+    const cloneResult = await cloneProjectFromTemplate(
+      template.id,
+      userId,
+      prompt,
+      variation,
+    );
+
+    return {
+      html: '',
+      pages: cloneResult.pages,
+      siteId: cloneResult.siteId,
+      cmsCollections: cloneResult.cmsCollections,
+      siteType: decision.siteType,
+      theme: decision.theme,
+      templateId: template.id,
+      templateLabel: template.label,
+      templateScore: selected?.score || 0,
+      provider: 'deep-clone',
+      model: 'qay-template-deep-clone',
+    };
+  }
+
   // Build TemplateMeta from stored metadata columns
-  const templateMeta: TemplateMeta | undefined = template.features ? {
+  const featureMeta = template.features && !Array.isArray(template.features) && typeof template.features === 'object'
+    ? template.features
+    : undefined;
+  const templateMeta: TemplateMeta | undefined = featureMeta ? {
     industry: template.industry || decision.siteType,
     colorMood: template.color_mood || 'light-minimal',
     tags: template.tags || [],
     features: {
-      hasCms: !!template.features.hasCms,
-      hasCommerce: !!template.features.hasCommerce,
-      hasAuth: !!template.features.hasAuth,
-      hasMultiPage: !!template.features.hasMultiPage,
-      pageCount: template.features.pageCount || 1,
+      hasCms: templateFeature(template, 'hasCms'),
+      hasCommerce: templateFeature(template, 'hasCommerce'),
+      hasAuth: templateFeature(template, 'hasAuth'),
+      hasMultiPage: templateFeature(template, 'hasMultiPage'),
+      pageCount: templatePageCount(template),
     },
     zones: template.zones || {},
     pagesMeta: template.pages_meta || [],
@@ -566,7 +630,10 @@ async function generateFromAiTemplate(
 
 export async function POST(request: Request) {
   try {
-    await getQayAuthUser();
+    const user = await getQayAuthUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
 
     const body = (await request.json()) as GenerateRequestBody;
     const rawPrompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
@@ -597,6 +664,7 @@ export async function POST(request: Request) {
         body.referenceImageUrl,
         body.referenceUrl,
         capabilities,
+        user.id,
       );
 
       if (!templateResult) {

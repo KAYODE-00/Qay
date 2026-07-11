@@ -226,6 +226,16 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
           body: JSON.stringify({ prompt, promptTemplateId: promptTemplateId || undefined, mode: 'page', output: 'html' }),
         });
         const aiPayload = await aiResponse.json();
+
+        if (aiPayload.data?.siteId) {
+          // Clean up the temporary blank site
+          await fetch(`/api/qay/sites/${payload.data.id}`, { method: 'DELETE' }).catch(() => {});
+          
+          setCreationStatus('Preparing editor...');
+          window.location.assign(`/dashboard/sites/${aiPayload.data.siteId}/editor`);
+          return;
+        }
+
         const generatedPages = aiPayload.data?.html
           ? htmlToPageImports(aiPayload.data.html, 'Homepage')
           : aiPayload.data?.layers

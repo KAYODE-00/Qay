@@ -38,7 +38,9 @@ type GenerateResponse = {
     html?: string;
     provider: string;
     model: string;
+    siteId?: string;
     siteType?: string;
+    cmsCollections?: Array<{ name: string; id: string }>;
     theme?: {
       label: string;
       theme_id: string;
@@ -269,6 +271,12 @@ export default function AiBuilderPanel({ open, onOpenChange }: AiBuilderPanelPro
       }
       if (body.data.layers) {
         console.log('[QAY AI Builder] Generated layer JSON:', body.data.layers);
+      }
+
+      if (mode === 'page' && body.data.siteId) {
+        setStatus('Created a new AI template project. Opening it now...');
+        window.location.assign(`/dashboard/sites/${body.data.siteId}/editor`);
+        return;
       }
 
       const generatedPages = body.data.html ? htmlToPageImports(body.data.html, 'Homepage') : [];

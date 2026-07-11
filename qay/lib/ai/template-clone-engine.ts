@@ -136,7 +136,7 @@ function pickPalette(decision: TemplateDecision): Record<string, string> {
   return COLOR_PALETTES[key] || COLOR_PALETTES['light-minimal'];
 }
 
-function applyColorScheme(html: string, decision: TemplateDecision): string {
+export function applyColorScheme(html: string, decision: TemplateDecision): string {
   const palette = pickPalette(decision);
   const cssVarLines = Object.entries(palette)
     .map(([k, v]) => `  ${k}: ${v};`)
@@ -148,7 +148,7 @@ function applyColorScheme(html: string, decision: TemplateDecision): string {
   return html.replace(/(<head[^>]*>)/i, `$1\n<style>:root {\n${cssVarLines}\n}</style>`);
 }
 
-function applyFontPairing(html: string, decision: TemplateDecision): string {
+export function applyFontPairing(html: string, decision: TemplateDecision): string {
   const moodKey = decision.isDark && decision.isLuxury ? 'dark-luxury'
     : decision.isDark && decision.isBold ? 'dark-bold'
       : decision.isDark ? 'dark-minimal'
@@ -268,7 +268,7 @@ async function personalizeZones(
 
 // ─── Image swapping ───────────────────────────────────────────────────────────
 
-function swapImages(html: string, industry: string, userImages: string[]): string {
+export function swapImages(html: string, industry: string, userImages: string[]): string {
   const photos = INDUSTRY_PHOTOS[industry] || INDUSTRY_PHOTOS.agency;
   let idx = 0;
 
@@ -429,7 +429,7 @@ export async function cloneAndPersonalize(
   html = applyFontPairing(html, effectiveDecision);
 
   // 3. Swap images
-  const industry = meta?.industry || effectiveDecision.isBold ? 'ecommerce' : 'agency';
+  const industry = meta?.industry || effectiveDecision.siteType || (effectiveDecision.isBold ? 'ecommerce' : 'agency');
   html = swapImages(html, industry, effectiveDecision.imageUrls || []);
 
   // 4. Personalize text zones per page
