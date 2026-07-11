@@ -735,7 +735,10 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
                       className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-foreground outline-none transition focus:border-ring"
                     />
                   </label>
-                  <a href="/prompts" target="_blank" rel="noreferrer" className="inline-flex text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground">
+                  <a
+                    href="/prompts" target="_blank"
+                    rel="noreferrer" className="inline-flex text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                  >
                     Browse QAY prompt templates
                   </a>
                 </div>
