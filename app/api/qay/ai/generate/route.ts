@@ -265,8 +265,11 @@ function scoreAiTemplate(
 ) {
   const html = String(template.html || '');
   const haystack = `${template.label || ''} ${template.theme || ''} ${(template.tags || []).join(' ')} ${template.industry || ''} ${html.slice(0, 4000)}`.toLowerCase();
+  const labelLower = String(template.label || '').toLowerCase();
   const pages = pageSlugSet(template.pages);
   let score = Number(template.rank || 0);
+
+  if (template.site_type === decision.siteType) score += 24;
 
   // Industry match (high weight — if metadata exists)
   if (template.industry && template.industry === decision.siteType) score += 60;
@@ -281,7 +284,11 @@ function scoreAiTemplate(
               : decision.theme === 'minimal' ? 'light-minimal'
                 : 'fresh-modern';
   if (template.color_mood && template.color_mood === moodKey) score += 30;
-  else if (template.theme === decision.theme) score += 16;
+  else if (template.theme === decision.theme) score += 30;
+
+  score += (decision.themeSignals || [])
+    .filter((signal) => labelLower.includes(signal))
+    .length * 8;
 
   // Style signals
   if (decision.isLuxury && /luxury|premium|editorial|bespoke|exclusive/.test(haystack)) score += 20;
@@ -317,7 +324,7 @@ function scoreAiTemplate(
 function selectBestAiTemplate(templates: AiTemplateRow[], prompt: string, capabilities: GenerationCapabilities, decision: ReturnType<typeof detectTemplateChoice>) {
   return templates
     .map((template) => ({ template, score: scoreAiTemplate(template, prompt, capabilities, decision) }))
-    .sort((a, b) => b.score - a.score)[0] || null;
+    .sort((a, b) => b.score - a.score || Number(b.template.rank || 0) - Number(a.template.rank || 0))[0] || null;
 }
 
 function authPagesHtml(decision: ReturnType<typeof detectTemplateChoice>) {
@@ -560,6 +567,14 @@ async function generateFromAiTemplate(
 
   if (!template?.html) return null;
 
+  console.log('[QAY AI generate] Template found:', {
+    templateId: template.id,
+    label: template.label,
+    siteType: template.site_type,
+    theme: template.theme,
+    score: selected?.score || 0,
+  });
+
   if (requestedCapabilities.commerce && !templateHasCommerce(String(template.html))) {
     return null;
   }
@@ -673,7 +688,7 @@ export async function POST(request: Request) {
             error: 'No template found for this type of site yet. ' +
               'Try describing your site differently, or check back ' +
               'as we add more templates.',
-            code: 'NO_TEMPLATE_FOUND',
+            code: 'NO_TEMPLATE',
           },
           { status: 422 }
         );
