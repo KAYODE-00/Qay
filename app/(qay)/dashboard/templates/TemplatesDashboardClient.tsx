@@ -456,6 +456,18 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard', showS
           body: JSON.stringify({ prompt, promptTemplateId: promptTemplateId || undefined, mode: 'page', output: 'html' }),
         });
         const aiPayload = await aiResponse.json();
+
+        if (aiPayload.data?.siteId) {
+          // Clean up the temporary blank site
+          await fetch(`/api/qay/sites/${site.id}`, { method: 'DELETE' }).catch(() => {});
+          
+          setCreationStatus('Preparing editor...');
+          setAiPrompt('');
+          setPromptTemplateId('');
+          window.location.assign(`/dashboard/sites/${aiPayload.data.siteId}/editor`);
+          return;
+        }
+
         const generatedPages = aiPayload.data?.html
           ? htmlToPageImports(aiPayload.data.html, 'Homepage')
           : aiPayload.data?.layers
@@ -1050,7 +1062,10 @@ export function TemplatesDashboardClient({ profile, context = 'dashboard', showS
                       className="w-full resize-none rounded-md border border-white/15 bg-black px-3 py-2 text-white outline-none transition focus:border-white"
                     />
                   </label>
-                  <a href="/prompts" target="_blank" rel="noreferrer" className="inline-flex text-xs font-medium text-white/55 underline underline-offset-4 transition hover:text-white">
+                  <a
+                    href="/prompts" target="_blank"
+                    rel="noreferrer" className="inline-flex text-xs font-medium text-white/55 underline underline-offset-4 transition hover:text-white"
+                  >
                     Browse QAY prompt templates
                   </a>
                 </div>

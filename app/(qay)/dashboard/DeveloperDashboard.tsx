@@ -1,8 +1,9 @@
 'use client';
 
 import { FormEvent, useState, type ReactNode } from 'react';
-import { BarChart3, Bell, Code2, ExternalLink, Grid2X2, Home, LayoutTemplate, Link2, List, MoreVertical, Plus, Settings, Sparkles, Trash2, UserPlus } from 'lucide-react';
+import { BarChart3, Bell, Code2, ExternalLink, Grid2X2, Home, LayoutTemplate, Link2, List, MoreVertical, Plus, Settings, Sparkles, Trash2, Upload, UserPlus } from 'lucide-react';
 import ImportHtmlDialog from '@/app/(builder)/ycode/components/ImportHtmlDialog';
+import SubmitTemplateButton from '@/qay/components/editor/SubmitTemplateButton';
 import { QayLogo } from '@/qay/components/QayLogo';
 import { QayThemeToggle } from '@/qay/components/QayThemeToggle';
 import type { QaySite } from '@/qay/types';
@@ -110,6 +111,7 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [sitesToDelete, setSitesToDelete] = useState<string[]>([]);
+  const [templateSubmitSiteId, setTemplateSubmitSiteId] = useState<string | null>(null);
 
   function toggleSiteSelection(siteId: string) {
     setSelectedSiteIds((current) =>
@@ -616,6 +618,14 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
                       </button>
                       <button
                         type="button"
+                        onClick={() => setTemplateSubmitSiteId(site.id)}
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Upload className="size-4" />
+                        Submit as AI template
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => deleteSite(site.id)}
                         className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-red-200 hover:bg-red-500/10"
                       >
@@ -866,6 +876,13 @@ export function DeveloperDashboard({ initialSites, profile, pendingInvites = [] 
         confirmVariant="destructive"
         onConfirm={handleConfirmDelete}
       />
+      {templateSubmitSiteId && (
+        <SubmitTemplateButton
+          siteId={templateSubmitSiteId}
+          open={true}
+          onOpenChange={(v) => { if (!v) setTemplateSubmitSiteId(null); }}
+        />
+      )}
       </div>
     </main>
   );

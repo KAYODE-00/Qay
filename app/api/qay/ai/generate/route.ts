@@ -579,7 +579,7 @@ async function generateFromAiTemplate(
     return null;
   }
 
-  const shouldDeepClone = Boolean(userId && template.source_site_id);
+  const shouldDeepClone = Boolean(userId && (template.has_cms || (template.page_count ?? 0) > 1));
 
   if (userId && shouldDeepClone) {
     const cloneResult = await cloneProjectFromTemplate(
